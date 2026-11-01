@@ -83,3 +83,4 @@ apm_modules/
 .claude/
 .cursor/
 .agents/
+.foundry/
