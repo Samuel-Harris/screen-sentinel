@@ -44,22 +44,25 @@ keeping those revisions.
 
 | File | Feature | State in 0.4.15 |
 | --- | --- | --- |
-| [01-strip-unused.md](01-strip-unused.md) | Remove audio, meetings, speakers, team, sync, the desktop app and cloud paths | Present; to remove |
+| [01-strip-unused.md](01-strip-unused.md) | Remove audio, meetings, speakers, team, sync and cloud paths | Present; to remove |
 | [02-capture-freeze-recovery.md](02-capture-freeze-recovery.md) | Recover automatically when ScreenCaptureKit stops delivering fresh frames | Missing |
 | [03-database-resilience.md](03-database-resilience.md) | Survive sleep/wake, write wedges and heavy-load checkpoints without corruption | Partial |
 | [04-token-efficient-api.md](04-token-efficient-api.md) | Columnar and outline response formats for agents | Missing |
 | [05-browser-url-from-ax.md](05-browser-url-from-ax.md) | Read browser URLs from the accessibility tree for all Chromium browsers and Electron apps | Partial |
 | [06-capture-debounce.md](06-capture-debounce.md) | One shared debounce floor for typing and clipboard triggers | Unverified; measure first |
 | [07-electron-ax-walk.md](07-electron-ax-walk.md) | Full accessibility walk inside Electron apps | Present; verify only |
+| [08-screen-only-app.md](08-screen-only-app.md) | Trim the desktop app to tray, timeline, settings and onboarding, with no network calls | Present; to trim |
 
 Order of work: 01 first, so later changes land on the smaller tree. Then 02
-and 03, because unattended recording is useless without them. Then 05, 04
-and 06. Do 07 only if its check fails.
+and 03, because unattended recording is useless without them. Then 08, whose
+unattended-day check needs 02 and 03. Then 05, 04 and 06. Do 07 only if its
+check fails.
 
 ## Out of scope
 
 - Audio capture, transcription and meetings (see 01).
-- The desktop app, pipes and the hosted `pi` agent.
+- Pipes and the hosted `pi` agent. The desktop app is trimmed, not removed
+  (see 08).
 - Sync, team memory and cloud AI.
 - The screenpipe name and logo. Rename the binary, crate prefixes and data
   directory, so the fork never collides with an official install
