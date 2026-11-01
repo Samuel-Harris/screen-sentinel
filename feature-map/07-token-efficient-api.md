@@ -1,4 +1,4 @@
-# 05. Token-efficient API responses
+# 07. Token-efficient API responses
 
 ## Why
 

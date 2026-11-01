@@ -25,7 +25,7 @@ an employer machine, with nothing to show for it.
   `screenpipe-config` and `screenpipe-core` (without `cloud-sync`).
 - The REST API for search, elements, frames, activity summary and raw SQL.
 - `packages/cli` and `packages/screenpipe-mcp`, renamed.
-- `apps/screenpipe-app-tauri`, trimmed to the screen-only app in 09.
+- `apps/screenpipe-app-tauri`, trimmed to the screen-only app in 11.
 
 ## Undecided
 
