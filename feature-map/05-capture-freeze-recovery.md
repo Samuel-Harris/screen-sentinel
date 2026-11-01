@@ -1,4 +1,4 @@
-# 03. Recover from frozen screen capture
+# 05. Recover from frozen screen capture
 
 ## Why
 
@@ -17,7 +17,7 @@ Upstream describes three versions of it in its public changelog:
   recording but I have no screenshots for days' symptom".
 - **No writes.** "capture could appear 'Running' ... while persisting nothing
   for an hour or more". That one is covered in
-  [04-database-resilience.md](04-database-resilience.md).
+  [06-database-resilience.md](06-database-resilience.md).
 
 The 2.7.116 app log on this Mac from 2026-10-26 shows the stall in the wild:
 `monitor 5: capture stream frozen — no new frame delivered for ~4s;

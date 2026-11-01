@@ -1,4 +1,4 @@
-# 08. Full accessibility walk inside Electron apps
+# 10. Full accessibility walk inside Electron apps
 
 ## Why
 

@@ -46,23 +46,23 @@ keeping those revisions.
 | --- | --- | --- |
 | [01-strip-unused.md](01-strip-unused.md) | Remove audio, meetings, speakers, team, sync and cloud paths | Present; to remove |
 | [02-rename.md](02-rename.md) | Rename everything to Screen Sentinel and replace the icons and cover art | Present; to rename |
-| [03-capture-freeze-recovery.md](03-capture-freeze-recovery.md) | Recover automatically when ScreenCaptureKit stops delivering fresh frames | Missing |
-| [04-database-resilience.md](04-database-resilience.md) | Survive sleep/wake, write wedges and heavy-load checkpoints without corruption | Partial |
-| [05-token-efficient-api.md](05-token-efficient-api.md) | Columnar and outline response formats for agents | Missing |
-| [06-browser-url-from-ax.md](06-browser-url-from-ax.md) | Read browser URLs from the accessibility tree for all Chromium browsers and Electron apps | Partial |
-| [07-capture-debounce.md](07-capture-debounce.md) | One shared debounce floor for typing and clipboard triggers | Unverified; measure first |
-| [08-electron-ax-walk.md](08-electron-ax-walk.md) | Full accessibility walk inside Electron apps | Present; verify only |
-| [09-screen-only-app.md](09-screen-only-app.md) | Trim the desktop app to tray, timeline, settings and onboarding, with no network calls | Present; to trim |
+| [05-capture-freeze-recovery.md](05-capture-freeze-recovery.md) | Recover automatically when ScreenCaptureKit stops delivering fresh frames | Missing |
+| [06-database-resilience.md](06-database-resilience.md) | Survive sleep/wake, write wedges and heavy-load checkpoints without corruption | Partial |
+| [07-token-efficient-api.md](07-token-efficient-api.md) | Columnar and outline response formats for agents | Missing |
+| [08-browser-url-from-ax.md](08-browser-url-from-ax.md) | Read browser URLs from the accessibility tree for all Chromium browsers and Electron apps | Partial |
+| [09-capture-debounce.md](09-capture-debounce.md) | One shared debounce floor for typing and clipboard triggers | Unverified; measure first |
+| [10-electron-ax-walk.md](10-electron-ax-walk.md) | Full accessibility walk inside Electron apps | Present; verify only |
+| [11-screen-only-app.md](11-screen-only-app.md) | Trim the desktop app to tray, timeline, settings and onboarding, with no network calls | Present; to trim |
 
 Order of work: 01 first, so later changes land on the smaller tree. Then 02,
-so every later change lands on the new names. Then 03 and 04, because
-unattended recording is useless without them. Then 09, whose unattended-day
-check needs 03 and 04. Then 06, 05 and 07. Do 08 only if its check fails.
+so every later change lands on the new names. Then 05 and 06, because
+unattended recording is useless without them. Then 11, whose unattended-day
+check needs 05 and 06. Then 08, 07 and 09. Do 10 only if its check fails.
 
 ## Out of scope
 
 - Audio capture, transcription and meetings (see 01).
 - Pipes and the hosted `pi` agent. The desktop app is trimmed, not removed
-  (see 09).
+  (see 11).
 - Sync, team memory and cloud AI.
 - The screenpipe name and logo (see 02).
