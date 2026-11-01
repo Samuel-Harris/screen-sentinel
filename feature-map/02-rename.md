@@ -53,13 +53,6 @@ Measured over the base tree, before 01 removes anything:
 - Provenance statements, such as "built from screenpipe 0.4.15" with a link
   to the base commit, and this feature map.
 
-## Existing recordings
-
-Nothing moves data from `~/.screenpipe` automatically. To keep 0.4.15
-recordings, copy the directory to `~/.screen-sentinel` or point the recorder
-at it with `--data-dir`. 01's check that an old database still opens runs
-that way.
-
 ## Artwork
 
 Replace every screenpipe icon and image with Screen Sentinel artwork. Get
