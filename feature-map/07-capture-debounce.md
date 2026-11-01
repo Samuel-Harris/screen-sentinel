@@ -1,4 +1,4 @@
-# 06. A shared debounce floor for typing and clipboard triggers
+# 07. A shared debounce floor for typing and clipboard triggers
 
 ## Why
 

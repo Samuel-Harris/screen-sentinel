@@ -1,4 +1,4 @@
-# 08. Trim the desktop app to a screen-only recorder
+# 09. Trim the desktop app to a screen-only recorder
 
 ## Why
 
@@ -67,7 +67,7 @@ remove it.
 
 `scripts/build_macos.sh` lines 15-16 sign with upstream's personal Apple
 Development certificate. No `tauri*.json` sets `signingIdentity`. Sign with
-your own certificate and a fixed, renamed bundle identifier, so Screen
+your own certificate and the bundle identifier from 02, so Screen
 Recording and Accessibility grants survive every rebuild. Without that, a
 rebuild silently drops the Screen Recording grant and the unattended day
 below fails.
@@ -77,8 +77,8 @@ below fails.
 - Launched at login and left for 8 hours, including at least one sleep/wake
   cycle, the app never exits or restarts, the tray shows recording
   throughout, and the timeline window shows frames across the whole period.
-  During active use there is no gap longer than 02's frozen-stream window.
-- The tray status comes from the same state as `/health`. 02's
+  During active use there is no gap longer than 03's frozen-stream window.
+- The tray status comes from the same state as `/health`. 03's
   fault-injection test changes what the tray shows.
 - `nettop -p <pid>` or Little Snitch shows no outbound connections during one
   hour with the timeline open and every settings section visited.

@@ -1,4 +1,4 @@
-# 03. Database resilience
+# 04. Database resilience
 
 ## Why
 
