@@ -13,7 +13,6 @@ an employer machine, with nothing to show for it.
 | Audio capture and transcription | `crates/screenpipe-audio`, `crates/screenpipe-audio-eval` | `screenpipe-engine` depends on `screenpipe-audio` unconditionally (`crates/screenpipe-engine/Cargo.toml` line 20), and its default features are `qwen3-asr`, `parakeet` and `redact-onnx-cpu`. This is real surgery on the engine, not a flag |
 | Meetings and speakers | `crates/screenpipe-meeting-eval`, `crates/screenpipe-engine/src/meeting_telemetry.rs`, meeting routes and tables | Keep existing migrations so old databases still open; stop writing to those tables |
 | Team memory and sync | `crates/screenpipe-team-memory`, `crates/screenpipe-sync`, the `cloud-sync` feature on `screenpipe-core` | |
-| Desktop app | `apps/screenpipe-app-tauri` | |
 | Enterprise code | `ee/` | Different licence. Delete in the first commit |
 | Hosted AI and integrations | `packages/ai-gateway`, `crates/screenpipe-connect` | `screenpipe-connect` is a direct engine dependency (line 28) |
 | Telemetry | `crates/screenpipe-engine/src/analytics.rs` (PostHog), `crates/screenpipe-engine/src/telemetry_context.rs`, the `sentry` dependency | `server.rs` line 415 calls `analytics::track_api_usage` on every API request |
@@ -26,6 +25,7 @@ an employer machine, with nothing to show for it.
   `screenpipe-config` and `screenpipe-core` (without `cloud-sync`).
 - The REST API for search, elements, frames, activity summary and raw SQL.
 - `packages/cli` and `packages/screenpipe-mcp`, renamed.
+- `apps/screenpipe-app-tauri`, trimmed to the screen-only app in 08.
 
 ## Undecided
 
