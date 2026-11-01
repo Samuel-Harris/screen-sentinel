@@ -11,7 +11,7 @@ an employer machine, with nothing to show for it.
 | Area | Where it lives at the base commit | Notes |
 | --- | --- | --- |
 | Audio capture and transcription | `crates/screenpipe-audio`, `crates/screenpipe-audio-eval` | `screenpipe-engine` depends on `screenpipe-audio` unconditionally (`crates/screenpipe-engine/Cargo.toml` line 20), and its default features are `qwen3-asr`, `parakeet` and `redact-onnx-cpu`. This is real surgery on the engine, not a flag |
-| Meetings and speakers | `crates/screenpipe-meeting-eval`, `crates/screenpipe-engine/src/meeting_telemetry.rs`, meeting routes and tables | Keep existing migrations so old databases still open; stop writing to those tables |
+| Meetings and speakers | `crates/screenpipe-meeting-eval`, `crates/screenpipe-engine/src/meeting_telemetry.rs`, meeting routes and tables | Drop those tables. No existing database needs to open |
 | Team memory and sync | `crates/screenpipe-team-memory`, `crates/screenpipe-sync`, the `cloud-sync` feature on `screenpipe-core` | |
 | Enterprise code | `ee/` | Different licence. Delete in the first commit |
 | Hosted AI and integrations | `packages/ai-gateway`, `crates/screenpipe-connect` | `screenpipe-connect` is a direct engine dependency (line 28) |
@@ -47,6 +47,4 @@ These are not on the removal list, so they stay until you choose otherwise:
   Accessibility only, never Microphone.
 - `nettop -p <pid>` or Little Snitch shows no outbound connections during
   one hour of recording, model downloads included.
-- An existing 0.4.15 database still opens, and `/search` returns its screen
-  rows.
 - The MCP server lists only the tools that still have a backing route.
