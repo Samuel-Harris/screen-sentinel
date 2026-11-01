@@ -55,6 +55,7 @@ keeping those revisions.
 | [09-capture-debounce.md](09-capture-debounce.md) | One shared debounce floor for typing and clipboard triggers | Unverified; measure first |
 | [10-electron-ax-walk.md](10-electron-ax-walk.md) | Full accessibility walk inside Electron apps | Present; verify only |
 | [11-screen-only-app.md](11-screen-only-app.md) | Trim the desktop app to tray, timeline, settings and onboarding, with no network calls | Present; to trim |
+| [12-review-skill.md](12-review-skill.md) | A skill for reviewing recorded data, packaged and distributed with APM | Missing |
 
 Order of work: 01 first, so later changes land on the smaller tree. Then 02,
 so every later change lands on the new names. Then 03, so every later
@@ -62,6 +63,7 @@ change builds and tests through one command. Then 04, so every later check
 runs through one scripted recipe. Then 05 and 06, because unattended
 recording is useless without them. Then 11, whose unattended-day
 check needs 05 and 06. Then 08, 07 and 09. Do 10 only if its check fails.
+Then 12, once the recorder has data worth reviewing.
 
 ## Out of scope
 
