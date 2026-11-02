@@ -12,7 +12,6 @@ pub mod export;
 pub mod frames;
 pub mod health;
 pub mod memories;
-pub mod pipe_store;
 pub mod power;
 pub mod search;
 pub mod streaming;

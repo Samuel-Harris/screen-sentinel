@@ -40,7 +40,6 @@ use crate::{
     },
     video_cache::FrameCache,
 };
-use dashmap::DashMap;
 use lru::LruCache;
 use moka::future::Cache as MokaCache;
 use std::{
@@ -107,23 +106,15 @@ pub struct AppState {
     pub ws_connection_count: Arc<AtomicUsize>,
     /// LRU cache for search results (10x faster for repeated queries)
     pub search_cache: SearchCache,
-    /// Limits concurrent pipe DB queries to prevent pipes from starving recording.
-    /// When all permits are taken, pipe requests get 503 instead of queueing.
-    pub pipe_query_semaphore: Arc<tokio::sync::Semaphore>,
     /// Enable PII removal from text content
     pub use_pii_removal: bool,
     /// Video quality preset for frame extraction (JPEG quality).
     pub video_quality: String,
-    /// Pipe manager for scheduled agent execution
-    pub pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     /// Vision pipeline metrics (shared across all monitors)
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
     /// Limits concurrent ffmpeg frame extractions to prevent CPU thrashing
     /// when many thumbnails are requested in parallel (e.g., search results).
     pub frame_extraction_semaphore: Arc<tokio::sync::Semaphore>,
-    /// Active pipe permission tokens — maps token string to resolved permissions.
-    pub pipe_permissions:
-        Arc<DashMap<String, Arc<screenpipe_core::pipes::permissions::PipePermissions>>>,
     /// Hot frame cache — in-memory cache for today's frames.
     /// Timeline WS reads from here instead of polling the DB.
     pub hot_frame_cache: Arc<HotFrameCache>,
@@ -162,15 +153,11 @@ pub struct SCServer {
     vision_disabled: bool,
     use_pii_removal: bool,
     video_quality: String,
-    pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
     /// Shared hot frame cache — set this before starting the server so AppState uses it.
     pub hot_frame_cache: Option<Arc<HotFrameCache>>,
     /// Power manager handle — set this before starting to enable /power endpoints.
     pub power_manager: Option<Arc<crate::power::PowerManagerHandle>>,
-    /// Shared pipe permission token registry — set before starting so PipeManager can use it.
-    pub pipe_permissions:
-        Arc<DashMap<String, Arc<screenpipe_core::pipes::permissions::PipePermissions>>>,
     /// Owned browser instance — set by the desktop shell so it can attach an
     /// OwnedWebviewHandle once the Tauri WebviewWindow is created. If unset,
     /// the engine creates a default unattached instance and owned-browser
@@ -221,11 +208,9 @@ impl SCServer {
             vision_disabled,
             use_pii_removal,
             video_quality,
-            pipe_manager: None,
             vision_metrics: Arc::new(screenpipe_screen::PipelineMetrics::new()),
             hot_frame_cache: None,
             power_manager: None,
-            pipe_permissions: Arc::new(DashMap::new()),
             owned_browser: None,
             api_auth: false,
             api_auth_key: None,
@@ -244,12 +229,6 @@ impl SCServer {
         controller: Arc<crate::high_fps_controller::HighFpsController>,
     ) -> Self {
         self.high_fps_controller = Some(controller);
-        self
-    }
-
-    /// Set the pipe manager
-    pub fn with_pipe_manager(mut self, pm: crate::pipes_api::SharedPipeManager) -> Self {
-        self.pipe_manager = Some(pm);
         self
     }
 
@@ -348,18 +327,13 @@ impl SCServer {
                 .build(),
             use_pii_removal: self.use_pii_removal,
             video_quality: self.video_quality.clone(),
-            pipe_manager: self.pipe_manager.clone(),
             vision_metrics: self.vision_metrics.clone(),
             // Allow up to 3 concurrent ffmpeg extractions. Beyond this, requests
             // queue rather than thrashing CPU with 15+ parallel ffmpeg processes
             // (typical when search results load all thumbnails at once).
             frame_extraction_semaphore: Arc::new(tokio::sync::Semaphore::new(3)),
-            // Limit pipe queries to 3 concurrent — protects recording from pipe overload.
-            // Pipes get 503 when all permits are taken; recording writes are unaffected.
-            pipe_query_semaphore: Arc::new(tokio::sync::Semaphore::new(3)),
             hot_frame_cache,
             retention_state: crate::retention::RetentionState::new(),
-            pipe_permissions: self.pipe_permissions.clone(),
             vault: screenpipe_vault::VaultManager::new(self.screenpipe_dir.clone()),
             browser_bridge: crate::routes::browser::BrowserBridge::new(),
             browser_registry: screenpipe_connect::connections::browser::BrowserRegistry::new(),
@@ -493,104 +467,6 @@ impl SCServer {
                 axum::routing::post(crate::routes::capture::update_hd_settings),
             );
 
-        // Pipe API routes (if pipe manager is available)
-        let router = if let Some(ref pm) = self.pipe_manager {
-            let pipe_routes = Router::new()
-                .route("/", axum::routing::get(crate::pipes_api::list_pipes))
-                .route(
-                    "/install",
-                    axum::routing::post(crate::pipes_api::install_pipe),
-                )
-                // Favorites — register before `/:id` so axum doesn't match
-                // "favorites" as a pipe id.
-                .route(
-                    "/favorites",
-                    axum::routing::get(crate::pipes_api::list_favorites),
-                )
-                .route("/:id", axum::routing::get(crate::pipes_api::get_pipe))
-                .route("/:id", axum::routing::delete(crate::pipes_api::delete_pipe))
-                .route(
-                    "/:id/enable",
-                    axum::routing::post(crate::pipes_api::enable_pipe),
-                )
-                .route(
-                    "/:id/favorite",
-                    axum::routing::post(crate::pipes_api::set_pipe_favorite),
-                )
-                .route(
-                    "/:id/run",
-                    axum::routing::post(crate::pipes_api::run_pipe_now),
-                )
-                .route(
-                    "/:id/logs",
-                    axum::routing::get(crate::pipes_api::get_pipe_logs),
-                )
-                .route(
-                    "/:id/config",
-                    axum::routing::post(crate::pipes_api::update_pipe_config),
-                )
-                .route(
-                    "/:id/stop",
-                    axum::routing::post(crate::pipes_api::stop_pipe),
-                )
-                .route(
-                    "/:id/executions",
-                    axum::routing::get(crate::pipes_api::get_pipe_executions),
-                )
-                .route(
-                    "/:id/history",
-                    axum::routing::delete(crate::pipes_api::clear_pipe_history),
-                )
-                .route(
-                    "/:id/session/:exec_id",
-                    axum::routing::get(crate::pipes_api::get_pipe_session),
-                )
-                // Store/registry routes (nested under /pipes/store)
-                .route(
-                    "/store",
-                    axum::routing::get(crate::routes::pipe_store::pipe_store_search),
-                )
-                .route(
-                    "/store/publish",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_publish),
-                )
-                .route(
-                    "/store/install",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_install),
-                )
-                .route(
-                    "/store/update",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_update),
-                )
-                .route(
-                    "/store/check-updates",
-                    axum::routing::get(crate::routes::pipe_store::pipe_store_check_updates),
-                )
-                .route(
-                    "/store/auto-update",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_auto_update),
-                )
-                .route(
-                    "/store/:slug",
-                    axum::routing::get(crate::routes::pipe_store::pipe_store_detail)
-                        .delete(crate::routes::pipe_store::pipe_store_unpublish),
-                )
-                .route(
-                    "/store/:slug/review",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_review),
-                )
-                .with_state(pm.clone());
-            // Inject SecretStore as an Extension so pipe handlers can access it
-            let pipe_routes = if let Some(ref ss) = self.secret_store {
-                pipe_routes.layer(axum::Extension(ss.clone()))
-            } else {
-                pipe_routes
-            };
-            router.nest("/pipes", pipe_routes)
-        } else {
-            router
-        };
-
         // Connections routes (pipe-facing integrations: Telegram, Slack, etc.)
         let cm: crate::connections_api::SharedConnectionManager = Arc::new(Mutex::new(
             screenpipe_connect::connections::ConnectionManager::new(
@@ -696,14 +572,6 @@ impl SCServer {
             .with_state(app_state.clone())
             .layer(axum::middleware::from_fn_with_state(
                 app_state.clone(),
-                crate::pipe_permissions_middleware::pipe_backpressure_layer,
-            ))
-            .layer(axum::middleware::from_fn_with_state(
-                app_state.clone(),
-                crate::pipe_permissions_middleware::pipe_permissions_layer,
-            ))
-            .layer(axum::middleware::from_fn_with_state(
-                app_state.clone(),
                 crate::routes::vault::vault_lock_middleware,
             ))
             .layer(axum::middleware::from_fn(
@@ -732,11 +600,6 @@ impl SCServer {
                             // - /connections/oauth/callback and
                             //   /mcp-servers/:id/oauth/callback: browser redirect from
                             //   OAuth providers (no bearer token in redirect)
-                            // - /pipes/store/*: onboarding can fire pipe install before
-                            //   the frontend's IPC key-fetch completes on cold start /
-                            //   reinstall. Install/list/detail/update proxy the public
-                            //   registry; publish/unpublish/review enforce their own
-                            //   Bearer check inside the handler (see pipe_store.rs).
                             let path = req.uri().path();
                             if path == "/health"
                                 || path == "/ws/health"
@@ -746,8 +609,6 @@ impl SCServer {
                                 || path == "/connections/browser/pair/start"
                                 || path == "/connections/browser/pair/status"
                                 || path.starts_with("/frames/")
-                                || path == "/notify"
-                                || path.starts_with("/pipes/store")
                             {
                                 return next.run(req).await;
                             }

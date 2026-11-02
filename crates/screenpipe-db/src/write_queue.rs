@@ -120,21 +120,6 @@ pub(crate) enum WriteOp {
     ClearSnapshotPaths {
         frame_ids: Vec<i64>,
     },
-    /// Pipe execution writes — routed through write queue for proper serialization.
-    PipeCreateExecution {
-        pipe_name: String,
-        trigger_type: String,
-        model: String,
-        provider: Option<String>,
-        started_at: String,
-    },
-    PipeUpdateExecution {
-        sql: String,
-        binds: Vec<PipeBindValue>,
-    },
-    PipeDeleteOldExecutions {
-        keep_per_pipe: i32,
-    },
     /// Deferred element insertion: inserts OCR and/or accessibility elements
     /// for a frame in a separate transaction from the frame insert itself.
     /// This avoids holding the write lock during the 30-80+ individual
@@ -157,17 +142,6 @@ pub(crate) enum WriteOp {
         /// Each entry: (app_name, window_name, browser_url, focused, text, text_json)
         windows: Vec<FrameBatchWindow>,
     },
-}
-
-/// Bind value for pipe execution SQL queries.
-#[derive(Debug, Clone)]
-pub enum PipeBindValue {
-    Text(String),
-    OptText(Option<String>),
-    Int(i64),
-    OptInt(Option<i64>),
-    Int32(i32),
-    OptInt32(Option<i32>),
 }
 
 /// Data for a single window in a batch frame insert.
@@ -811,74 +785,6 @@ async fn execute_single_write(
             Ok(WriteResult::Unit)
         }
 
-        WriteOp::PipeCreateExecution {
-            pipe_name,
-            trigger_type,
-            model,
-            provider,
-            started_at,
-        } => {
-            let row = sqlx::query_scalar::<_, i64>(
-                r#"INSERT INTO pipe_executions (pipe_name, status, trigger_type, model, provider, started_at)
-                   VALUES (?, 'queued', ?, ?, ?, ?)
-                   RETURNING id"#,
-            )
-            .bind(pipe_name)
-            .bind(trigger_type)
-            .bind(model)
-            .bind(provider)
-            .bind(started_at)
-            .fetch_one(&mut **conn)
-            .await?;
-            Ok(WriteResult::Id(row))
-        }
-
-        WriteOp::PipeUpdateExecution { sql, binds } => {
-            let mut query = sqlx::query(sql);
-            for bind in binds {
-                match bind {
-                    PipeBindValue::Text(v) => {
-                        query = query.bind(v);
-                    }
-                    PipeBindValue::OptText(v) => {
-                        query = query.bind(v);
-                    }
-                    PipeBindValue::Int(v) => {
-                        query = query.bind(v);
-                    }
-                    PipeBindValue::OptInt(v) => {
-                        query = query.bind(v);
-                    }
-                    PipeBindValue::Int32(v) => {
-                        query = query.bind(v);
-                    }
-                    PipeBindValue::OptInt32(v) => {
-                        query = query.bind(v);
-                    }
-                }
-            }
-            query.execute(&mut **conn).await?;
-            Ok(WriteResult::Unit)
-        }
-
-        WriteOp::PipeDeleteOldExecutions { keep_per_pipe } => {
-            sqlx::query(
-                r#"DELETE FROM pipe_executions
-                   WHERE id NOT IN (
-                       SELECT id FROM (
-                           SELECT id, ROW_NUMBER() OVER (
-                               PARTITION BY pipe_name ORDER BY id DESC
-                           ) AS rn
-                           FROM pipe_executions
-                       )
-                       WHERE rn <= ?
-                   )"#,
-            )
-            .bind(keep_per_pipe)
-            .execute(&mut **conn)
-            .await?;
-            Ok(WriteResult::Unit)
-        }
     }
 }
 
