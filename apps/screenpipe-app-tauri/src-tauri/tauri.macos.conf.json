@@ -1,14 +1,10 @@
 {
     "bundle": {
-        "publisher": "Mediar, Inc.",
+        "publisher": "Screen Sentinel",
         "macOS": {
             "entitlements": "entitlements.plist",
             "hardenedRuntime": true,
-            "exceptionDomain": "screenpi.pe",
-            "provisioningProfile": null,
-            "dmg": {
-                "background": "assets/dmg-background.png"
-            }
+            "provisioningProfile": null
         },
         "externalBin": [
             "ffmpeg",

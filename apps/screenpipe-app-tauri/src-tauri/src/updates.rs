@@ -7,7 +7,6 @@ use crate::store::{get_store, SettingsStore};
 use crate::tray::QUIT_REQUESTED;
 use crate::RecordingState;
 use anyhow::Error;
-use dark_light::Mode;
 use log::{debug, error, info, warn};
 use serde_json;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -376,36 +375,6 @@ impl UpdatesManager {
             if let Some(ref item) = self.update_menu_item {
                 item.set_enabled(true)?;
                 item.set_text(&format!("Update available: v{}", update.version))?;
-            }
-
-            {
-                let theme = dark_light::detect().unwrap_or(Mode::Dark);
-                let icon_path = if theme == Mode::Light {
-                    "assets/screenpipe-logo-tray-updates-black.png"
-                } else {
-                    "assets/screenpipe-logo-tray-updates-white.png"
-                };
-
-                let path = self
-                    .app
-                    .path()
-                    .resolve(icon_path, tauri::path::BaseDirectory::Resource)?;
-
-                let image = tauri::image::Image::from_path(path)?;
-
-                // TrayIcon must be accessed/dropped on the main thread
-                let app_clone = self.app.clone();
-                let _ = self.app.run_on_main_thread(move || {
-                    crate::window::with_autorelease_pool(|| {
-                        if let Some(tray) = app_clone.tray_by_id("screenpipe_main") {
-                            if let Err(e) =
-                                crate::safe_icon::safe_set_icon_as_template(&tray, image)
-                            {
-                                error!("failed to set tray update icon: {}", e);
-                            }
-                        }
-                    });
-                });
             }
 
             // Windows quirk: the Tauri updater's download_and_install launches

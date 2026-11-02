@@ -354,7 +354,6 @@ jobs:
             apps/screenpipe-app-tauri/src-tauri/vcredist
             apps/screenpipe-app-tauri/src-tauri/ollama-*
             apps/screenpipe-app-tauri/src-tauri/lib/ollama
-            apps/screenpipe-app-tauri/src-tauri/ui_monitor-*
           key: ${{ matrix.platform }}-${{ matrix.target }}-bins-v1
           restore-keys: |
             ${{ matrix.platform }}-${{ matrix.target }}-bins-

@@ -141,17 +141,6 @@ Thanks to all contributors:
   <img src="https://contrib.rocks/image?repo=screenpipe/screenpipe" />
 </a>
 
-## Translations
-
-- [日本語 (Japanese)](translated_readmes/README-ja.md)
-- [简体中文 (Simplified Chinese)](translated_readmes/README-zh_CN.md)
-- [Français (French)](translated_readmes/README-fr.md)
-- [Español (Spanish)](translated_readmes/README-es.md)
-- [Português BR (Brazilian Portuguese)](translated_readmes/README-pt_BR.md)
-- [Deutsch (German)](translated_readmes/README-de.md)
-
-Want to translate screenpipe into another language? See [`translated_readmes/`](translated_readmes/README.md).
-
 <details>
 <summary>📖 LLM reference</summary>
 
