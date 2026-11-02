@@ -166,14 +166,14 @@ jobs:
         include:
           # GitHub-hosted macOS 26 runner for Apple Silicon
           - platform: ${{ needs.check_commit.outputs.macos_arm_runner || 'macos-latest' }}
-            args: "--target aarch64-apple-darwin --features metal,parakeet-mlx,rfdetr-mlx,redact-onnx-coreml"
+            args: "--target aarch64-apple-darwin --features rfdetr-mlx,redact-onnx-coreml"
             target: aarch64-apple-darwin
-            tauri-args: "--target aarch64-apple-darwin --features metal,parakeet-mlx,rfdetr-mlx,redact-onnx-coreml,official-build"
+            tauri-args: "--target aarch64-apple-darwin --features rfdetr-mlx,redact-onnx-coreml,official-build"
             os_type: "macos"
           - platform: "macos-26"
-            args: "--target x86_64-apple-darwin --features metal,redact-onnx-coreml"
+            args: "--target x86_64-apple-darwin --features redact-onnx-coreml"
             target: x86_64-apple-darwin
-            tauri-args: "--target x86_64-apple-darwin --features metal,redact-onnx-coreml,official-build"
+            tauri-args: "--target x86_64-apple-darwin --features redact-onnx-coreml,official-build"
             os_type: "macos"
           - platform: ${{ needs.check_commit.outputs.windows_runner || 'windows-2022' }}
             args: "--target x86_64-pc-windows-msvc"
