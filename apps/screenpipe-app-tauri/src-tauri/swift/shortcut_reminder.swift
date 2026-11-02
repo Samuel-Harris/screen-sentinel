@@ -171,7 +171,6 @@ private let kAnimDur: Double = 0.2
 @available(macOS 13.0, *)
 struct ShortcutReminderView: View {
     let overlayShortcut: String
-    let chatShortcut: String
     let searchShortcut: String
     let metrics: OverlayMetrics
     let scale: CGFloat
@@ -240,10 +239,6 @@ struct ShortcutReminderView: View {
         HStack(spacing: 0) {
             ShortcutCellButton(icon: "rectangle", label: overlayShortcut, colW: nil, edge: .leading, scale: scale) {
                 onAction("open_timeline")
-            }
-            Rectangle().fill(.white.opacity(0.15)).frame(width: 0.5)
-            ShortcutCellButton(icon: "bubble.left", label: chatShortcut, colW: nil, edge: nil, scale: scale) {
-                onAction("open_chat")
             }
             Rectangle().fill(.white.opacity(0.15)).frame(width: 0.5)
             ShortcutCellButton(icon: "magnifyingglass", label: searchShortcut, colW: nil, edge: nil, scale: scale) {
@@ -386,7 +381,6 @@ class ShortcutReminderController: NSObject {
     private var trackingView: ReminderTrackingView?
 
     private var overlayShortcut = "⌘⌃S"
-    private var chatShortcut = "⌘⌃L"
     private var searchShortcut = "⌘⌃K"
     private var metrics = OverlayMetrics()
     @Published var isExpanded = false
@@ -498,7 +492,6 @@ class ShortcutReminderController: NSObject {
         guard let data = json.data(using: .utf8),
               let dict = try? JSONDecoder().decode([String: String].self, from: data) else { return }
         if let s = dict["overlay"] { overlayShortcut = prettifyShortcut(s) }
-        if let s = dict["chat"] { chatShortcut = prettifyShortcut(s) }
         if let s = dict["search"] { searchShortcut = prettifyShortcut(s) }
         if let s = dict["shortcutOverlaySize"] { setOverlayScale(s) }
         if let s = dict["metrics_ws_url"] { metricsWsUrl = s }
@@ -575,7 +568,6 @@ class ShortcutReminderController: NSObject {
         let controller = self
         let view = ShortcutReminderView(
             overlayShortcut: overlayShortcut,
-            chatShortcut: chatShortcut,
             searchShortcut: searchShortcut,
             metrics: metrics,
             scale: gOverlayScale,
