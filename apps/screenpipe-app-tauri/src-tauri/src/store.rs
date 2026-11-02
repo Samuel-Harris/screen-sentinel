@@ -628,8 +628,6 @@ pub struct SettingsStore {
     pub start_recording_shortcut: String,
     #[serde(rename = "stopRecordingShortcut")]
     pub stop_recording_shortcut: String,
-    #[serde(rename = "showChatShortcut")]
-    pub show_chat_shortcut: String,
     #[serde(rename = "searchShortcut")]
     pub search_shortcut: String,
     #[serde(rename = "lockVaultShortcut", default)]
@@ -660,10 +658,6 @@ pub struct SettingsStore {
     // frontend JSON key stays `disableTimeline` at the top level via serde
     // flatten — do not add a second field here or serde will conflict.
 
-    /// When true, the chat window stays above all other windows (default: true).
-    #[serde(rename = "chatAlwaysOnTop", default = "default_true")]
-    pub chat_always_on_top: bool,
-
     /// Show restart notifications when vision capture stalls.
     /// Disabled by default for now until the stall detector is more reliable.
     #[serde(rename = "showRestartNotifications", default)]
@@ -672,12 +666,6 @@ pub struct SettingsStore {
     /// When true, apply macOS vibrancy effect to the sidebar for a translucent look.
     #[serde(rename = "translucentSidebar", default)]
     pub translucent_sidebar: bool,
-
-    /// When true (default), hide model "thinking" reasoning blocks in the chat
-    /// transcript. The model still emits them server-side; we just don't
-    /// render the collapsible block in the UI.
-    #[serde(rename = "hideThinkingBlocks", default = "default_true")]
-    pub hide_thinking_blocks: bool,
 
     /// UI theme: "light", "dark", or "system".
     #[serde(rename = "uiTheme", default = "default_ui_theme")]
@@ -1025,10 +1013,6 @@ Rules:
             #[cfg(not(target_os = "windows"))]
             stop_recording_shortcut: "Super+Ctrl+X".to_string(),
             #[cfg(target_os = "windows")]
-            show_chat_shortcut: "Alt+L".to_string(),
-            #[cfg(not(target_os = "windows"))]
-            show_chat_shortcut: "Control+Super+L".to_string(),
-            #[cfg(target_os = "windows")]
             search_shortcut: "Alt+K".to_string(),
             #[cfg(not(target_os = "windows"))]
             search_shortcut: "Control+Super+K".to_string(),
@@ -1045,13 +1029,11 @@ Rules:
             #[cfg(not(target_os = "macos"))]
             overlay_mode: "window".to_string(),
             show_overlay_in_screen_recording: false,
-            chat_always_on_top: true,
             show_restart_notifications: false,
             #[cfg(target_os = "macos")]
             translucent_sidebar: true,
             #[cfg(not(target_os = "macos"))]
             translucent_sidebar: false,
-            hide_thinking_blocks: true,
             ui_theme: "system".to_string(),
             minimize_to_tray_on_close: false,
             extra: std::collections::HashMap::new(),

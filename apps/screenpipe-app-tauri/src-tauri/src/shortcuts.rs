@@ -23,7 +23,6 @@ struct ShortcutConfig {
     show: String,
     start: String,
     stop: String,
-    show_chat: String,
     search: String,
     lock_vault: String,
     disabled: Vec<String>,
@@ -39,7 +38,6 @@ impl ShortcutConfig {
             show: store.show_screenpipe_shortcut,
             start: store.start_recording_shortcut,
             stop: store.stop_recording_shortcut,
-            show_chat: store.show_chat_shortcut,
             search: store.search_shortcut,
             lock_vault: store.lock_vault_shortcut,
             disabled: store.disabled_shortcuts,
@@ -51,7 +49,6 @@ impl ShortcutConfig {
             "show" => "showScreenpipeShortcut",
             "start_recording" => "startRecordingShortcut",
             "stop_recording" => "stopRecordingShortcut",
-            "show_chat" => "showChatShortcut",
             "search" => "searchShortcut",
             "lock_vault" => "lockVaultShortcut",
             _ => shortcut_type,
@@ -102,7 +99,6 @@ pub async fn update_global_shortcuts(
         show: show_shortcut,
         start: start_shortcut,
         stop: stop_shortcut,
-        show_chat: store_config.show_chat,
         search: store_config.search,
         lock_vault: store_config.lock_vault,
         disabled: store_config.disabled,
@@ -188,41 +184,6 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
         config.is_disabled("stop_recording"),
         |app| {
             let _ = app.emit("shortcut-stop-recording", ());
-        },
-    )
-    .await?;
-
-    register_shortcut(
-        app,
-        &config.show_chat,
-        config.is_disabled("show_chat"),
-        |app| {
-            let app_for_closure = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                let app = &app_for_closure;
-                info!("show chat shortcut triggered");
-                let _ = app.emit("shortcut-show-chat", ());
-                if let Some(_window) = app.get_webview_window("chat") {
-                    #[cfg(target_os = "macos")]
-                    {
-                        use tauri_nspanel::ManagerExt;
-                        if let Ok(panel) = app.get_webview_panel("chat") {
-                            if panel.is_visible() {
-                                panel.order_out(None);
-                                return;
-                            }
-                        }
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    {
-                        if _window.is_visible().unwrap_or(false) {
-                            let _ = _window.hide();
-                            return;
-                        }
-                    }
-                }
-                let _ = ShowRewindWindow::Chat.show(app);
-            });
         },
     )
     .await?;

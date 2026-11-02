@@ -43,7 +43,6 @@ struct TrayMenuData {
     onboarding_completed: bool,
     show_shortcut: String,
     search_shortcut: String,
-    chat_shortcut: String,
     cloud_subscribed: bool,
     /// Internal plan id from /api/user (standard|pro|team|lifetime|none).
     subscription_plan: Option<String>,
@@ -60,10 +59,10 @@ fn prefetch_tray_menu_data(app: &AppHandle) -> TrayMenuData {
         .map(|o| o.is_completed)
         .unwrap_or(false);
 
-    let (default_show, default_search, default_chat) = if cfg!(target_os = "windows") {
-        ("Alt+S", "Alt+K", "Alt+L")
+    let (default_show, default_search) = if cfg!(target_os = "windows") {
+        ("Alt+S", "Alt+K")
     } else {
-        ("Control+Super+S", "Control+Super+K", "Control+Super+L")
+        ("Control+Super+S", "Control+Super+K")
     };
 
     let settings = SettingsStore::get(app)
@@ -80,11 +79,6 @@ fn prefetch_tray_menu_data(app: &AppHandle) -> TrayMenuData {
     } else {
         settings.search_shortcut.clone()
     };
-    let mut chat_shortcut = if settings.show_chat_shortcut.trim().is_empty() {
-        default_chat.to_string()
-    } else {
-        settings.show_chat_shortcut.clone()
-    };
 
     if settings
         .disabled_shortcuts
@@ -99,13 +93,6 @@ fn prefetch_tray_menu_data(app: &AppHandle) -> TrayMenuData {
         .any(|shortcut| shortcut == "searchShortcut")
     {
         search_shortcut.clear();
-    }
-    if settings
-        .disabled_shortcuts
-        .iter()
-        .any(|shortcut| shortcut == "showChatShortcut")
-    {
-        chat_shortcut.clear();
     }
 
     let cloud_subscribed = settings.user.cloud_subscribed == Some(true);
@@ -130,7 +117,6 @@ fn prefetch_tray_menu_data(app: &AppHandle) -> TrayMenuData {
         onboarding_completed,
         show_shortcut,
         search_shortcut,
-        chat_shortcut,
         cloud_subscribed,
         subscription_plan,
         has_permission_issue,
@@ -585,7 +571,6 @@ fn create_dynamic_menu(
 
     let show_shortcut = &data.show_shortcut;
     let search_shortcut = &data.search_shortcut;
-    let chat_shortcut = &data.chat_shortcut;
 
     // --- Open screenpipe ---
     menu_builder = menu_builder
@@ -594,13 +579,6 @@ fn create_dynamic_menu(
 
     // --- Primary actions (most-used first) ---
     // Use native accelerators for right-aligned shortcut display (like Notion Calendar)
-    {
-        let mut item = MenuItemBuilder::with_id("show_chat", "Chat");
-        if !chat_shortcut.is_empty() {
-            item = item.accelerator(&to_accelerator(chat_shortcut));
-        }
-        menu_builder = menu_builder.item(&item.build(app)?);
-    }
     {
         let mut item = MenuItemBuilder::with_id("show_search", "Search");
         if !search_shortcut.is_empty() {
@@ -891,13 +869,6 @@ fn handle_menu_event(app_handle: &AppHandle, event: tauri::menu::MenuEvent) {
                 hide_main_window(app.clone());
                 let _ = ShowRewindWindow::Search { query: None }.show(&app);
                 let _ = app.emit("tray-show-search", ());
-            });
-        }
-        "show_chat" => {
-            let app = app_handle.clone();
-            let _ = app_handle.run_on_main_thread(move || {
-                let _ = ShowRewindWindow::Chat.show(&app);
-                let _ = app.emit("tray-show-chat", ());
             });
         }
         "start_recording" | "stop_recording" | "toggle_recording" => {
@@ -1289,7 +1260,6 @@ async fn update_menu_if_needed(
             let mut m = HashMap::new();
             m.insert("show".to_string(), data.show_shortcut.clone());
             m.insert("search".to_string(), data.search_shortcut.clone());
-            m.insert("chat".to_string(), data.chat_shortcut.clone());
             m
         },
         recording_status: Some(effective_status),

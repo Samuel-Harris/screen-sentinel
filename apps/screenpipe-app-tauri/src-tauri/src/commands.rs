@@ -214,11 +214,6 @@ fn native_shortcut_action_callback_inner(action_ptr: *const std::os::raw::c_char
                         let _ = ShowRewindWindow::Main.show(&app_for_show);
                     });
                 }
-                "open_chat" => {
-                    let _ = app_clone.run_on_main_thread(move || {
-                        let _ = ShowRewindWindow::Chat.show(&app_for_show);
-                    });
-                }
                 "open_search" => {
                     let _ = app_clone.run_on_main_thread(move || {
                         let _ = (ShowRewindWindow::Search { query: None }).show(&app_for_show);
@@ -786,12 +781,11 @@ pub async fn show_window(
     app_handle: tauri::AppHandle,
     window: ShowRewindWindow,
 ) -> Result<(), String> {
-    // Close Main window when opening other windows, EXCEPT for Chat and Search
-    // Chat overlays on top of Main (level 1002 vs 1001)
+    // Close Main window when opening other windows, EXCEPT for Search
     let window_id = window.id();
     if !matches!(
         window_id,
-        RewindWindowId::Main | RewindWindowId::Chat | RewindWindowId::Search
+        RewindWindowId::Main | RewindWindowId::Search
     ) {
         // Hide Main without restoring the previous frontmost app — we're
         // transitioning to another screenpipe window so focus should stay
@@ -1386,14 +1380,6 @@ fn shortcut_reminder_payload(
         serde_json::Value::String(shortcut_reminder_label(
             &settings.show_screenpipe_shortcut,
             "showScreenpipeShortcut",
-            &settings.disabled_shortcuts,
-        )),
-    );
-    map.insert(
-        "chat".to_string(),
-        serde_json::Value::String(shortcut_reminder_label(
-            &settings.show_chat_shortcut,
-            "showChatShortcut",
             &settings.disabled_shortcuts,
         )),
     );
@@ -2086,7 +2072,7 @@ static MAIN_CLOSE_IN_PROGRESS: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 /// Unregister window-specific shortcuts when main window is hidden.
-/// Only unregisters Escape and arrow keys. Global shortcuts (search, show, chat)
+/// Only unregisters Escape and arrow keys. Global shortcuts (search, show)
 /// are NOT touched here — they must persist across window show/hide cycles.
 #[tauri::command]
 #[specta::specta]
