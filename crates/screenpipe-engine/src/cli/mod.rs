@@ -8,11 +8,7 @@ mod browser;
 pub mod connection;
 pub mod db;
 pub mod export;
-pub mod install;
-pub mod login;
 pub mod mcp;
-pub mod pipe;
-pub mod presets;
 pub mod search;
 pub mod status;
 mod store_file;
@@ -77,12 +73,6 @@ pub enum Command {
     /// via WAL while sp may be writing).
     Search(SearchArgs),
 
-    /// Manage pipes (scheduled agents on screen data)
-    Pipe {
-        #[command(subcommand)]
-        subcommand: PipeCommand,
-    },
-
     /// Vision device management commands
     Vision {
         #[command(subcommand)]
@@ -106,25 +96,6 @@ pub enum Command {
         #[command(subcommand)]
         subcommand: VaultCommand,
     },
-
-    /// Install a bundle of pipes from a manifest URL
-    Install {
-        /// Manifest URL (HTTPS, JSON). Defaults to the screenpipe starter bundle.
-        #[arg(default_value = "https://screenpi.pe/start.json")]
-        url: String,
-        /// Allow manifests hosted outside the trusted host list
-        #[arg(long, default_value_t = false)]
-        allow_untrusted: bool,
-    },
-
-    /// Authenticate with screenpipe cloud
-    Login,
-
-    /// Sign out of screenpipe cloud (clears the auth token from store.bin)
-    Logout,
-
-    /// Show current auth status
-    Whoami,
 
     /// Open the screenpipe survey in your browser
     Survey,
@@ -944,174 +915,6 @@ fn persist_recording_settings_to_store(
 }
 
 // =============================================================================
-// Pipe commands
-// =============================================================================
-
-#[derive(Subcommand)]
-pub enum PipeCommand {
-    /// List all pipes
-    List {
-        /// Output format
-        #[arg(long, default_value_t = false)]
-        json: bool,
-    },
-    /// Install a pipe from a local path or URL
-    Install {
-        /// Source: local file/dir path or URL
-        source: String,
-    },
-    /// Enable a pipe
-    Enable {
-        /// Pipe name
-        name: String,
-    },
-    /// Disable a pipe
-    Disable {
-        /// Pipe name
-        name: String,
-    },
-    /// Run a pipe once immediately
-    Run {
-        /// Pipe name
-        name: String,
-    },
-    /// Show pipe logs
-    Logs {
-        /// Pipe name
-        name: String,
-        /// Follow log output
-        #[arg(short, long, default_value_t = false)]
-        follow: bool,
-    },
-    /// Delete a pipe
-    Delete {
-        /// Pipe name
-        name: String,
-    },
-    /// Manage AI model presets
-    Models {
-        #[command(subcommand)]
-        subcommand: ModelCommand,
-    },
-    /// Publish a local pipe to the registry
-    Publish {
-        /// Pipe name (directory name under ~/.screenpipe/pipes/)
-        name: String,
-    },
-    /// Search the pipe registry
-    Search {
-        /// Search query
-        query: String,
-    },
-    /// Show pipe detail from the registry
-    Info {
-        /// Pipe slug (registry identifier)
-        slug: String,
-    },
-    /// Check publish/review status of a pipe you own
-    Status {
-        /// Pipe slug (registry identifier)
-        slug: String,
-    },
-    /// Set which AI preset(s) a pipe uses (overrides inline model/provider)
-    SetPreset {
-        /// Pipe name
-        name: String,
-        /// Preset id(s) — multiple ids form a fallback chain (first works wins)
-        #[arg(required = true, num_args = 1..)]
-        preset: Vec<String>,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum ModelCommand {
-    /// List available AI presets from settings
-    List {
-        /// Output as JSON
-        #[arg(long, default_value_t = false)]
-        json: bool,
-    },
-    /// Show one preset's full configuration (api key is masked in human view; raw in --json)
-    Show {
-        /// Preset id
-        id: String,
-        /// Output as JSON (returns raw api key — for scripting / backup)
-        #[arg(long, default_value_t = false)]
-        json: bool,
-    },
-    /// Create a new preset
-    Create {
-        /// Preset id (letters, digits, '-', '_'; max 64 chars)
-        id: String,
-        /// Provider: openai | anthropic | native-ollama | custom | screenpipe-cloud
-        #[arg(long)]
-        provider: String,
-        /// Model name (e.g. claude-sonnet-4-5, gpt-4o, llama3.2)
-        #[arg(long)]
-        model: String,
-        /// Base URL (required for native-ollama and custom)
-        #[arg(long)]
-        url: Option<String>,
-        /// API key (required for openai/anthropic; forbidden for ollama/cloud)
-        #[arg(long)]
-        api_key: Option<String>,
-        /// Optional system prompt prepended to pipe bodies
-        #[arg(long)]
-        prompt: Option<String>,
-        /// Max input context characters (1000–2_000_000)
-        #[arg(long)]
-        max_context_chars: Option<i64>,
-        /// Max output tokens (1–200000)
-        #[arg(long)]
-        max_tokens: Option<i64>,
-        /// Make this the default preset for new pipes
-        #[arg(long, default_value_t = false)]
-        set_default: bool,
-    },
-    /// Update fields on an existing preset (only provided flags change)
-    Update {
-        /// Preset id to modify
-        id: String,
-        #[arg(long)]
-        provider: Option<String>,
-        #[arg(long)]
-        model: Option<String>,
-        /// Empty string clears url
-        #[arg(long)]
-        url: Option<String>,
-        /// Empty string clears api key
-        #[arg(long)]
-        api_key: Option<String>,
-        /// Empty string clears prompt
-        #[arg(long)]
-        prompt: Option<String>,
-        #[arg(long)]
-        max_context_chars: Option<i64>,
-        #[arg(long)]
-        max_tokens: Option<i64>,
-        /// Promote this preset to default (unsets others atomically)
-        #[arg(long, default_value_t = false)]
-        set_default: bool,
-        /// Clear default flag on this preset
-        #[arg(long, default_value_t = false)]
-        unset_default: bool,
-    },
-    /// Mark a preset as the default (atomically unsets others)
-    SetDefault {
-        /// Preset id
-        id: String,
-    },
-    /// Delete a preset; refuses if any pipe references it (use --force to override)
-    Delete {
-        /// Preset id
-        id: String,
-        /// Delete even if pipes reference it (those pipes will fall back to default)
-        #[arg(long, default_value_t = false)]
-        force: bool,
-    },
-}
-
-// =============================================================================
 // Connection subcommands
 // =============================================================================
 
@@ -1194,7 +997,7 @@ pub enum DbCommand {
     /// List stale recovery/backup artifacts (db.sqlite.corrupt-*, db_corrupted.sqlite,
     /// db.sqlite.backup, db-recovery-* dirs, db-hotfix-* dirs, db.sqlite.pre-recover-*).
     /// Defaults to dry-run; pass `--apply` to actually delete. Never touches live
-    /// db.sqlite, recordings under data/, pipes/, or settings.
+    /// db.sqlite, recordings under data/, or settings.
     Cleanup {
         /// Actually delete (default is dry-run for safety).
         #[arg(long)]
@@ -1236,7 +1039,7 @@ pub enum AuthCommand {
 // =============================================================================
 
 /// Mirrors the HTTP `/search` query string so terminal use, jq filters, and
-/// pipe scripts share the same vocabulary. Output is the same `ContentItem`
+/// scripts share the same vocabulary. Output is the same `ContentItem`
 /// shape the API returns — `screenpipe search` and `curl /search` are
 /// interchangeable for downstream consumers.
 #[derive(Parser, Clone, Debug)]
