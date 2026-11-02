@@ -40,7 +40,7 @@ pub struct DeleteTimeRangeResult {
     pub accessibility_deleted: u64,
     pub ui_events_deleted: u64,
     pub video_files: Vec<String>,
-    /// Snapshot JPEG files that were uploaded to cloud and can be deleted.
+    /// Snapshot JPEG files that can be deleted.
     pub snapshot_files: Vec<String>,
 }
 
@@ -3250,176 +3250,9 @@ impl DatabaseManager {
         Ok(rows)
     }
 
+    /// Delete data in a time range and return every video and snapshot file
+    /// it orphaned, so the caller can remove them from disk after commit.
     pub async fn delete_time_range(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-    ) -> Result<DeleteTimeRangeResult, sqlx::Error> {
-        let mut tx = self.begin_immediate_with_retry().await?;
-
-        let start_str = start.to_rfc3339();
-        let end_str = end.to_rfc3339();
-
-        // 1. Collect video file paths for chunks that become fully orphaned.
-        // Only include files that have been uploaded to cloud (cloud_blob_id IS NOT NULL)
-        // or files not managed by archive (no cloud tracking needed for non-archive deletes).
-        // NOTE: filter out NULL video_chunk_id in the NOT IN subquery — SQL `x NOT IN
-        // (NULL, ...)` evaluates to UNKNOWN for every row, silently zeroing out the
-        // result set. frames.video_chunk_id is nullable (snapshot-only frames have no
-        // mp4 chunk), so without this filter the entire deletion returned 0 files.
-        let video_files: Vec<String> = sqlx::query_scalar(
-            r#"SELECT file_path FROM video_chunks
-               WHERE id IN (SELECT DISTINCT video_chunk_id FROM frames
-                            WHERE timestamp BETWEEN ?1 AND ?2 AND video_chunk_id IS NOT NULL)
-               AND id NOT IN (SELECT DISTINCT video_chunk_id FROM frames
-                              WHERE timestamp NOT BETWEEN ?1 AND ?2 AND video_chunk_id IS NOT NULL)
-               AND (cloud_blob_id IS NOT NULL OR file_path LIKE 'cloud://%')"#,
-        )
-        .bind(&start_str)
-        .bind(&end_str)
-        .fetch_all(&mut **tx.conn())
-        .await?;
-
-        // Also collect snapshot files that have been uploaded
-        let snapshot_files: Vec<String> = sqlx::query_scalar(
-            r#"SELECT snapshot_path FROM frames
-               WHERE timestamp BETWEEN ?1 AND ?2
-               AND snapshot_path IS NOT NULL
-               AND cloud_blob_id IS NOT NULL"#,
-        )
-        .bind(&start_str)
-        .bind(&end_str)
-        .fetch_all(&mut **tx.conn())
-        .await?;
-
-        // 3. Delete ocr_text (ocr_text_fts was dropped by migration)
-        let ocr_result = sqlx::query(
-            "DELETE FROM ocr_text WHERE frame_id IN (SELECT id FROM frames WHERE timestamp BETWEEN ?1 AND ?2)",
-        )
-        .bind(&start_str)
-        .bind(&end_str)
-        .execute(&mut **tx.conn())
-        .await?;
-        let ocr_deleted = ocr_result.rows_affected();
-
-        // 4b. Migrate elements from anchor frames being deleted that are referenced
-        // by frames outside the delete range. For each such anchor, move its elements
-        // to the first referencing frame and update all references.
-        let anchor_ids: Vec<i64> = sqlx::query_scalar(
-            r#"SELECT DISTINCT f.id FROM frames f
-               WHERE f.timestamp BETWEEN ?1 AND ?2
-               AND EXISTS (
-                   SELECT 1 FROM frames ref
-                   WHERE ref.elements_ref_frame_id = f.id
-                   AND ref.timestamp NOT BETWEEN ?1 AND ?2
-               )"#,
-        )
-        .bind(&start_str)
-        .bind(&end_str)
-        .fetch_all(&mut **tx.conn())
-        .await?;
-
-        for anchor_id in &anchor_ids {
-            // Find the first referencing frame outside the delete range
-            let new_anchor_id: Option<i64> = sqlx::query_scalar(
-                r#"SELECT MIN(id) FROM frames
-                   WHERE elements_ref_frame_id = ?1
-                   AND timestamp NOT BETWEEN ?2 AND ?3"#,
-            )
-            .bind(anchor_id)
-            .bind(&start_str)
-            .bind(&end_str)
-            .fetch_optional(&mut **tx.conn())
-            .await?
-            .flatten();
-
-            if let Some(new_id) = new_anchor_id {
-                // Move elements to the new anchor frame
-                sqlx::query("UPDATE elements SET frame_id = ?1 WHERE frame_id = ?2")
-                    .bind(new_id)
-                    .bind(anchor_id)
-                    .execute(&mut **tx.conn())
-                    .await?;
-                // Update all references to point to new anchor
-                sqlx::query(
-                    "UPDATE frames SET elements_ref_frame_id = ?1 WHERE elements_ref_frame_id = ?2",
-                )
-                .bind(new_id)
-                .bind(anchor_id)
-                .execute(&mut **tx.conn())
-                .await?;
-                // Clear ref on the new anchor (it now owns the elements)
-                sqlx::query("UPDATE frames SET elements_ref_frame_id = NULL WHERE id = ?1")
-                    .bind(new_id)
-                    .execute(&mut **tx.conn())
-                    .await?;
-            }
-        }
-
-        // 4c. Delete elements belonging to frames in the delete range (no CASCADE on FK)
-        sqlx::query(
-            "DELETE FROM elements WHERE frame_id IN (SELECT id FROM frames WHERE timestamp BETWEEN ?1 AND ?2)",
-        )
-        .bind(&start_str)
-        .bind(&end_str)
-        .execute(&mut **tx.conn())
-        .await?;
-
-        // 5. Delete frames — triggers frames_fts delete; vision_tags CASCADE'd automatically
-        let frames_result = sqlx::query("DELETE FROM frames WHERE timestamp BETWEEN ?1 AND ?2")
-            .bind(&start_str)
-            .bind(&end_str)
-            .execute(&mut **tx.conn())
-            .await?;
-        let frames_deleted = frames_result.rows_affected();
-
-        // 6. Delete orphaned video_chunks (no frames reference them anymore)
-        let video_chunks_result = sqlx::query(
-            "DELETE FROM video_chunks WHERE id NOT IN (SELECT DISTINCT video_chunk_id FROM frames)",
-        )
-        .execute(&mut **tx.conn())
-        .await?;
-        let video_chunks_deleted = video_chunks_result.rows_affected();
-
-        // 9. accessibility table was dropped by migration 20260312000000
-        let accessibility_deleted: u64 = 0;
-
-        // 10. Delete ui_events — triggers ui_events_fts delete
-        let ui_events_result =
-            sqlx::query("DELETE FROM ui_events WHERE timestamp BETWEEN ?1 AND ?2")
-                .bind(&start_str)
-                .bind(&end_str)
-                .execute(&mut **tx.conn())
-                .await?;
-        let ui_events_deleted = ui_events_result.rows_affected();
-
-        // 11. Commit — if this fails, no files are touched (auto-rollback)
-        tx.commit().await.map_err(|e| {
-            error!("failed to commit delete_time_range transaction: {}", e);
-            e
-        })?;
-
-        debug!(
-            "delete_time_range committed: frames={}, ocr={}, video_chunks={}, accessibility={}, ui_events={}",
-            frames_deleted, ocr_deleted, video_chunks_deleted, accessibility_deleted, ui_events_deleted
-        );
-
-        Ok(DeleteTimeRangeResult {
-            frames_deleted,
-            ocr_deleted,
-            video_chunks_deleted,
-            accessibility_deleted,
-            ui_events_deleted,
-            video_files,
-            snapshot_files,
-        })
-    }
-
-    /// Delete data in a time range and return ALL local file paths for deletion.
-    /// Unlike `delete_time_range` (which only returns cloud-uploaded files),
-    /// this variant returns every video/snapshot file — used by local
-    /// retention to free disk space without requiring cloud archive.
-    pub async fn delete_time_range_local(
         &self,
         start: DateTime<Utc>,
         end: DateTime<Utc>,
@@ -3450,7 +3283,7 @@ impl DatabaseManager {
         .fetch_all(&mut **tx.conn())
         .await?;
 
-        // 2. Collect ALL snapshot files (not just cloud-uploaded)
+        // 2. Collect snapshot files
         let snapshot_files: Vec<String> = sqlx::query_scalar(
             r#"SELECT snapshot_path FROM frames
                WHERE timestamp BETWEEN ?1 AND ?2
@@ -3559,14 +3392,14 @@ impl DatabaseManager {
         // 12. Commit — if this fails, no files are touched
         tx.commit().await.map_err(|e| {
             error!(
-                "failed to commit delete_time_range_local transaction: {}",
+                "failed to commit delete_time_range transaction: {}",
                 e
             );
             e
         })?;
 
         debug!(
-            "delete_time_range_local committed: frames={}, ocr={}, video_chunks={}, ui_events={}",
+            "delete_time_range committed: frames={}, ocr={}, video_chunks={}, ui_events={}",
             frames_deleted, ocr_deleted, video_chunks_deleted, ui_events_deleted
         );
 
