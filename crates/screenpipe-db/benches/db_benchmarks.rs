@@ -6,7 +6,7 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use screenpipe_db::{AudioDevice, ContentType, DatabaseManager, DeviceType, OcrEngine};
+use screenpipe_db::{ContentType, DatabaseManager, OcrEngine};
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 
@@ -35,25 +35,6 @@ async fn setup_large_db(size: usize) -> DatabaseManager {
         )
         .await
         .unwrap();
-
-        let audio_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        let audio_text = format!("Audio transcription {}", rng.gen::<u32>());
-        db.insert_audio_transcription(
-            audio_id,
-            &audio_text,
-            0,
-            "test_engine",
-            &AudioDevice {
-                name: "test_device".to_string(),
-                device_type: DeviceType::Input,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
     }
 
     db
@@ -63,7 +44,7 @@ fn bench_search(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
 
     let db_sizes = [10000, 100000];
-    let content_types = [ContentType::OCR, ContentType::Audio, ContentType::All];
+    let content_types = [ContentType::OCR, ContentType::All];
     let search_queries = ["random", "specific"];
 
     let mut group = c.benchmark_group("search_benchmarks");
@@ -83,8 +64,6 @@ fn bench_search(c: &mut Criterion) {
                                 content_type.clone(),
                                 100,
                                 0,
-                                None,
-                                None,
                                 None,
                                 None,
                                 None,
