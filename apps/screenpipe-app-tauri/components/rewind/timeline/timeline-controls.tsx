@@ -19,7 +19,7 @@ import { usePlatform } from "@/lib/hooks/use-platform";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { Calendar } from "@/components/ui/calendar";
 import { listDaysWithFrames } from "@/lib/actions/has-frames-date";
-import { formatShortcutDisplay } from "@/lib/chat-utils";
+import { formatShortcutDisplay } from "@/lib/utils/format-shortcut";
 import {
 	Popover,
 	PopoverContent,
@@ -37,7 +37,6 @@ interface TimelineControlsProps {
 	onDateChange: (date: Date) => Promise<any>;
 	onJumpToday: () => void;
 	onSearchClick?: () => void;
-	onChatClick?: () => void;
 	embedded?: boolean;
 	className?: string;
 	isPlaying?: boolean;
@@ -57,7 +56,6 @@ export function TimelineControls({
 	onDateChange,
 	onJumpToday,
 	onSearchClick,
-	onChatClick,
 	embedded,
 	className,
 	isPlaying,
@@ -96,15 +94,6 @@ export function TimelineControls({
 			return formatShortcutDisplay(settings.searchShortcut, isMac);
 		},
 		[settings.searchShortcut, settings.disabledShortcuts, isMac]
-	);
-
-	const chatShortcutDisplay = useMemo(
-		() => {
-			if (settings.disabledShortcuts.includes("showChatShortcut")) return "";
-			if (!settings.showChatShortcut) return "";
-			return formatShortcutDisplay(settings.showChatShortcut, isMac);
-		},
-		[settings.showChatShortcut, settings.disabledShortcuts, isMac]
 	);
 
 	const jumpDay = async (days: number) => {
@@ -314,18 +303,6 @@ export function TimelineControls({
 					)
 				)}
 
-				{onChatClick && (
-					<button
-						type="button"
-						onClick={onChatClick}
-						className="flex items-center h-10 gap-1.5 bg-background border border-border px-4 font-mono hover:bg-foreground hover:text-background transition-colors duration-150 cursor-pointer group"
-					>
-						{chatShortcutDisplay ? (
-							<span className="text-xs text-muted-foreground group-hover:text-background">{chatShortcutDisplay}</span>
-						) : null}
-						<span className="text-xs text-foreground group-hover:text-background">chat</span>
-					</button>
-				)}
 			</div>
 
 			

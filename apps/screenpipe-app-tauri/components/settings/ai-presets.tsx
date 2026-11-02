@@ -55,7 +55,6 @@ import {
   ChevronDown,
   ChevronUp,
   GripVertical,
-  Share2,
 } from "lucide-react";
 import {
   DndContext,
@@ -94,8 +93,6 @@ import { Badge } from "../ui/badge";
 import { toast } from "../ui/use-toast";
 import { Card, CardContent } from "../ui/card";
 import { AIProviderType } from "@/lib/hooks/use-settings";
-import { useEnterprisePolicy } from "@/lib/hooks/use-enterprise-policy";
-import { useTeam } from "@/lib/hooks/use-team";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,11 +113,6 @@ import {
   debounce,
   FieldValidationResult
 } from "@/lib/utils/validation";
-import {
-  DEFAULT_ENTERPRISE_AI_PRESET_POLICY,
-  filterPresetsForEnterprisePolicy,
-  isEnterpriseManagedPreset,
-} from "@/lib/enterprise-ai-preset-policy";
 
 // Helper to detect UUID-like strings and format preset names nicely
 const formatPresetName = (name: string): string => {
@@ -250,18 +242,12 @@ const AISection = ({
   preset,
   setDialog,
   isDuplicating,
-  piAvailable,
 }: {
   preset?: AIPreset;
   setDialog: (value: boolean) => void;
   isDuplicating?: boolean;
-  piAvailable?: boolean;
 }) => {
   const { settings, updateSettings } = useSettings();
-  const { isEnterprise, policy: enterprisePolicy } = useEnterprisePolicy();
-  const aiPresetPolicy = enterprisePolicy.aiPresetPolicy ?? DEFAULT_ENTERPRISE_AI_PRESET_POLICY;
-  const employeePresetsAllowed =
-    !isEnterprise || aiPresetPolicy.allow_employee_custom_presets || (preset ? isEnterpriseManagedPreset(preset) : false);
   // Daily quota snapshot — drives the "N left today" chip on weighted
   // models. Null on BYOK providers; we render nothing in that case.
   const usage = useUsageStatus();
@@ -275,20 +261,7 @@ const AISection = ({
   const [testResults, setTestResults] = useState<DiagnosticResults>(INITIAL_DIAGNOSTICS);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const diagnosticsAbortRef = useRef<AbortController | null>(null);
-  const [chatgptLoggedIn, setChatgptLoggedIn] = useState(false);
-  const [chatgptLoading, setChatgptLoading] = useState(false);
-  const [chatgptChecking, setChatgptChecking] = useState(
-    () => settingsPreset?.provider === "openai-chatgpt"
-  );
 
-  // Filter presets the same way the UI does so hidden presets don't block creation
-  const visiblePresets = useMemo(
-    () =>
-      !isEnterprise
-        ? settings.aiPresets
-        : filterPresetsForEnterprisePolicy(settings.aiPresets, aiPresetPolicy),
-    [settings.aiPresets, isEnterprise, aiPresetPolicy]
-  );
 
   // Optimized validation with debouncing
   const debouncedValidatePreset = useMemo(
@@ -299,7 +272,7 @@ const AISection = ({
       if (presetData.id) {
         const nameValidation = validatePresetName(
           presetData.id,
-          visiblePresets,
+          settings.aiPresets,
           preset?.id
         );
         if (!nameValidation.isValid && nameValidation.error) {
@@ -335,27 +308,6 @@ const AISection = ({
     }
   }, [settingsPreset, debouncedValidatePreset]);
 
-  // Check ChatGPT OAuth status when provider is selected
-  useEffect(() => {
-    if (settingsPreset?.provider === "openai-chatgpt") {
-      setChatgptChecking(true);
-      const timeout = setTimeout(() => setChatgptChecking(false), 5000);
-      commands.chatgptOauthStatus().then((res) => {
-        clearTimeout(timeout);
-        if (res.status === "ok") {
-          setChatgptLoggedIn(res.data.logged_in);
-        }
-        setChatgptChecking(false);
-      }).catch(() => {
-        clearTimeout(timeout);
-        setChatgptChecking(false);
-      });
-      return () => clearTimeout(timeout);
-    } else {
-      setChatgptChecking(false);
-    }
-  }, [settingsPreset?.provider]);
-
 
   const isFormValid = useMemo(() => {
     return Object.keys(validationErrors).length === 0 && 
@@ -365,15 +317,6 @@ const AISection = ({
   }, [validationErrors, settingsPreset]);
 
   const updateStoreSettings = async () => {
-    if (!employeePresetsAllowed) {
-      toast({
-        title: "Managed by your organization",
-        description: "Your admin controls which AI presets are available",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!isFormValid) {
       toast({
         title: "Validation errors",
@@ -447,8 +390,6 @@ const AISection = ({
           defaultPreset: false,
         } as AIPreset;
 
-        // Remove any hidden preset with the same name (e.g. filtered Pi preset
-        // in enterprise builds) so it doesn't ghost-block future operations
         const cleanedPresets = settings.aiPresets.filter(
           (p) => p.id.toLowerCase() !== newPreset.id.toLowerCase()
         );
@@ -536,19 +477,15 @@ const AISection = ({
   }, [updateSettingsPreset]);
 
   const handleAiProviderChange = useCallback((newValue: AIPreset["provider"]) => {
-    // No-op if same provider — avoids resetting UI state (e.g. chatgptChecking) unnecessarily
+    // No-op if same provider — avoids resetting UI state unnecessarily
     if (newValue === settingsPreset?.provider) return;
 
     // Clear stale diagnostic results so previous provider's errors don't bleed through
     setTestStatus("idle");
     setTestResults(INITIAL_DIAGNOSTICS);
     setDiagnosticsOpen(false);
-    // Reset ChatGPT auth UI — the status-check effect re-runs when provider dep changes
-    setChatgptLoggedIn(false);
-    // chatgptChecking is managed by the status-check effect, not here
 
     const defaultNames: Record<string, string> = {
-      "openai-chatgpt": "chatgpt",
       "openai": "openai",
       "anthropic": "claude",
       "native-ollama": "ollama",
@@ -567,10 +504,6 @@ const AISection = ({
         break;
       case "custom":
         newUrl = settingsPreset?.url || "";
-        break;
-      case "openai-chatgpt":
-        newUrl = "https://api.openai.com/v1";
-        newModel = "gpt-5.5";
         break;
       case "anthropic":
         newUrl = "https://api.anthropic.com";
@@ -603,7 +536,6 @@ const AISection = ({
     diagnosticsAbortRef.current?.abort();
     const abort = new AbortController();
     diagnosticsAbortRef.current = abort;
-    const isChatGpt = settingsPreset?.provider === "openai-chatgpt";
 
     setTestStatus("testing");
     setTestResults(INITIAL_DIAGNOSTICS);
@@ -630,7 +562,7 @@ const AISection = ({
     let modelsUrl: string;
     if (settingsPreset?.provider === "native-ollama") {
       modelsUrl = "http://localhost:11434/api/tags";
-    } else if (settingsPreset?.provider === "openai" || settingsPreset?.provider === "openai-chatgpt") {
+    } else if (settingsPreset?.provider === "openai") {
       modelsUrl = "https://api.openai.com/v1/models";
     } else if (isAnthropic) {
       modelsUrl = "https://api.anthropic.com/v1/models";
@@ -639,21 +571,7 @@ const AISection = ({
     }
 
     const headers: Record<string, string> = {};
-    if (settingsPreset?.provider === "openai-chatgpt") {
-      // Get OAuth token for ChatGPT provider
-      try {
-        const tokenResult = await commands.chatgptOauthGetToken();
-        if (tokenResult.status === "ok") {
-          headers["Authorization"] = `Bearer ${tokenResult.data}`;
-        } else {
-          skipRemaining("auth", "Could not get ChatGPT token. Try signing out and back in.");
-          return;
-        }
-      } catch (err) {
-        skipRemaining("auth", `Could not get ChatGPT token: ${err}. You may need to rebuild the app.`);
-        return;
-      }
-    } else if (isAnthropic && settingsPreset?.apiKey) {
+    if (isAnthropic && settingsPreset?.apiKey) {
       headers["x-api-key"] = settingsPreset.apiKey;
       headers["anthropic-version"] = "2023-06-01";
       headers["anthropic-dangerous-direct-browser-access"] = "true";
@@ -705,20 +623,12 @@ const AISection = ({
       // Step 1 pass
       setTestResults((prev) => ({
         ...prev,
-        endpoint: { status: "pass", message: isChatGpt ? "Reachable (OAuth)" : `GET ${modelsResponse!.status}` },
+        endpoint: { status: "pass", message: `GET ${modelsResponse!.status}` },
         auth: { status: "running", message: "Checking..." },
       }));
 
       // Step 2: Auth check
-      // ChatGPT OAuth tokens lack model.read scope so /v1/models returns 403 — skip to chat test
-      if (settingsPreset?.provider === "openai-chatgpt" && (modelsResponse!.status === 403 || modelsResponse!.status === 401)) {
-        setTestResults((prev) => ({
-          ...prev,
-          auth: { status: "pass", message: "OAuth token present" },
-          models: { status: "pass", message: "Using known models (API scope limited)" },
-          chat: { status: "running", message: "Sending test message..." },
-        }));
-      } else if (modelsResponse!.status === 401 || modelsResponse!.status === 403) {
+      if (modelsResponse!.status === 401 || modelsResponse!.status === 403) {
         const hint =
           settingsPreset?.provider === "openai"
             ? "Check your API key at platform.openai.com"
@@ -736,7 +646,7 @@ const AISection = ({
         }));
       }
 
-      // Step 3: Parse models (skip for openai-chatgpt when /v1/models returned 403)
+      // Step 3: Parse models
       if (modelsResponse!.ok) {
         let modelCount = 0;
         try {
@@ -776,14 +686,12 @@ const AISection = ({
       }
     }
 
-    // Step 4: Test chat completion (or Codex Responses API for ChatGPT OAuth)
+    // Step 4: Test chat completion
     let chatUrl: string;
     if (settingsPreset?.provider === "native-ollama") {
       chatUrl = "http://localhost:11434/v1/chat/completions";
     } else if (settingsPreset?.provider === "openai") {
       chatUrl = "https://api.openai.com/v1/chat/completions";
-    } else if (isChatGpt) {
-      chatUrl = "https://chatgpt.com/backend-api/codex/responses";
     } else if (isAnthropic) {
       chatUrl = "https://api.anthropic.com/v1/messages";
     } else {
@@ -793,31 +701,17 @@ const AISection = ({
     // For OpenAI-compatible endpoints, start with `max_tokens` (broadest
     // compatibility) but retry with `max_completion_tokens` if the endpoint
     // rejects it (GPT-5, o-series, Azure Foundry, etc.).
-    const chatBody: any = isChatGpt
-      ? { model: settingsPreset?.model || "", instructions: "reply briefly", input: [{ role: "user", content: "say hi" }], store: false, stream: true }
-      : isAnthropic
+    const chatBody: any = isAnthropic
       ? { model: settingsPreset?.model || "", messages: [{ role: "user", content: "say hi" }], max_tokens: 50 }
       : buildChatTestBody(settingsPreset?.model || "", "say hi", 50, "max_tokens");
 
-    // For ChatGPT Codex endpoint, extract account ID from JWT and add required headers
     const chatHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       ...headers,
     };
-    if (isChatGpt && headers["Authorization"]) {
-      try {
-        const token = headers["Authorization"].replace("Bearer ", "");
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        const accountId = payload?.["https://api.openai.com/auth"]?.chatgpt_account_id;
-        if (accountId) {
-          chatHeaders["chatgpt-account-id"] = accountId;
-        }
-      } catch { /* ignore JWT parse errors */ }
-      chatHeaders["OpenAI-Beta"] = "responses=experimental";
-    }
 
-    // Use tauriFetch for chatgpt.com and Anthropic to bypass CORS
-    const fetchFn = (isChatGpt || isAnthropic) ? tauriFetch : fetch;
+    // Use tauriFetch for Anthropic to bypass CORS
+    const fetchFn = isAnthropic ? tauriFetch : fetch;
 
     const chatStart = performance.now();
     try {
@@ -830,8 +724,8 @@ const AISection = ({
 
       // Retry with max_completion_tokens for newer OpenAI-compatible endpoints
       // (GPT-5, o-series, Azure Foundry) that reject max_tokens. Only for the
-      // generic OpenAI-compatible path — Anthropic/ChatGPT use different params.
-      if (!chatResponse.ok && !isChatGpt && !isAnthropic) {
+      // generic OpenAI-compatible path — Anthropic uses different params.
+      if (!chatResponse.ok && !isAnthropic) {
         const errText = await chatResponse.clone().text().catch(() => "");
         if (shouldRetryWithMaxCompletionTokens(errText)) {
           const retryBody = buildChatTestBody(
@@ -866,10 +760,7 @@ const AISection = ({
       }
 
       let reply: string;
-      if (isChatGpt) {
-        // Streaming SSE — just confirm we got a 200 response
-        reply = "Stream started OK";
-      } else if (isAnthropic) {
+      if (isAnthropic) {
         const chatData = await chatResponse.json();
         reply = chatData.content?.[0]?.text?.slice(0, 100) || "No response";
       } else {
@@ -904,7 +795,6 @@ const AISection = ({
   }, [settingsPreset?.provider, settingsPreset?.url, settingsPreset?.apiKey, settingsPreset?.model]);
 
   const isApiKeyRequired =
-    settingsPreset?.provider !== "openai-chatgpt" &&
     settingsPreset?.provider !== "anthropic" &&
     settingsPreset?.url !== "https://api.screenpipe.com/v1" &&
     settingsPreset?.url !== "https://api.screenpi.pe/v1" &&
@@ -1022,52 +912,6 @@ const AISection = ({
           break;
         }
 
-        case "openai-chatgpt": {
-          // Try /v1/models with OAuth token; fall back to known models if it fails.
-          let loaded = false;
-          try {
-            const tokenResult = await commands.chatgptOauthGetToken();
-            if (tokenResult.status === "ok") {
-              const chatgptResp = await fetch("https://api.openai.com/v1/models", {
-                headers: { Authorization: `Bearer ${tokenResult.data}` },
-              });
-              console.log("[chatgpt] /v1/models status:", chatgptResp.status);
-              if (chatgptResp.ok) {
-                const chatgptData = await chatgptResp.json();
-                const chatgptModels = (chatgptData.data || [])
-                  .map((m: { id: string }) => ({
-                    id: m.id,
-                    name: m.id,
-                    provider: "openai-chatgpt",
-                  }))
-                  .filter((m: { id: string }, idx: number, arr: { id: string }[]) => arr.findIndex((x) => x.id === m.id) === idx);
-                console.log("[chatgpt] fetched", chatgptModels.length, "models from API");
-                if (chatgptModels.length > 0) {
-                  setModels(chatgptModels);
-                  loaded = true;
-                }
-              } else {
-                const body = await chatgptResp.text();
-                console.warn("[chatgpt] /v1/models failed:", chatgptResp.status, body);
-              }
-            } else {
-              console.warn("[chatgpt] get_token failed:", tokenResult.status === "error" ? tokenResult.error : "unknown");
-            }
-          } catch (err) {
-            console.error("[chatgpt] model fetch error:", err);
-          }
-          if (!loaded) {
-            // Codex models available via ChatGPT Plus/Pro subscription
-            setModels([
-              "gpt-5.5", "gpt-5.5-codex",
-              "gpt-5.4", "gpt-5.3-codex",
-              "gpt-5.2-codex", "gpt-5.2", "gpt-5.1-codex-max",
-              "gpt-5.1", "gpt-5.1-codex-mini",
-            ].map((id) => ({ id, name: id, provider: "openai-chatgpt" })));
-          }
-          break;
-        }
-
         case "screenpipe-cloud": {
           // Fetch models from gateway so new models appear automatically
           try {
@@ -1131,7 +975,7 @@ const AISection = ({
       setIsLoadingModels(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsPreset?.provider, settingsPreset?.url, settingsPreset?.apiKey, settings.user?.id, chatgptLoggedIn]);
+  }, [settingsPreset?.provider, settingsPreset?.url, settingsPreset?.apiKey, settings.user?.id]);
 
   const apiKey = useMemo(() => {
     if (settingsPreset && "apiKey" in settingsPreset) {
@@ -1161,13 +1005,13 @@ const AISection = ({
       settingsPreset.provider === "openai" || settingsPreset.provider === "anthropic" || settingsPreset.provider === "custom";
     if (needsApiKey && !settingsPreset.apiKey) return;
 
-    if (settingsPreset.provider === "openai-chatgpt" || settingsPreset.provider === "native-ollama" || settingsPreset.url) {
+    if (settingsPreset.provider === "native-ollama" || settingsPreset.url) {
       const timer = setTimeout(() => {
         runDiagnostics();
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [settingsPreset?.provider, settingsPreset?.url, settingsPreset?.apiKey, runDiagnostics, chatgptLoggedIn]);
+  }, [settingsPreset?.provider, settingsPreset?.url, settingsPreset?.apiKey, runDiagnostics]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -1199,15 +1043,6 @@ const AISection = ({
         </div>
         <div className="grid grid-cols-2 gap-4 mb-4 mt-4">
           <AIProviderCard
-            type="openai-chatgpt"
-            title="ChatGPT"
-            description="Sign in with your ChatGPT Plus/Pro subscription"
-            imageSrc="/images/openai.png"
-            selected={settingsPreset?.provider === "openai-chatgpt"}
-            onClick={() => handleAiProviderChange("openai-chatgpt")}
-          />
-
-          <AIProviderCard
             type="anthropic"
             title="Claude API"
             description="Use your Anthropic API key"
@@ -1238,18 +1073,6 @@ const AISection = ({
             onClick={() => handleAiProviderChange("native-ollama")}
           />
 
-          {piAvailable && (!isEnterprise || aiPresetPolicy.allow_screenpipe_cloud) && (
-            <AIProviderCard
-              type="screenpipe-cloud"
-              title="Screenpipe Cloud"
-              description="AI coding agent powered by Screenpipe Cloud. Requires login."
-              imageSrc="/images/screenpipe.png"
-              selected={settingsPreset?.provider === "screenpipe-cloud"}
-              onClick={() => handleAiProviderChange("screenpipe-cloud")}
-              disabled={!settings.user?.token}
-              warningText={!settings.user?.token ? "Login required" : undefined}
-            />
-          )}
 
         </div>
       </div>
@@ -1259,7 +1082,7 @@ const AISection = ({
         label="Preset Name"
         value={settingsPreset?.id || ""}
         onChange={(value, isValid) => updateSettingsPreset({ id: value })}
-        validation={(value) => validatePresetName(value, visiblePresets, preset?.id)}
+        validation={(value) => validatePresetName(value, settings.aiPresets, preset?.id)}
         placeholder="Enter preset name"
         required={true}
         spellCheck={false}
@@ -1330,80 +1153,6 @@ const AISection = ({
             </div>
           </div>
         )}
-
-      {settingsPreset?.provider === "openai-chatgpt" && (
-        <div className="w-full">
-          <div className="flex flex-col gap-4 mb-4 w-full">
-            <Label className="flex items-center gap-1">
-              ChatGPT Account
-            </Label>
-            <div className="flex items-center gap-3">
-              {chatgptChecking ? (
-                <Button type="button" variant="outline" disabled>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Checking connection...
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant={chatgptLoggedIn ? "outline" : "default"}
-                  disabled={chatgptLoading}
-                  onClick={async () => {
-                    if (chatgptLoggedIn) {
-                      setChatgptLoading(true);
-                      await commands.chatgptOauthLogout();
-                      setChatgptLoggedIn(false);
-                      setChatgptLoading(false);
-                    } else {
-                      setChatgptLoading(true);
-                      try {
-                        const res = await commands.chatgptOauthLogin();
-                        if (res.status === "ok" && res.data) {
-                          setChatgptLoggedIn(true);
-                          toast({
-                            title: "ChatGPT connected",
-                            description: "Click \"Create preset\" below to save and start using it.",
-                          });
-                        } else if (res.status === "error") {
-                          const msg = String(res.error || "unknown error");
-                          console.error("chatgpt oauth failed:", msg);
-                          toast({
-                            title: "ChatGPT sign-in failed",
-                            description: msg.includes("invalid_state")
-                              ? "Auth session expired — please try signing in again."
-                              : msg.includes("not logged in") || msg.includes("timed out")
-                              ? "Sign-in timed out or was cancelled. Please try again."
-                              : msg.slice(0, 120),
-                            variant: "destructive",
-                          });
-                        }
-                      } catch (e) {
-                        console.error("chatgpt oauth failed:", e);
-                        toast({
-                          title: "ChatGPT sign-in failed",
-                          description: "An unexpected error occurred. Please try again.",
-                          variant: "destructive",
-                        });
-                      }
-                      setChatgptLoading(false);
-                    }
-                  }}
-                >
-                  {chatgptLoading ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : chatgptLoggedIn ? (
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                  ) : null}
-                  {chatgptLoggedIn ? "Sign out" : "Sign in with ChatGPT"}
-                </Button>
-              )}
-              {chatgptLoggedIn && !chatgptChecking && (
-                <span className="text-sm text-muted-foreground">Connected</span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="w-full">
         <div className="flex flex-col gap-4 mb-4 w-full">
@@ -1857,12 +1606,7 @@ function SortablePresetCard({
   onDuplicate,
   onSetDefault,
   onDelete,
-  onShareToTeam,
   isLoading,
-  isTeamAdmin,
-  readOnly = false,
-  defaultLocked = false,
-  chatgptTokenExpired = false,
 }: {
   preset: AIPreset;
   isDefault: boolean;
@@ -1871,12 +1615,7 @@ function SortablePresetCard({
   onDuplicate: () => void;
   onSetDefault: () => void;
   onDelete: () => void;
-  onShareToTeam?: () => void;
   isLoading: boolean;
-  isTeamAdmin?: boolean;
-  readOnly?: boolean;
-  defaultLocked?: boolean;
-  chatgptTokenExpired?: boolean;
 }) {
   const {
     attributes,
@@ -1885,7 +1624,7 @@ function SortablePresetCard({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: preset.id, disabled: readOnly });
+  } = useSortable({ id: preset.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1900,11 +1639,11 @@ function SortablePresetCard({
       style={style}
       className={cn(
         "p-3 relative group transition-all hover:shadow-md border-border bg-card",
-        readOnly ? "cursor-default" : "cursor-pointer",
+        "cursor-pointer",
         isDefault && "ring-2 ring-primary/20",
         isDragging && "shadow-lg"
       )}
-      onClick={readOnly ? undefined : onEdit}
+      onClick={onEdit}
     >
       <div className="space-y-2">
         <div className="flex justify-between items-center">
@@ -1931,28 +1670,11 @@ function SortablePresetCard({
                 default
               </Badge>
             )}
-            {readOnly && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                managed
-              </Badge>
-            )}
             {!hasValidation && (
               <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
             )}
             {!hasValidation && (
               <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
-            )}
-            {chatgptTokenExpired && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <AlertCircle className="h-3.5 w-3.5 text-yellow-500 shrink-0 cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    ChatGPT session expired — open Connections to reconnect
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             )}
           </div>
           {hasValidation ? (
@@ -1967,25 +1689,13 @@ function SortablePresetCard({
           </span>
         </div>
         <div className="flex items-center gap-0.5 pt-1.5 border-t border-border">
-          <Button variant="ghost" size="sm" className="text-[11px] h-6 px-2" onClick={(e) => { e.stopPropagation(); onDuplicate(); }} disabled={isLoading || readOnly}>
+          <Button variant="ghost" size="sm" className="text-[11px] h-6 px-2" onClick={(e) => { e.stopPropagation(); onDuplicate(); }} disabled={isLoading}>
             <Copy className="w-3 h-3 mr-1" />duplicate
           </Button>
-          <Button variant="ghost" size="sm" className="text-[11px] h-6 px-2" onClick={(e) => { e.stopPropagation(); onSetDefault(); }} disabled={isLoading || isDefault || defaultLocked}>
+          <Button variant="ghost" size="sm" className="text-[11px] h-6 px-2" onClick={(e) => { e.stopPropagation(); onSetDefault(); }} disabled={isLoading || isDefault}>
             <Star className="w-3 h-3 mr-1" />{isDefault ? "default" : "set default"}
           </Button>
-          {isTeamAdmin && onShareToTeam && !readOnly && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); onShareToTeam(); }} disabled={isLoading}>
-                    <Share2 className="w-3 h-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>share to team (e2e encrypted)</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-          {!isDefault && !readOnly && (
+          {!isDefault && (
             <Button variant="ghost" size="sm" className="text-[11px] h-6 px-2 text-destructive hover:text-destructive ml-auto" onClick={(e) => { e.stopPropagation(); onDelete(); }} disabled={isLoading}>
               <Trash2 className="w-3 h-3" />
             </Button>
@@ -2006,30 +1716,6 @@ export const AIPresets = () => {
     null
   );
   const [isDuplicating, setIsDuplicating] = useState(false);
-  const { isEnterprise, policy: enterprisePolicy } = useEnterprisePolicy();
-  const aiPresetPolicy = enterprisePolicy.aiPresetPolicy ?? DEFAULT_ENTERPRISE_AI_PRESET_POLICY;
-  const visiblePresets = useMemo(
-    () =>
-      !isEnterprise
-        ? settings.aiPresets
-        : filterPresetsForEnterprisePolicy(settings.aiPresets, aiPresetPolicy),
-    [settings.aiPresets, isEnterprise, aiPresetPolicy]
-  );
-  const canManageEmployeePresets = !isEnterprise || aiPresetPolicy.allow_employee_custom_presets;
-  const [piAvailable, setPiAvailable] = useState(false);
-  const [chatgptTokenValid, setChatgptTokenValid] = useState<boolean | null>(null);
-  const team = useTeam();
-  const isTeamAdmin = !!team.team && team.role === "admin";
-
-  const sharePresetToTeam = async (preset: AIPreset) => {
-    try {
-      await team.pushConfig("ai_provider", preset.id, preset);
-      toast({ title: "shared to team", description: `"${formatPresetName(preset.id)}" is now available to all team members (e2e encrypted)` });
-    } catch (err: any) {
-      toast({ title: "failed to share to team", description: err.message, variant: "destructive" });
-    }
-  };
-
   // Drag-and-drop sensors with activation distance to avoid conflicts with clicks
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -2052,41 +1738,6 @@ export const AIPresets = () => {
     [settings.aiPresets, updateSettings]
   );
 
-  // Check Pi availability (installed at app startup by Rust background thread)
-  useEffect(() => {
-    const checkPi = async () => {
-      const result = await commands.piCheck();
-      if (result.status === "ok" && result.data.available) {
-        setPiAvailable(true);
-      }
-    };
-    if (isEnterprise) {
-      setPiAvailable(aiPresetPolicy.allow_screenpipe_cloud);
-      return;
-    }
-    if (!isEnterprise) {
-      checkPi();
-    }
-    // Re-check periodically in case background install finishes
-    const interval = isEnterprise ? null : setInterval(checkPi, 5000);
-    return () => { if (interval) clearInterval(interval); };
-  }, [isEnterprise, aiPresetPolicy.allow_screenpipe_cloud]);
-
-  useEffect(() => {
-  const hasChatGptPreset = settings.aiPresets?.some(
-    (p) => p.provider === "openai-chatgpt"
-  );
-  if (!hasChatGptPreset) {
-    setChatgptTokenValid(null);
-    return;
-  }
-  commands.chatgptOauthCheckToken().then((res) => {
-    setChatgptTokenValid(res.status === "ok" ? res.data : null);
-  }).catch(() => {
-    setChatgptTokenValid(null);
-  });
-}, [settings.aiPresets]);
-
 useEffect(() => {
   if (!createPresetsDialog) {
     setSelectedPreset(undefined);
@@ -2100,7 +1751,6 @@ useEffect(() => {
         setDialog={setCreatePresentDialog}
         preset={selectedPreset}
         isDuplicating={isDuplicating}
-        piAvailable={piAvailable}
       />
     );
 
@@ -2109,17 +1759,6 @@ useEffect(() => {
     try {
       // Prevent deletion of screenpipe-cloud preset for Pro subscribers
       const presetToRemove = settings.aiPresets.find((preset) => preset.id === id);
-      if (
-        isEnterprise &&
-        ((presetToRemove && isEnterpriseManagedPreset(presetToRemove)) || !aiPresetPolicy.allow_employee_custom_presets)
-      ) {
-        toast({
-          title: "Managed by your organization",
-          description: "Your admin controls which AI presets are available",
-          variant: "destructive",
-        });
-        return;
-      }
       if (presetToRemove?.provider === "screenpipe-cloud" && settings.user?.cloud_subscribed) {
         toast({
           title: "Cannot delete cloud preset",
@@ -2182,15 +1821,6 @@ useEffect(() => {
   const setDefaultPreset = async (id: string) => {
     setIsLoading(true);
     try {
-      if (isEnterprise && aiPresetPolicy.lock_default_preset) {
-        toast({
-          title: "Default preset is locked",
-          description: "Your admin controls the default AI preset",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const selectedPreset = settings.aiPresets.find((p) => p.id === id);
       if (!selectedPreset) return;
 
@@ -2232,18 +1862,6 @@ useEffect(() => {
   const duplicatePreset = async (id: string) => {
     const presetToDuplicate = settings.aiPresets.find((p) => p.id === id);
     if (!presetToDuplicate) return;
-    if (
-      isEnterprise &&
-      (isEnterpriseManagedPreset(presetToDuplicate) || !aiPresetPolicy.allow_employee_custom_presets)
-    ) {
-      toast({
-        title: "Managed by your organization",
-        description: "Your admin controls which AI presets are available",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Find a unique name by appending a number
     const baseName = presetToDuplicate.id.replace(/ \d+$/, "");
     let counter = 2;
@@ -2264,7 +1882,7 @@ useEffect(() => {
     setCreatePresentDialog(true);
   };
 
-  if (!visiblePresets.length) {
+  if (!settings.aiPresets.length) {
     return (
       <div className="space-y-5">
         <p className="text-muted-foreground text-sm mb-4">
@@ -2277,16 +1895,12 @@ useEffect(() => {
             No AI presets yet
           </h2>
           <p className="text-sm text-muted-foreground text-center max-w-md">
-            {canManageEmployeePresets
-              ? "Create your first AI preset to get started with intelligent features. Presets allow you to quickly switch between different AI configurations."
-              : "Your organization has not made any AI presets available on this device."}
+            Create your first AI preset to get started with intelligent features. Presets allow you to quickly switch between different AI configurations.
           </p>
-          {canManageEmployeePresets && (
-            <Button onClick={() => setCreatePresentDialog(true)} size="lg">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Your First Preset
-            </Button>
-          )}
+          <Button onClick={() => setCreatePresentDialog(true)} size="lg">
+            <Plus className="w-4 h-4 mr-2" />
+            Create Your First Preset
+          </Button>
         </div>
       </div>
     );
@@ -2301,7 +1915,7 @@ useEffect(() => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Badge variant="outline" className="px-3 py-1">
-            {visiblePresets.length} preset{visiblePresets.length !== 1 ? 's' : ''}
+            {settings.aiPresets.length} preset{settings.aiPresets.length !== 1 ? 's' : ''}
           </Badge>
           {settings.aiPresets.some(p => p.defaultPreset) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -2310,31 +1924,25 @@ useEffect(() => {
             </div>
           )}
         </div>
-        {canManageEmployeePresets && (
-          <Button onClick={() => setCreatePresentDialog(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Create Preset
-          </Button>
-        )}
+        <Button onClick={() => setCreatePresentDialog(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Create Preset
+        </Button>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
-          items={visiblePresets.map((p) => p.id)}
+          items={settings.aiPresets.map((p) => p.id)}
           strategy={rectSortingStrategy}
         >
           <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-3">
-            {visiblePresets.map((preset) => {
-              const readOnly =
-                isEnterprise &&
-                (!aiPresetPolicy.allow_employee_custom_presets || isEnterpriseManagedPreset(preset));
+            {settings.aiPresets.map((preset) => {
               return (
                 <SortablePresetCard
                   key={preset.id}
                   preset={preset}
                   isDefault={preset.defaultPreset}
-                  hasValidation={!!(preset.provider && preset.model && (preset.url || preset.provider === "screenpipe-cloud" || preset.provider === "openai-chatgpt"))}
-                  chatgptTokenExpired={preset.provider === "openai-chatgpt" && chatgptTokenValid === false}
+                  hasValidation={!!(preset.provider && preset.model && (preset.url || preset.provider === "screenpipe-cloud"))}
                   onEdit={() => {
                     setSelectedPreset(preset);
                     setIsDuplicating(false);
@@ -2343,11 +1951,7 @@ useEffect(() => {
                   onDuplicate={() => duplicatePreset(preset.id)}
                   onSetDefault={() => setPresetToSetDefault(preset.id)}
                   onDelete={() => setPresetToDelete(preset.id)}
-                  onShareToTeam={isTeamAdmin ? () => sharePresetToTeam(preset) : undefined}
                   isLoading={isLoading}
-                  isTeamAdmin={isTeamAdmin}
-                  readOnly={readOnly}
-                  defaultLocked={isEnterprise && aiPresetPolicy.lock_default_preset}
                 />
               );
             })}
