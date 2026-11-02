@@ -14,7 +14,6 @@ import {
   openScreenpipeViewerLink,
   screenpipeViewerPathFromHref,
 } from "@/components/markdown";
-import { showChatWithPrefill } from "@/lib/chat-utils";
 import localforage from "localforage";
 import { localFetch } from "@/lib/api";
 
@@ -22,18 +21,13 @@ interface NotificationAction {
   label: string;
   action: string;
   primary?: boolean;
-  // Pipe notification action fields
+  // Typed notification action fields
   id?: string;
-  type?: "pipe" | "api" | "deeplink" | "meeting_join" | "dismiss";
-  pipe?: string;
-  context?: Record<string, unknown>;
+  type?: "api" | "deeplink" | "dismiss";
   url?: string;
-  deeplink_url?: string;
-  deeplinkUrl?: string;
   method?: string;
   body?: Record<string, unknown>;
   toast?: string;
-  open_in_chat?: boolean;
 }
 
 interface NotificationPayload {
@@ -43,14 +37,6 @@ interface NotificationPayload {
   body: string;
   actions: NotificationAction[];
   autoDismissMs?: number;
-  pipe_name?: string;
-}
-
-function windowForDeeplink(url: string) {
-  return url.startsWith("screenpipe://meeting/") ||
-    url.startsWith("screenpipe://meeting?")
-    ? { Home: { page: "meetings" } }
-    : "Main";
 }
 
 async function openNotificationLink(href: string) {
@@ -128,34 +114,9 @@ export default function NotificationPanelPage() {
       });
 
       try {
-        // New typed action dispatch (pipe notifications)
+        // Typed action dispatch
         if (actionObj?.type) {
           switch (actionObj.type) {
-            case "pipe": {
-              const pipeName = actionObj.pipe || payload?.pipe_name;
-              if (pipeName) {
-                if (actionObj.open_in_chat) {
-                  // Open in chat UI so user sees the output live
-                  const contextStr = actionObj.context
-                    ? JSON.stringify(actionObj.context, null, 2)
-                    : "";
-                  await showChatWithPrefill({
-                    context: `run pipe "${pipeName}" with this context:\n${contextStr}`,
-                    prompt: `run the ${pipeName} pipe${actionObj.context ? " with the provided context" : ""}`,
-                    autoSend: true,
-                    source: `notification-${payload?.id}`,
-                  });
-                } else {
-                  // Run in background
-                  await localFetch(`/pipes/${pipeName}/run`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ notification_context: actionObj.context }),
-                  });
-                }
-              }
-              break;
-            }
             case "api": {
               if (actionObj.url) {
                 await localFetch(actionObj.url, {
@@ -177,7 +138,7 @@ export default function NotificationPanelPage() {
                   // emitting. Without this ordering, the emit fires into a
                   // handler that hasn't subscribed yet and the click silently
                   // does nothing.
-                  await commands.showWindowActivated(windowForDeeplink(actionObj.url));
+                  await commands.showWindowActivated("Main");
                   await new Promise((r) => setTimeout(r, 150));
                   await emit("deep-link-received", actionObj.url);
                 } else {
@@ -192,26 +153,6 @@ export default function NotificationPanelPage() {
                     );
                   }
                 }
-              }
-              break;
-            }
-            case "meeting_join": {
-              if (actionObj.url) {
-                try {
-                  const { open } = await import("@tauri-apps/plugin-shell");
-                  await open(actionObj.url);
-                } catch (e) {
-                  console.error(
-                    "notification open: shell plugin unavailable",
-                    e
-                  );
-                }
-              }
-              const deeplink = actionObj.deeplink_url || actionObj.deeplinkUrl;
-              if (typeof deeplink === "string" && deeplink.startsWith("screenpipe://")) {
-                await commands.showWindowActivated(windowForDeeplink(deeplink));
-                await new Promise((r) => setTimeout(r, 150));
-                await emit("deep-link-received", deeplink);
               }
               break;
             }
@@ -230,15 +171,6 @@ export default function NotificationPanelPage() {
         // apps, regardless of overlay_mode.
         if (actionStr === "open_timeline") {
           await commands.showWindowActivated("Main");
-        } else if (actionStr === "open_chat") {
-          await commands.showWindowActivated("Chat");
-        } else if (actionStr === "open_pipe_suggestions") {
-          await showChatWithPrefill({
-            context: PIPE_SUGGESTION_PROMPT,
-            prompt: "what pipes should i create based on my recent activity?",
-            autoSend: true,
-            source: "pipe-suggestion-notification",
-          });
         } else if (actionStr === "restart_recording") {
           setRestartState("restarting");
           setRestartError(null);
@@ -310,7 +242,7 @@ export default function NotificationPanelPage() {
 
       await hide(false);
     },
-    [payload?.type, payload?.id, payload?.pipe_name, hide]
+    [payload?.type, payload?.id, hide]
   );
 
   // Listen for notification payloads from Rust
@@ -336,7 +268,6 @@ export default function NotificationPanelPage() {
             type: data.type,
             title: data.title,
             body: data.body,
-            pipe_name: data.pipe_name,
             timestamp: new Date().toISOString(),
             read: false,
           };
@@ -698,7 +629,7 @@ export default function NotificationPanelPage() {
           </div>
         )}
 
-        {/* Manage / Mute footer */}
+        {/* Manage footer */}
         <div
           style={{
             display: "flex",
@@ -725,39 +656,6 @@ export default function NotificationPanelPage() {
           >
             ⚙ manage
           </span>
-          {payload.pipe_name && (
-            <>
-              <span style={{ fontSize: "9px", color: "rgba(0, 0, 0, 0.15)" }}>·</span>
-              <span
-                onClick={async () => {
-                  try {
-                    const raw = await localforage.getItem<string>("screenpipe-settings");
-                    const settings = raw ? JSON.parse(raw) : {};
-                    const prefs = settings.notificationPrefs || {
-                      captureStalls: true, appUpdates: true,
-                      pipeSuggestions: true, pipeNotifications: true, mutedPipes: [],
-                    };
-                    if (!prefs.mutedPipes.includes(payload.pipe_name!)) {
-                      prefs.mutedPipes.push(payload.pipe_name!);
-                    }
-                    settings.notificationPrefs = prefs;
-                    await localforage.setItem("screenpipe-settings", JSON.stringify(settings));
-                  } catch {}
-                  await hide(false);
-                }}
-                style={{
-                  fontSize: "9px",
-                  color: "rgba(0, 0, 0, 0.3)",
-                  cursor: "pointer",
-                  fontFamily: '"IBM Plex Mono", monospace',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(0, 0, 0, 0.6)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0, 0, 0, 0.3)")}
-              >
-                mute {payload.pipe_name}
-              </span>
-            </>
-          )}
         </div>
 
         {/* Progress bar */}
@@ -785,32 +683,3 @@ export default function NotificationPanelPage() {
   );
 }
 
-const PIPE_SUGGESTION_PROMPT = `you are a screenpipe automation advisor. the user wants ideas for pipes (scheduled AI agents) they can create based on their actual workflow.
-
-## what is screenpipe?
-
-screenpipe is a desktop app that continuously captures screen text (via accessibility APIs) and audio (transcription).
-it runs a local API at http://localhost:3030 that lets you query everything you've seen, said, or heard.
-
-## what is a pipe?
-
-a pipe is a scheduled AI agent defined as a single markdown file: ~/.screenpipe/pipes/{name}/pipe.md
-every N minutes, screenpipe runs a coding agent with the pipe's prompt.
-the agent can query screen data, write files, call external APIs, send notifications, etc.
-
-## your task
-
-1. first, query the user's recent screen data from the last 24 hours:
-   curl "http://localhost:3030/search?limit=50&content_type=all&start_time=<24h_ago_ISO>&end_time=<now_ISO>"
-
-2. analyze what apps they use, what they work on, what patterns you see
-
-3. suggest 3-5 specific, practical pipe ideas based on their ACTUAL data. each suggestion should:
-   - have a short name
-   - explain what it automates in one sentence
-   - mention which APIs or tools it would connect to
-   - be something they'd actually want running daily/hourly
-
-focus on things like: summarizing meetings, tracking time on projects, syncing notes, monitoring specific topics, auto-journaling, sending digest emails, etc.
-
-be specific to what you see in their data — not generic suggestions.`;

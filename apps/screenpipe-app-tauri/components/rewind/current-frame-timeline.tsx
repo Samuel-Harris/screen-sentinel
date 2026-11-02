@@ -6,14 +6,12 @@ import React, { FC, useState, useRef, useEffect, useCallback, useMemo } from "re
 import { useFrameContext } from "@/lib/hooks/use-frame-context";
 import { useFrameTextData } from "@/lib/hooks/use-frame-text-data";
 import { usePlatform } from "@/lib/hooks/use-platform";
-import { formatShortcutDisplay } from "@/lib/chat-utils";
+import { formatShortcutDisplay } from "@/lib/utils/format-shortcut";
 import { TextOverlay, extractUrlsFromText, isUrl, normalizeUrl } from "@/components/text-overlay";
 import { SelectableTextLayer, getSelectableLayerText, clearSelectableLayerSelection } from "@/components/selectable-text-layer";
-import { RegionOcrOverlay } from "@/components/rewind/region-ocr-overlay";
 import { useSearchHighlight } from "@/lib/hooks/use-search-highlight";
 import { useSettings } from "@/lib/hooks/use-settings";
-import { ImageOff, ChevronLeft, ChevronRight, Copy, ImageIcon, Link2, MessageCircle, Type } from "lucide-react";
-import { usePipes } from "@/lib/hooks/use-pipes";
+import { ImageOff, ChevronLeft, ChevronRight, Copy, ImageIcon, Link2, Type } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useFrameLoading } from "@/components/rewind/hooks/use-frame-loading";
 import { useLiveText } from "@/components/rewind/hooks/use-live-text";
@@ -95,7 +93,6 @@ export const CurrentFrameTimeline: FC<CurrentFrameTimelineProps> = ({
 }) => {
 	const { isMac } = usePlatform();
 	const { settings } = useSettings();
-	const { templatePipes } = usePipes();
 	const { highlightTerms, dismissed: highlightDismissed, clear: clearHighlight } = useSearchHighlight();
 	const [contextMenuOpen, setContextMenuOpen] = useState(false);
 	const contextMenuPositionRef = useRef<{ x: number; y: number } | null>(null);
@@ -211,13 +208,11 @@ export const CurrentFrameTimeline: FC<CurrentFrameTimelineProps> = ({
 
 	useEffect(() => { onUrlsDetected?.(detectedUrls); }, [detectedUrls, onUrlsDetected]);
 
-	// --- Frame actions hook (copy image, text, deeplink, ask, run pipe) ---
-	const { copyImage, copyFrameText, copyDeeplinkAction, askAboutFrame, runPipeWithContext } = useFrameActions({
+	// --- Frame actions hook (copy image, text, deeplink) ---
+	const { copyImage, copyFrameText, copyDeeplinkAction } = useFrameActions({
 		debouncedFrame,
 		frameContext,
 		textPositions,
-		currentFrame,
-		templatePipes,
 	});
 
 	// Context menu: close on outside click
@@ -416,39 +411,6 @@ export const CurrentFrameTimeline: FC<CurrentFrameTimelineProps> = ({
 						<Link2 className="w-4 h-4 shrink-0" />
 						copy deeplink
 					</button>
-					<button
-						type="button"
-						className="block w-full text-left px-3 py-2 -my-px first:mt-0 last:mb-0 border-0 outline-none ring-0 bg-transparent hover:bg-foreground hover:text-background text-foreground flex items-center gap-2 cursor-pointer transition-colors duration-150"
-						onClick={() => {
-							askAboutFrame();
-							setContextMenuOpen(false);
-						}}
-					>
-						<MessageCircle className="w-4 h-4 shrink-0" />
-						ask about this frame
-					</button>
-					{templatePipes.length > 0 && (
-						<>
-							<div className="h-px bg-border/30 my-0.5" />
-							<div className="px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">
-								run pipe
-							</div>
-							{templatePipes.map((pipe) => (
-								<button
-									key={pipe.name}
-									type="button"
-									className="block w-full text-left px-3 py-1.5 -my-px border-0 outline-none ring-0 bg-transparent hover:bg-foreground hover:text-background text-foreground flex items-center gap-2 cursor-pointer transition-colors duration-150"
-									onClick={() => {
-										runPipeWithContext(pipe);
-										setContextMenuOpen(false);
-									}}
-								>
-									<span className="w-4 h-4 shrink-0 text-center text-xs leading-4">{pipe.icon}</span>
-									<span className="truncate">{pipe.title}</span>
-								</button>
-							))}
-						</>
-					)}
 				</div>
 			)}
 
@@ -540,14 +502,6 @@ export const CurrentFrameTimeline: FC<CurrentFrameTimelineProps> = ({
 					</div>
 				</div>
 			)}
-
-			{/* Shift+drag region OCR — always mount so shift key listener is active */}
-			<RegionOcrOverlay
-				frameId={debouncedFrame?.frameId ?? null}
-				renderedImageInfo={renderedImageInfo}
-				naturalDimensions={naturalDimensions}
-				userToken={settings.user?.token ?? null}
-			/>
 
 		</div>
 	);

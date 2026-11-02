@@ -5,7 +5,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, ChevronRight, ChevronDown, MessageSquare, X } from "lucide-react";
+import { Bell, ChevronRight, ChevronDown, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { notificationUrlTransform, openScreenpipeViewerLink } from "@/components/markdown";
 import remarkGfm from "remark-gfm";
@@ -17,7 +17,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useRouter } from "next/navigation";
-import { showChatWithPrefill } from "@/lib/chat-utils";
 import { invoke } from "@tauri-apps/api/core";
 
 interface NotificationEntry {
@@ -25,7 +24,6 @@ interface NotificationEntry {
   type: string;
   title: string;
   body: string;
-  pipe_name?: string;
   timestamp: string;
   read: boolean;
 }
@@ -87,13 +85,6 @@ async function openNotificationLink(href: string) {
   await open(raw);
 }
 
-function buildNotificationDisplayLabel(title: string): string {
-  const normalized = title.replace(/\s+/g, " ").trim();
-  if (!normalized) return "Ask AI about notification";
-  const compact = normalized.length > 60 ? `${normalized.slice(0, 57).trimEnd()}...` : normalized;
-  return `Ask AI about: ${compact}`;
-}
-
 export function NotificationBell() {
   const [history, setHistory] = useState<NotificationEntry[]>([]);
   const [open, setOpen] = useState(false);
@@ -139,7 +130,6 @@ export function NotificationBell() {
     const entry = history.find((n) => n.id === id);
     posthog.capture("notification_bell_dismiss", {
       notification_type: entry?.type,
-      pipe_name: entry?.pipe_name,
     });
     setHistory((prev) => prev.filter((n) => n.id !== id));
     if (expandedId === id) setExpandedId(null);
@@ -239,7 +229,6 @@ export function NotificationBell() {
                       if (willExpand) {
                         posthog.capture("notification_bell_expand", {
                           notification_type: entry.type,
-                          pipe_name: entry.pipe_name,
                           title: entry.title,
                         });
                       }
@@ -348,34 +337,6 @@ export function NotificationBell() {
                           >{entry.body}</ReactMarkdown>
                         </div>
                       )}
-                      {entry.pipe_name && (
-                        <span className="text-[9px] text-muted-foreground/60 block mb-2">
-                          {entry.pipe_name}
-                        </span>
-                      )}
-                      <button
-                        data-testid={`notification-bell-ask-ai-${entry.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          posthog.capture("notification_bell_ask_ai", {
-                            notification_type: entry.type,
-                            pipe_name: entry.pipe_name,
-                            title: entry.title,
-                          });
-                          setOpen(false);
-                          showChatWithPrefill({
-                            context: `notification from ${entry.pipe_name || "screenpipe"}:\n\n**${entry.title}**\n${entry.body}`,
-                            prompt: `tell me more about this: "${entry.title}"`,
-                            displayLabel: buildNotificationDisplayLabel(entry.title),
-                            autoSend: true,
-                            source: `notification-bell-${entry.id}`,
-                          });
-                        }}
-                        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <MessageSquare className="w-3 h-3" />
-                        ask ai about this
-                      </button>
                     </div>
                   )}
                 </div>

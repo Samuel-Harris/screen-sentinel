@@ -9,7 +9,7 @@ import { commands } from "@/lib/utils/tauri";
 import { useTheme } from "@/components/theme-provider";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { Moon, Sun, Monitor, Layers, MessageSquare, PanelLeft, Maximize2, EyeOff, MinusSquare, Type } from "lucide-react";
+import { Moon, Sun, Monitor, Layers, PanelLeft, Maximize2, EyeOff, MinusSquare, Type } from "lucide-react";
 import { usePlatform } from "@/lib/hooks/use-platform";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { useToast } from "@/components/ui/use-toast";
@@ -23,7 +23,6 @@ import type { SettingsField } from "./settings-search";
 export const searchIndex: SettingsField[] = [
   { label: "Theme", keywords: ["dark", "light", "appearance"] },
   { label: "Font Size" },
-  { label: "Chat Always on Top", keywords: ["pin", "window"] },
   { label: "Show Shortcut Reminder" },
   { label: "Overlay Size" },
   { label: "Sidebar translucency", keywords: ["vibrancy", "translucent"] },
@@ -247,51 +246,6 @@ export function DisplaySection() {
                   );
                 })}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card">
-          <CardContent className="px-3 py-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-foreground">Chat Always on Top</h3>
-                  <p className="text-xs text-muted-foreground">Keep chat window above other windows</p>
-                </div>
-              </div>
-              <Switch
-                checked={settings?.chatAlwaysOnTop ?? true}
-                onCheckedChange={(checked) =>
-                  handleSettingsChange({ chatAlwaysOnTop: checked })
-                }
-                className="ml-4"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card">
-          <CardContent className="px-3 py-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    Hide Thinking Blocks
-                    <HelpTooltip text="Don't render the collapsible model-reasoning blocks in chat. The model still emits them; this just hides them from the transcript." />
-                  </h3>
-                  <p className="text-xs text-muted-foreground">Hide model reasoning in chat transcript</p>
-                </div>
-              </div>
-              <Switch
-                checked={settings?.hideThinkingBlocks ?? true}
-                onCheckedChange={(checked) =>
-                  handleSettingsChange({ hideThinkingBlocks: checked })
-                }
-                className="ml-4"
-              />
             </div>
           </CardContent>
         </Card>

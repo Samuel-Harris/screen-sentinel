@@ -8,32 +8,15 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/toaster";
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { ShortcutTracker } from "@/components/shortcut-reminder";
-import { PipeInstallDialog } from "@/components/pipe-install-dialog";
-import { BrowserPairingDialog } from "@/components/browser-pairing-dialog";
-import { RecentChatSwitcherController } from "@/components/chat/recent-chat-switcher-controller";
 import { FeedbackDialog } from "@/components/feedback-dialog";
 // TODO: vault lock UI disabled for now — vault is CLI-only until app UX is polished
 // import { VaultLockDialog } from "@/components/vault-lock-dialog";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { commands } from "@/lib/utils/tauri";
-import {
-  clearSearchOpenedFromChatSurface,
-  markSearchOpenedFromChatSurface,
-  openChatConversationInCurrentChatSurface,
-} from "@/lib/chat-utils";
 
 const inter = Inter({ subsets: ["latin"] });
-
-function isChatFocusedRecentSwitcherRoute(
-  pathname: string | null,
-  section: string | null,
-): boolean {
-  if (pathname === "/chat") return true;
-  if (pathname !== "/home") return false;
-  return !section || section === "home";
-}
 
 // Debounced localStorage writer
 const createDebouncer = (wait: number) => {
@@ -43,36 +26,6 @@ const createDebouncer = (wait: number) => {
     timeout = setTimeout(() => fn(), wait);
   };
 };
-
-function RecentChatSwitcherMount() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isRecentChatSwitcherEnabled = isChatFocusedRecentSwitcherRoute(
-    pathname,
-    searchParams.get("section"),
-  );
-
-  useEffect(() => {
-    // /search runs in its own window. Preserve the marker so that search can
-    // yield Ctrl+Tab back to the chat surface that opened it.
-    if (pathname === "/search") return;
-    if (!isRecentChatSwitcherEnabled) {
-      clearSearchOpenedFromChatSurface();
-      return;
-    }
-    markSearchOpenedFromChatSurface(pathname === "/chat" ? "chat" : "home");
-  }, [isRecentChatSwitcherEnabled, pathname]);
-
-  if (!isRecentChatSwitcherEnabled) return null;
-
-  return (
-    <RecentChatSwitcherController
-      onActivateConversation={(id) => {
-        void openChatConversationInCurrentChatSurface(id);
-      }}
-    />
-  );
-}
 
 export default function RootLayout({
   children,
@@ -390,11 +343,6 @@ export default function RootLayout({
               gate) so the screenpipe:// login callback is always caught, even
               while the "sign in required" screen is showing. */}
           {!isOverlay && <ShortcutTracker />}
-          {!isOverlay && <PipeInstallDialog />}
-          {!isOverlay && <BrowserPairingDialog />}
-          <Suspense fallback={null}>
-            <RecentChatSwitcherMount />
-          </Suspense>
           {/* TODO: vault lock UI disabled — CLI-only for now */}
           {/* {!isOverlay && <VaultLockDialog />} */}
           {children}

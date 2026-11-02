@@ -148,9 +148,6 @@ export function AppEntitlementGate({ children }: { children: React.ReactNode }) 
 
   const useDifferentAccount = useCallback(async () => {
     await updateSettings({ user: null as any });
-    try {
-      await commands.setCloudToken(null);
-    } catch {}
     commands.openLoginWindow();
   }, [updateSettings]);
 

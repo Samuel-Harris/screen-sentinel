@@ -83,8 +83,6 @@ type BootPhaseSnapshot = {
     | "idle"
     | "starting"
     | "migrating_database"
-    | "building_audio"
-    | "starting_pipes"
     | "ready"
     | "error";
   message: string | null;
@@ -99,7 +97,6 @@ export default function EngineStartup({
 }: EngineStartupProps) {
   const [state, setState] = useState<StartupState>("starting");
   const [serverStarted, setServerStarted] = useState(false);
-  const [audioReady, setAudioReady] = useState(false);
   const [visionReady, setVisionReady] = useState(false);
   const [isTakingLonger, setIsTakingLonger] = useState(false);
   const [isSendingLogs, setIsSendingLogs] = useState(false);
@@ -147,9 +144,8 @@ export default function EngineStartup({
 
   // Progress 0→1
   const progressVal =
-    (serverStarted ? 0.33 : 0) +
-    (audioReady ? 0.33 : 0) +
-    (visionReady ? 0.34 : 0);
+    (serverStarted ? 0.5 : 0) +
+    (visionReady ? 0.5 : 0);
 
   const [animatedProgress, setAnimatedProgress] = useState(0.15);
 
@@ -177,7 +173,6 @@ export default function EngineStartup({
 
         if (healthCheck?.ok) {
           setServerStarted(true);
-          setAudioReady(true);
           setVisionReady(true);
           setState("running");
           return;
@@ -223,13 +218,10 @@ export default function EngineStartup({
         });
         if (res.ok) {
           const data = await res.json();
-          const audioOk =
-            data.audio_status === "ok" || data.audio_status === "disabled";
           const visionOk =
             data.frame_status === "ok" || data.frame_status === "disabled";
 
           setServerStarted(true);
-          if (audioOk) setAudioReady(true);
           if (visionOk) setVisionReady(true);
 
           setState("running");
@@ -300,13 +292,9 @@ export default function EngineStartup({
         // tiles below the prose. filter_pii=true is on every search — these
         // results are about to be summarized by an LLM, and we don't want the
         // user's password manager text or 2FA codes round-tripping through it.
-        const [mainRes, audioRes, ocrFramesRes] = await Promise.all([
+        const [mainRes, ocrFramesRes] = await Promise.all([
           localFetch(
             `/search?content_type=${contentType}&start_time=${encodeURIComponent("3m ago")}&limit=8&max_content_length=120&filter_pii=true`,
-            { signal: AbortSignal.timeout(3000) }
-          ).catch(() => null),
-          localFetch(
-            `/search?content_type=audio&start_time=${encodeURIComponent("3m ago")}&limit=4&max_content_length=120&filter_pii=true`,
             { signal: AbortSignal.timeout(3000) }
           ).catch(() => null),
           thumbnails.length < MAX_THUMBNAILS
@@ -336,24 +324,6 @@ export default function EngineStartup({
               id: `${result.content?.timestamp || Date.now()}-${items.length}`,
               timestamp: result.content?.timestamp || new Date().toISOString(),
               app_name: appName,
-              text_snippet:
-                text.slice(0, 100) + (text.length > 100 ? "..." : ""),
-            });
-          }
-        }
-
-        if (audioRes?.ok) {
-          const audioData = await audioRes.json();
-          for (const result of audioData.data || []) {
-            const text = result.content?.transcription || "";
-            if (!text.trim()) continue;
-            const key = `audio-${text.slice(0, 30)}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            items.push({
-              id: `${result.content?.timestamp || Date.now()}-${items.length}`,
-              timestamp: result.content?.timestamp || new Date().toISOString(),
-              app_name: "voice",
               text_snippet:
                 text.slice(0, 100) + (text.length > 100 ? "..." : ""),
             });
@@ -396,7 +366,7 @@ export default function EngineStartup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  // Build a digest from collected signals. Plain prose, app + voice grouped,
+  // Build a digest from collected signals. Plain prose, grouped by app,
   // capped per-line so we don't blow the context.
   const buildDigest = useCallback(
     (items: ActivityItem[]): string => {
@@ -426,12 +396,7 @@ export default function EngineStartup({
     if (items.length === 0) return "";
     const apps: string[] = [];
     const seen = new Set<string>();
-    let voiceSnippet = "";
     for (const item of items) {
-      if (item.app_name === "voice") {
-        if (!voiceSnippet) voiceSnippet = item.text_snippet;
-        continue;
-      }
       const name = item.app_name?.trim().toLowerCase();
       if (!name || seen.has(name)) continue;
       seen.add(name);
@@ -448,18 +413,14 @@ export default function EngineStartup({
       const head = apps.slice(0, -1).join(", ");
       parts.push(`i caught you across ${head}, and ${last}`);
     }
-    if (voiceSnippet) {
-      const trimmed = voiceSnippet.replace(/\s+/g, " ").slice(0, 80).trim();
-      parts.push(`heard a bit of you talking — "${trimmed}${voiceSnippet.length > 80 ? "…" : ""}"`);
-    }
     if (parts.length === 0) return "";
     parts.push("i'll keep watching quietly so we can pick up where you left off");
     return parts.join(". ") + ".";
   }, []);
 
-  // Stream a warm summary using the user's default preset, falling back to
-  // their cloud token. If neither is available, leave summary empty and let
-  // the fallback timer release the continue button.
+  // Stream a warm summary using the user's default preset. If it has no
+  // endpoint and key, leave summary empty and let the fallback timer release
+  // the continue button.
   // Track attempts so a transient failure (no token at first poll, network
   // blip) gets retried instead of permanently breaking the slide.
   const summaryAttemptsRef = useRef(0);
@@ -476,35 +437,19 @@ export default function EngineStartup({
       const preset =
         (presets.find((p: any) => p.defaultPreset) as any) ?? (presets[0] as any);
 
-      let endpoint = "";
-      let model = "claude-haiku-4-5";
-      let auth: Record<string, string> = {};
-
-      const userToken = settings.user?.token;
-
-      if (preset?.provider === "screenpipe-cloud" && userToken) {
-        endpoint = "https://api.screenpipe.com/v1/chat/completions";
-        model = preset.model || model;
-        auth = { Authorization: `Bearer ${userToken}` };
-      } else if (
-        (preset?.provider === "openai" || preset?.provider === "custom" || preset?.provider === "anthropic") &&
-        preset.apiKey &&
-        preset.url
+      if (
+        !(preset?.provider === "openai" || preset?.provider === "custom" || preset?.provider === "anthropic") ||
+        !preset.apiKey ||
+        !preset.url
       ) {
-        endpoint = `${preset.url.replace(/\/$/, "")}/chat/completions`;
-        model = preset.model;
-        auth = { Authorization: `Bearer ${preset.apiKey}` };
-      } else if (userToken) {
-        // Fall back to cloud even if preset is non-cloud but token exists.
-        endpoint = "https://api.screenpipe.com/v1/chat/completions";
-        auth = { Authorization: `Bearer ${userToken}` };
-      } else {
         // No way to call any model. Bail and reset the gate so a later poll
-        // can retry — settings.user.token can land asynchronously after the
-        // login slide completes.
+        // can retry.
         summaryStartedRef.current = false;
         return;
       }
+      const endpoint = `${preset.url.replace(/\/$/, "")}/chat/completions`;
+      const model = preset.model;
+      const auth: Record<string, string> = { Authorization: `Bearer ${preset.apiKey}` };
 
       const controller = new AbortController();
       summaryAbortRef.current = controller;
@@ -515,13 +460,13 @@ export default function EngineStartup({
 style:
 - lowercase, plain conversational tone, like a thoughtful friend
 - use "you" — speak directly to the person
-- weave the apps, voice, and topics into a flowing narrative — not a bulleted list
+- weave the apps and topics into a flowing narrative — not a bulleted list
 - 4-5 short sentences, ~40-70 words total
 - end with one warm sentence like "i'll keep watching quietly so we can pick up where you left off."
 
 NEVER use these technical words: ocr, accessibility, a11y, frame, capture, snapshot, extract, scrape, parse, buffer, queue, thread, metadata, schema, keystroke, transcription, transcript, pixel, dom, ui tree. these break the spell.
 
-instead say things like: "you spent some time in slack", "you were typing notes about X", "you had a quick voice conversation about Y", "i caught a bit of your work in vscode".
+instead say things like: "you spent some time in slack", "you were typing notes about X", "i caught a bit of your work in vscode".
 
 if the input is sparse, just describe what little you have warmly. don't apologize for not having more.`;
 
@@ -681,8 +626,6 @@ if the input is sparse, just describe what little you have warmly. don't apologi
         if (current === "running" || current === "live-feed") return current;
         const activePhases: BootPhaseSnapshot["phase"][] = [
           "migrating_database",
-          "building_audio",
-          "starting_pipes",
         ];
         if (bootPhase && activePhases.includes(bootPhase.phase)) {
           // Progress is happening — don't flip to stuck. Timer will re-arm
@@ -692,7 +635,6 @@ if the input is sparse, just describe what little you have warmly. don't apologi
         posthog.capture("onboarding_engine_stuck", {
           time_spent_ms: Date.now() - mountTimeRef.current,
           serverStarted,
-          audioReady,
           visionReady,
           boot_phase: bootPhase?.phase ?? "unknown",
         });
@@ -725,7 +667,6 @@ if the input is sparse, just describe what little you have warmly. don't apologi
   const handleSkip = async () => {
     posthog.capture("onboarding_startup_skipped", {
       serverStarted,
-      audioReady,
       visionReady,
       time_spent_ms: Date.now() - mountTimeRef.current,
     });
@@ -844,14 +785,9 @@ if the input is sparse, just describe what little you have warmly. don't apologi
   const progressSteps = [
     { label: "engine", done: serverStarted, active: !serverStarted },
     {
-      label: "audio",
-      done: audioReady,
-      active: serverStarted && !audioReady,
-    },
-    {
       label: "vision",
       done: visionReady,
-      active: serverStarted && !visionReady && audioReady,
+      active: serverStarted && !visionReady,
     },
   ];
 

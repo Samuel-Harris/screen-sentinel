@@ -4,7 +4,7 @@
 
 "use client";
 
-import { getStore, saveAndEncrypt, useSettings } from "@/lib/hooks/use-settings";
+import { useSettings } from "@/lib/hooks/use-settings";
 
 import React, { useEffect, useState, useRef, useCallback, ErrorInfo } from "react";
 import NotificationHandler from "@/components/notification-handler";
@@ -12,7 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { useOnboarding } from "@/lib/hooks/use-onboarding";
 import { checkFirstRunNotification } from "@/lib/notifications";
 import { ChangelogDialog } from "@/components/changelog-dialog";
-import { localFetch } from "@/lib/api";
 
 import { useHealthCheck } from "@/lib/hooks/use-health-check";
 
@@ -20,7 +19,6 @@ import { commands } from "@/lib/utils/tauri";
 import localforage from "localforage";
 import { LoginDialog } from "@/components/login-dialog";
 import { UpdateBanner } from "@/components/update-banner";
-import { useIsEnterpriseBuild } from "@/lib/hooks/use-is-enterprise-build";
 import { ModelDownloadTracker } from "@/components/model-download-tracker";
 import Timeline from "@/components/rewind/timeline";
 import { Button } from "@/components/ui/button";
@@ -104,7 +102,6 @@ export default function OverlayPage() {
   const { toast } = useToast();
   const openFeedback = useFeedbackStore((s) => s.openFeedback);
   const { onboardingData } = useOnboarding();
-  const isEnterprise = useIsEnterpriseBuild();
   const { isServerDown, isLoading: isHealthLoading } = useHealthCheck();
   const { isMac } = usePlatform();
   const [isRestarting, setIsRestarting] = useState(false);
@@ -148,19 +145,6 @@ export default function OverlayPage() {
   }, []);
 
   useEffect(() => {
-    const getAudioDevices = async () => {
-      const store = await getStore();
-      const devices = (await store.get("audioDevices")) as string[];
-      return devices;
-    };
-
-    // Cleanup function placeholder if needed
-    return () => {
-      // Any cleanup logic can go here
-    };
-  }, []);
-
-  useEffect(() => {
     // add a shortcut to hide overlay window when pressed esc
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -193,66 +177,6 @@ export default function OverlayPage() {
       checkScreenPermissionRestart();
     }
   }, [onboardingData.isCompleted]);
-
-  // Auto-init cloud sync from saved password on app startup
-  useEffect(() => {
-    if (!isSettingsLoaded || !settings.user?.token) return;
-    
-    const autoInitSync = async () => {
-      try {
-        // Check if sync is already running
-        const resp = await localFetch("/sync/status");
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.enabled) return; // Already running
-        }
-      } catch {
-        // Server not ready yet, retry after delay
-        return;
-      }
-
-      // Try saved password from store.bin first, then localStorage for migration
-      let password: string | null = null;
-      try {
-        const store = await getStore();
-        password = await store.get<string>("sync_password") || null;
-      } catch {
-        // Store not available yet
-      }
-
-      // Fall back to old localStorage for migration
-      if (!password) {
-        const legacy = localStorage.getItem("sync_password");
-        if (legacy) {
-          password = atob(legacy);
-          // Migrate to store.bin
-          try {
-            const store = await getStore();
-            await store.set("sync_password", password);
-            await saveAndEncrypt(store);
-            localStorage.removeItem("sync_password");
-            console.log("migrated sync password from localStorage to store.bin");
-          } catch {
-            // Non-critical
-          }
-        }
-      }
-
-      if (!password) return;
-
-      try {
-        await commands.initSync(password);
-        console.log("cloud sync auto-initialized from saved password");
-      } catch (e) {
-        console.log("cloud sync auto-init failed:", e);
-        // Don't clear password - might be a transient error (server not ready)
-      }
-    };
-
-    // Delay to let the server start first
-    const timer = setTimeout(autoInitSync, 5000);
-    return () => clearTimeout(timer);
-  }, [isSettingsLoaded, settings.user?.token]);
 
   const sendLogs = async () => {
     setIsSendingLogs(true);
@@ -384,7 +308,7 @@ export default function OverlayPage() {
         <>
           <ChangelogDialog />
 
-          {!isEnterprise && <LoginDialog />}
+          <LoginDialog />
           <ModelDownloadTracker />
           <UpdateBanner />
           
@@ -465,11 +389,7 @@ export default function OverlayPage() {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">Screen Recording</span>
-                            <PermissionButtons type="screen" hideWindowOnClick />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">Audio Recording</span>
-                            <PermissionButtons type="audio" hideWindowOnClick />
+                            <PermissionButtons hideWindowOnClick />
                           </div>
 
                         </div>
