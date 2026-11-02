@@ -15,6 +15,16 @@ fail() { echo "FAIL $*"; fails=$((fails + 1)); }
 
 banned_crates='^(screenpipe-audio|screenpipe-audio-eval|screenpipe-meeting-eval|screenpipe-sync|screenpipe-team-memory|screenpipe-connect|screenpipe-apple-intelligence|sentry|sentry-[a-z-]+|tauri-plugin-sentry|posthog-rs|cpal|whisper-rs|whisper-rs-sys|coreaudio-rs|coreaudio-sys)$'
 
+# cargo tree re-resolves a stale lockfile, so restore both lockfiles on exit.
+lock_backup=$(mktemp -d)
+lockfiles=(Cargo.lock apps/screenpipe-app-tauri/src-tauri/Cargo.lock)
+for lock in "${lockfiles[@]}"; do mkdir -p "$lock_backup/$(dirname "$lock")"; cp "$lock" "$lock_backup/$lock"; done
+restore_locks() {
+  for lock in "${lockfiles[@]}"; do cp "$lock_backup/$lock" "$lock"; done
+  rm -rf "$lock_backup"
+}
+trap restore_locks EXIT
+
 check_tree() {
   local label=$1; shift
   local names
