@@ -26,9 +26,9 @@ use std::collections::BTreeMap;
 
 use crate::{
     ContentType, Element, ElementRow, ElementSource, FrameData, FrameRow, FrameRowLight,
-    FrameWindowData, InsertUiEvent, MemoryRecord, OCREntry, OCRResult, OCRResultRaw,
-    OcrEngine, OcrTextBlock, Order, SearchMatch, SearchMatchGroup, SearchResult, TagContentType,
-    TextBounds, TextPosition, TimeSeriesChunk, UiContent, UiEventRecord, UiEventRow, VideoMetadata,
+    FrameWindowData, InsertUiEvent, MemoryRecord, OCREntry, OCRResult, OCRResultRaw, OcrEngine,
+    OcrTextBlock, Order, SearchMatch, SearchMatchGroup, SearchResult, TagContentType, TextBounds,
+    TextPosition, TimeSeriesChunk, UiContent, UiEventRecord, UiEventRow, VideoMetadata,
 };
 
 const FRAMES_FTS_EXTERNAL_CONTENT_MIGRATION_VERSION: i64 = 20260415000000;
