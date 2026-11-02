@@ -374,7 +374,7 @@ pub fn set_tray_unhealth_icon(app_handle: tauri::AppHandle) {
         if let Some(main_tray) = app.tray_by_id("screen_sentinel_main") {
             match tauri::image::Image::from_path("icons/screen-sentinel-logo-tray-failed.png") {
                 Ok(icon) => {
-                    if let Err(e) = crate::safe_icon::safe_set_icon(&main_tray, icon) {
+                    if let Err(e) = crate::safe_icon::safe_set_icon_as_template(&main_tray, icon) {
                         error!("failed to set tray unhealthy icon: {}", e);
                     }
                 }
@@ -394,7 +394,7 @@ pub fn set_tray_health_icon(app_handle: tauri::AppHandle) {
         if let Some(main_tray) = app.tray_by_id("screen_sentinel_main") {
             match tauri::image::Image::from_path("icons/screen-sentinel-logo-tray-black.png") {
                 Ok(icon) => {
-                    if let Err(e) = crate::safe_icon::safe_set_icon(&main_tray, icon) {
+                    if let Err(e) = crate::safe_icon::safe_set_icon_as_template(&main_tray, icon) {
                         error!("failed to set tray healthy icon: {}", e);
                     }
                 }

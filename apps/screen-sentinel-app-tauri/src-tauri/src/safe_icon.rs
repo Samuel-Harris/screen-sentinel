@@ -21,22 +21,6 @@ fn is_valid_icon(image: &Image<'_>) -> bool {
     image.width() > 0 && image.height() > 0
 }
 
-/// Safely set the tray icon, skipping images with zero dimensions.
-/// Returns `Ok(())` if the icon was set or skipped (with a warning),
-/// `Err` only for unexpected tray errors on valid icons.
-pub fn safe_set_icon(tray: &TrayIcon, image: Image<'_>) -> anyhow::Result<()> {
-    if !is_valid_icon(&image) {
-        warn!(
-            "skipping tray icon: invalid dimensions {}x{} (would crash muda)",
-            image.width(),
-            image.height()
-        );
-        return Ok(());
-    }
-    tray.set_icon_with_as_template(Some(image), false)?;
-    Ok(())
-}
-
 /// Safely set the tray icon and mark it as a template (macOS).
 /// Skips images with zero dimensions to avoid muda panics.
 pub fn safe_set_icon_as_template(tray: &TrayIcon, image: Image<'_>) -> anyhow::Result<()> {
