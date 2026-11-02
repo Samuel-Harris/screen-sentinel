@@ -44,7 +44,7 @@ keeping those revisions.
 
 | File | Feature | State in 0.4.15 |
 | --- | --- | --- |
-| [01-strip-unused.md](01-strip-unused.md) | Remove audio, meetings, speakers, team, sync and cloud paths | Present; to remove |
+| [01-strip-unused.md](01-strip-unused.md) | Remove audio, meetings, speakers, team, sync, pipes, connections, Apple Intelligence and cloud paths | Present; to remove |
 | [02-rename.md](02-rename.md) | Rename everything to Screen Sentinel and replace the icons and cover art | Present; to rename |
 | [03-nx-monorepo.md](03-nx-monorepo.md) | One Nx task graph, one lockfile per language, and CI that runs only affected projects | Missing |
 | [04-verify-skill.md](04-verify-skill.md) | A project verify skill that launches and drives an isolated recorder | Missing |
