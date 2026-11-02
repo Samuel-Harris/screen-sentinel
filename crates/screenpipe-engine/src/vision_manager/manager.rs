@@ -181,7 +181,7 @@ impl VisionManager {
     }
 
     /// Wire the shared high-FPS controller so capture loops can react to
-    /// manual toggles and meeting-detected transitions at runtime.
+    /// HD session starts and stops at runtime.
     pub fn with_high_fps_controller(mut self, controller: Arc<HighFpsController>) -> Self {
         self.high_fps_controller = Some(controller);
         self

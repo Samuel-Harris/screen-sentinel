@@ -20,12 +20,6 @@
 //!    calls [`report_state`] when `SCStream` errors with `PermissionDenied`.
 //!    Fires within ~100ms of a revoke in System Settings.
 //!
-//!    Audio has no equivalent: CoreAudio/cpal don't surface permission
-//!    revocation as a specific error — the stream just goes silent.
-//!    `AVCaptureDevice.authorizationStatusForMediaType` (used by the
-//!    polling path) IS up to date (unlike `CGPreflightScreenCaptureAccess`),
-//!    so the 5s poll is the right detection path for mic.
-//!
 //! Both paths call [`report_state`] which holds a single [`STATE`] mutex
 //! and emits only if the new value differs from the last-known value.
 //!
@@ -78,7 +72,6 @@ impl LastKnown {
 
 struct State {
     screen: LastKnown,
-    mic: LastKnown,
     accessibility: LastKnown,
     /// Keychain encryption key accessibility. "granted" = key is readable.
     /// Tracked separately from TCC because loss semantics differ (soft notify,
@@ -95,7 +88,6 @@ static STATE: Lazy<Mutex<State>> = Lazy::new(|| {
         // AFTER onboarding (app subscriber gates this); otherwise benign
         // because the event bus is in-process and subscribers can filter.
         screen: LastKnown::new(true),
-        mic: LastKnown::new(true),
         accessibility: LastKnown::new(true),
         keychain: LastKnown::new(true),
         wake_grace_until: None,
@@ -118,7 +110,6 @@ pub fn start() -> Option<JoinHandle<()>> {
         // process start.
         let perms = check_permissions();
         state.screen = LastKnown::new(perms.screen_recording.is_granted());
-        state.mic = LastKnown::new(perms.microphone.is_granted());
         state.accessibility = LastKnown::new(perms.accessibility.is_granted());
         // For keychain, avoid probing the keychain key until encryption is actually
         // requested by the app (via encrypted settings/explicit opt-in). Otherwise
@@ -126,7 +117,6 @@ pub fn start() -> Option<JoinHandle<()>> {
         state.keychain = LastKnown::new(keychain_accessible());
         info!(
             screen = state.screen.granted,
-            mic = state.mic.granted,
             accessibility = state.accessibility.granted,
             keychain = state.keychain.granted,
             "permission monitor started"
@@ -136,7 +126,7 @@ pub fn start() -> Option<JoinHandle<()>> {
     Some(tokio::spawn(run()))
 }
 
-/// Called by capture modules (vision SCStream error, audio device error)
+/// Called by capture modules (vision SCStream error)
 /// or the internal poller. Emits a transition event via the shared bus if
 /// the new state differs from the last known state.
 ///
@@ -159,7 +149,6 @@ pub fn report_state(kind: PermissionKind, now_granted: bool, reason: Option<Stri
 
     let entry = match kind {
         PermissionKind::ScreenRecording => &mut state.screen,
-        PermissionKind::Microphone => &mut state.mic,
         PermissionKind::Accessibility => &mut state.accessibility,
         PermissionKind::Keychain => &mut state.keychain,
     };
@@ -226,11 +215,6 @@ async fn run() {
         report_state(
             PermissionKind::ScreenRecording,
             granted(perms.screen_recording),
-            Some("poll".to_string()),
-        );
-        report_state(
-            PermissionKind::Microphone,
-            granted(perms.microphone),
             Some("poll".to_string()),
         );
         report_state(

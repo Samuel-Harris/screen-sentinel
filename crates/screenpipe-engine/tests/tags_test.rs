@@ -7,7 +7,6 @@ use axum::{
     http::{Request, StatusCode},
     Router,
 };
-use screenpipe_audio::audio_manager::AudioManagerBuilder;
 use screenpipe_screen::OcrEngine;
 use serde_json::json;
 use std::{net::SocketAddr, path::PathBuf, sync::Arc};
@@ -28,21 +27,11 @@ async fn setup_test_app() -> (Router, Arc<DatabaseManager>) {
             .unwrap(),
     );
 
-    let audio_manager = Arc::new(
-        AudioManagerBuilder::new()
-            .output_path("/tmp/screenpipe".into())
-            .build(db.clone())
-            .await
-            .unwrap(),
-    );
-
     let app = SCServer::new(
         db.clone(),
         SocketAddr::from(([127, 0, 0, 1], 23948)),
         PathBuf::from(""),
         false,
-        false,
-        audio_manager,
         false, // use_pii_removal
         "balanced".to_string(),
     );
@@ -80,7 +69,7 @@ async fn test_add_tags_and_search() {
 
     assert_eq!(vision_response.status(), StatusCode::OK);
 
-    // Test adding tags to audio content
+    // Tags only apply to vision content
     let audio_response = app
         .clone()
         .oneshot(
@@ -99,7 +88,7 @@ async fn test_add_tags_and_search() {
         .await
         .unwrap();
 
-    assert_eq!(audio_response.status(), StatusCode::OK);
+    assert_eq!(audio_response.status(), StatusCode::BAD_REQUEST);
 
     // Test adding tags with invalid content type
     let invalid_response = app
@@ -152,10 +141,6 @@ async fn test_add_tags_and_search() {
                 assert!(ocr.tags.contains(&"test".to_string()));
                 assert!(ocr.tags.contains(&"vision".to_string()));
             }
-            ContentItem::Audio(audio) => {
-                assert!(audio.tags.contains(&"test".to_string()));
-                assert!(audio.tags.contains(&"audio".to_string()));
-            }
             ContentItem::UI(_) => {
                 unreachable!()
             }
@@ -167,40 +152,6 @@ async fn test_add_tags_and_search() {
             }
         }
     }
-}
-
-#[tokio::test]
-async fn test_openapi_includes_meeting_retranscribe() {
-    let (app, _) = setup_test_app().await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .method("GET")
-                .uri("/openapi.json")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-    let spec: serde_json::Value = serde_json::from_slice(&body).unwrap();
-    let paths = spec["paths"].as_object().unwrap();
-    let retranscribe_paths = paths
-        .keys()
-        .filter(|path| path.contains("retranscribe"))
-        .cloned()
-        .collect::<Vec<_>>();
-
-    assert!(
-        paths.contains_key("/meetings/{id}/retranscribe")
-            || paths.contains_key("/meetings/:id/retranscribe"),
-        "missing meeting retranscribe path; retranscribe paths: {:?}",
-        retranscribe_paths
-    );
 }
 
 #[tokio::test]
@@ -265,7 +216,7 @@ async fn test_remove_tags() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/tags/audio/1")
+                .uri("/tags/vision/1")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
                     serde_json::to_string(&json!({
@@ -284,7 +235,7 @@ async fn test_remove_tags() {
         .oneshot(
             Request::builder()
                 .method("DELETE")
-                .uri("/tags/audio/1")
+                .uri("/tags/vision/1")
                 .header("Content-Type", "application/json")
                 .body(Body::from(
                     serde_json::to_string(&json!({
@@ -305,7 +256,7 @@ async fn test_remove_tags() {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/search?content_type=audio")
+                .uri("/search?content_type=ocr")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -319,9 +270,9 @@ async fn test_remove_tags() {
 
     println!("Search results: {}", search_results.data.len());
     assert!(!search_results.data.is_empty());
-    if let ContentItem::Audio(audio) = &search_results.data[0] {
-        assert!(audio.tags.contains(&"project-x".to_string()));
-        assert!(!audio.tags.contains(&"client".to_string()));
+    if let ContentItem::OCR(ocr) = &search_results.data[0] {
+        assert!(ocr.tags.contains(&"project-x".to_string()));
+        assert!(!ocr.tags.contains(&"client".to_string()));
     }
 }
 
@@ -330,7 +281,7 @@ async fn test_search_by_multiple_tags() {
     let (app, db) = setup_test_app().await;
     insert_test_data(&db).await;
 
-    // Add tags to multiple items
+    // Add tags
     app.clone()
         .oneshot(
             Request::builder()
@@ -348,24 +299,7 @@ async fn test_search_by_multiple_tags() {
         .await
         .unwrap();
 
-    app.clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/tags/audio/1")
-                .header("Content-Type", "application/json")
-                .body(Body::from(
-                    serde_json::to_string(&json!({
-                        "tags": ["work", "call", "project-b"]
-                    }))
-                    .unwrap(),
-                ))
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    // Search for items with multiple tags (vision+audio), excluding UI content
+    // Search for tagged items, excluding UI content
     let search_response = app
         .clone()
         .oneshot(
@@ -385,16 +319,12 @@ async fn test_search_by_multiple_tags() {
         .unwrap();
     let search_results: PaginatedResponse<ContentItem> = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(search_results.data.len(), 2);
+    assert_eq!(search_results.data.len(), 1);
     for item in search_results.data {
         match item {
             ContentItem::OCR(ocr) => {
                 assert!(ocr.tags.contains(&"work".to_string()));
                 assert!(ocr.tags.contains(&"meeting".to_string()));
-            }
-            ContentItem::Audio(audio) => {
-                assert!(audio.tags.contains(&"work".to_string()));
-                assert!(audio.tags.contains(&"call".to_string()));
             }
             ContentItem::UI(_) => {
                 panic!("UI content should not be included in the results");
@@ -436,30 +366,6 @@ async fn insert_test_data(db: &Arc<DatabaseManager>) {
         "Test OCR text",
         "{'text': 'Test OCR text', 'confidence': 0.9}",
         Arc::new(OcrEngine::Tesseract.into()),
-    )
-    .await
-    .unwrap();
-
-    // Insert test audio chunk
-    let audio_chunk_id = db
-        .insert_audio_chunk("test_audio_file.wav", None)
-        .await
-        .unwrap();
-
-    // Insert test audio data
-    db.insert_audio_transcription(
-        audio_chunk_id,
-        "Test audio transcription",
-        0,
-        "test_engine",
-        &screenpipe_db::AudioDevice {
-            name: "test".to_string(),
-            device_type: screenpipe_db::DeviceType::Output,
-        },
-        None,
-        None,
-        None,
-        None,
     )
     .await
     .unwrap();

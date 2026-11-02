@@ -546,7 +546,7 @@ fn sqlite_pipe_recover(source: &Path, dest: &Path) -> Result<()> {
 }
 
 fn best_effort_counts(db_path: &Path) -> Vec<(&'static str, u64)> {
-    let tables = ["frames", "audio_transcriptions", "ui_events"];
+    let tables = ["frames", "ui_events"];
     let mut out = Vec::new();
     for t in tables {
         let result = Command::new("sqlite3")
