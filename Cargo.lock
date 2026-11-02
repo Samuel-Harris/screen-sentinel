@@ -7527,10 +7527,7 @@ dependencies = [
  "accessibility-sys",
  "anyhow",
  "arc-swap",
- "argon2",
  "async-trait",
- "base64 0.22.1",
- "chacha20poly1305",
  "chrono",
  "clap",
  "core-foundation 0.10.1",
@@ -7539,8 +7536,6 @@ dependencies = [
  "dirs 5.0.1",
  "ffmpeg-sidecar",
  "futures",
- "hex",
- "hmac 0.12.1",
  "lazy_static",
  "libc",
  "log",
@@ -7550,23 +7545,18 @@ dependencies = [
  "reqwest",
  "screenpipe-events",
  "screenpipe-secrets",
- "screenpipe-sync",
  "screenpipe-vault",
  "serde",
  "serde_json",
  "serde_yaml",
- "sha2 0.10.9",
  "sqlx",
  "tempfile",
- "thiserror 1.0.69",
  "tokio",
  "tracing",
  "uiautomation",
  "uuid",
  "which",
  "windows-sys 0.59.0",
- "wiremock",
- "zeroize",
 ]
 
 [[package]]
@@ -7623,7 +7613,6 @@ dependencies = [
  "imageproc",
  "libc",
  "lru",
- "md5",
  "moka",
  "nix 0.29.0",
  "oasgen",
@@ -7784,37 +7773,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "screenpipe-sync"
-version = "0.4.15"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "bytes",
- "chacha20poly1305",
- "hex",
- "rand 0.8.6",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "wiremock",
- "zeroize",
-]
-
-[[package]]
-name = "screenpipe-team-memory"
-version = "0.4.15"
-dependencies = [
- "serde",
- "serde_yaml",
- "thiserror 1.0.69",
 ]
 
 [[package]]

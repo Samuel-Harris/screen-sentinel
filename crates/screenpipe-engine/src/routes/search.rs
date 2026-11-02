@@ -104,9 +104,6 @@ pub(crate) struct SearchQuery {
     on_screen: Option<bool>,
     #[serde(default)]
     browser_url: Option<String>,
-    /// Include cloud-synced data in search results (requires cloud sync to be enabled)
-    #[serde(default, deserialize_with = "deserialize_flexible_bool")]
-    include_cloud: bool,
     /// Truncate each result's text to this many characters using middle-truncation.
     /// When set, long content is replaced with first half + "...(truncated N chars)..." + last half.
     #[serde(default)]
@@ -193,9 +190,6 @@ fn parse_flexible_bool(s: &str) -> Result<bool, String> {
 pub struct SearchResponse {
     pub data: Vec<ContentItem>,
     pub pagination: PaginationInfo,
-    /// Metadata about cloud search availability (only present when cloud sync is available)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cloud: Option<crate::cloud_search::CloudSearchMetadata>,
 }
 
 /// Middle-truncate a string to at most `max_chars` characters.
@@ -321,7 +315,6 @@ pub(crate) fn compute_search_cache_key(query: &SearchQuery) -> u64 {
     // an "on_screen=true" query (and vice-versa). Issue #2436.
     query.on_screen.hash(&mut hasher);
     query.browser_url.hash(&mut hasher);
-    query.include_cloud.hash(&mut hasher);
     query.max_content_length.hash(&mut hasher);
     query.device_name.hash(&mut hasher);
     query.machine_id.hash(&mut hasher);
@@ -598,20 +591,6 @@ pub(crate) async fn search(
 
     debug!("search completed: found {} results", total);
 
-    // Get cloud search metadata
-    let time_range = match (query.start_time, query.end_time) {
-        (Some(start), Some(end)) => Some(crate::cloud_search::TimeRange { start, end }),
-        _ => None,
-    };
-    let cloud_metadata = state.cloud_search.get_metadata(query_str, time_range).await;
-
-    // Only include cloud metadata if cloud search is available or was requested
-    let cloud = if cloud_metadata.cloud_search_available || query.include_cloud {
-        Some(cloud_metadata)
-    } else {
-        None
-    };
-
     let response = SearchResponse {
         data: content_items,
         pagination: PaginationInfo {
@@ -619,7 +598,6 @@ pub(crate) async fn search(
             offset: query.pagination.offset,
             total: total as i64,
         },
-        cloud,
     };
 
     // Cache the result (only for queries without frame extraction)
@@ -810,7 +788,6 @@ mod tests {
             focused: None,
             on_screen: None,
             browser_url: None,
-            include_cloud: false,
             max_content_length: None,
             device_name: None,
             machine_id: None,
@@ -836,7 +813,6 @@ mod tests {
             focused: None,
             on_screen: None,
             browser_url: None,
-            include_cloud: false,
             max_content_length: None,
             device_name: None,
             machine_id: None,
@@ -870,7 +846,6 @@ mod tests {
             focused: None,
             on_screen: None,
             browser_url: None,
-            include_cloud: false,
             max_content_length: None,
             device_name: None,
             machine_id: None,
@@ -896,7 +871,6 @@ mod tests {
             focused: None,
             on_screen: None,
             browser_url: None,
-            include_cloud: false,
             max_content_length: None,
             device_name: None,
             machine_id: None,
@@ -937,7 +911,6 @@ mod tests {
             focused: None,
             on_screen,
             browser_url: None,
-            include_cloud: false,
             max_content_length: None,
             device_name: None,
             machine_id: None,
