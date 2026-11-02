@@ -20,12 +20,8 @@ use tracing::debug;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use tracing::info;
 #[cfg(target_os = "macos")]
-use tracing::{debug, error, info, warn};
+use tracing::{error, info};
 
-#[cfg(target_os = "macos")]
-use crate::analytics::capture_event_nonblocking;
-#[cfg(target_os = "macos")]
-use serde_json::json;
 use tokio::sync::Notify;
 
 /// Tracks whether the system is currently in a "post-wake" state
@@ -419,7 +415,7 @@ pub fn start_sleep_monitor() {
     });
 
     // Thread 3: NSWorkspace notification observers for system sleep/wake.
-    // These are still useful for the RECENTLY_WOKE flag and telemetry.
+    // These drive the RECENTLY_WOKE flag and the DB write pause.
     std::thread::spawn(move || {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let workspace = ns::Workspace::shared();
@@ -474,13 +470,6 @@ fn on_will_sleep() {
     // mid-COMMIT), then block until resumed on wake. This ensures no
     // SQLite I/O happens while the disk is asleep.
     screenpipe_db::request_write_pause();
-
-    capture_event_nonblocking(
-        "system_will_sleep",
-        json!({
-            "platform": "macos",
-        }),
-    );
 }
 
 /// Called when system wakes from sleep
@@ -523,54 +512,7 @@ fn on_did_wake(handle: &tokio::runtime::Handle) {
         // Resume DB write queue now that the system is stable.
         // The 5-second delay above gives the disk time to fully wake.
         screenpipe_db::request_write_resume();
-
-        // Check if recording is healthy
-        let vision_healthy = check_recording_health().await;
-
-        capture_event_nonblocking(
-            "system_did_wake",
-            json!({
-                "platform": "macos",
-                "vision_healthy_after_wake": vision_healthy,
-                "check_delay_secs": 5,
-            }),
-        );
-
-        if !vision_healthy {
-            warn!("Recording degraded after wake: vision={}", vision_healthy);
-        }
     });
-}
-
-/// Check if vision recording is healthy
-#[cfg(target_os = "macos")]
-async fn check_recording_health() -> bool {
-    // Try to hit the local health endpoint
-    let client = reqwest::Client::new();
-
-    match client
-        .get("http://localhost:3030/health")
-        .timeout(Duration::from_secs(5))
-        .send()
-        .await
-    {
-        Ok(response) => {
-            if let Ok(json) = response.json::<serde_json::Value>().await {
-                let frame_status = json
-                    .get("frame_status")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown");
-
-                frame_status == "ok" || frame_status == "healthy"
-            } else {
-                false
-            }
-        }
-        Err(e) => {
-            warn!("Failed to check health after wake: {}", e);
-            false
-        }
-    }
 }
 
 /// Start the sleep/screen-lock monitor on Windows.

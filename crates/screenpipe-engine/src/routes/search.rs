@@ -55,7 +55,6 @@ use std::{
 use tokio::time::timeout;
 use tracing::{debug, error, warn};
 
-use crate::analytics;
 use crate::server::AppState;
 use crate::video_utils::extract_frame;
 
@@ -598,20 +597,6 @@ pub(crate) async fn search(
     }
 
     debug!("search completed: found {} results", total);
-
-    // Track search analytics
-    analytics::capture_event_nonblocking(
-        "search_performed",
-        serde_json::json!({
-            "query_length": query.q.as_ref().map(|q| q.len()).unwrap_or(0),
-            "content_type": format!("{:?}", query.content_type),
-            "has_date_filter": query.start_time.is_some() || query.end_time.is_some(),
-            "has_app_filter": query.app_name.is_some(),
-            "result_count": total,
-            "limit": query.pagination.limit,
-            "offset": query.pagination.offset,
-        }),
-    );
 
     // Get cloud search metadata
     let time_range = match (query.start_time, query.end_time) {

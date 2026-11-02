@@ -12,7 +12,7 @@ use screenpipe_core::sync::SyncServiceHandle;
 use tracing::{debug, error, info};
 
 use crate::{
-    analytics,
+
     hot_frame_cache::HotFrameCache,
     routes::{
         activity_summary::get_activity_summary,
@@ -48,15 +48,11 @@ use arc_swap::ArcSwap;
 use dashmap::DashMap;
 use lru::LruCache;
 use moka::future::Cache as MokaCache;
-use serde_json::json;
 use std::{
     net::SocketAddr,
     num::NonZeroUsize,
     path::PathBuf,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    sync::{atomic::AtomicUsize, Arc},
     time::Duration,
 };
 use tokio::{net::TcpListener, sync::Mutex};
@@ -129,8 +125,6 @@ pub struct AppState {
     pub sync_state: SyncState,
     /// Video quality preset for frame extraction (JPEG quality).
     pub video_quality: String,
-    /// API request counter for usage analytics
-    pub api_request_count: Arc<AtomicUsize>,
     /// Pipe manager for scheduled agent execution
     pub pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     /// Vision pipeline metrics (shared across all monitors)
@@ -361,58 +355,6 @@ impl SCServer {
     }
 
     pub async fn create_router(&self) -> Router {
-        let api_request_count = Arc::new(AtomicUsize::new(0));
-
-        // Spawn periodic API usage reporter (every 5 minutes)
-        let counter_clone = api_request_count.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(300));
-            loop {
-                interval.tick().await;
-                let count = counter_clone.swap(0, Ordering::Relaxed);
-                if count > 0 {
-                    info!("api_usage_5min: {} requests", count);
-                    // Fire analytics event for API usage tracking
-                    analytics::track_api_usage(count);
-                }
-            }
-        });
-
-        // Spawn periodic vision pipeline metrics reporter (every 60 seconds)
-        let metrics_for_posthog = self.vision_metrics.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
-            loop {
-                interval.tick().await;
-                let snap = metrics_for_posthog.snapshot();
-                // Only report if the pipeline has captured any frames
-                if snap.frames_captured > 0 {
-                    analytics::capture_event_nonblocking(
-                        "vision_pipeline_health",
-                        json!({
-                            "uptime_secs": snap.uptime_secs,
-                            "frames_captured": snap.frames_captured,
-                            "frames_skipped": snap.frames_skipped,
-                            "ocr_completed": snap.ocr_completed,
-                            "ocr_cache_hits": snap.ocr_cache_hits,
-                            "ocr_cache_misses": snap.ocr_cache_misses,
-                            "avg_ocr_latency_ms": snap.avg_ocr_latency_ms,
-                            "frames_video_written": snap.frames_video_written,
-                            "frames_db_written": snap.frames_db_written,
-                            "frames_dropped": snap.frames_dropped,
-                            "avg_db_latency_ms": snap.avg_db_latency_ms,
-                            "frame_drop_rate": snap.frame_drop_rate,
-                            "capture_fps_actual": snap.capture_fps_actual,
-                            "time_to_first_frame_ms": snap.time_to_first_frame_ms,
-                            "ocr_queue_depth": snap.ocr_queue_depth,
-                            "video_queue_depth": snap.video_queue_depth,
-                            "pipeline_stall_count": snap.pipeline_stall_count,
-                        }),
-                    );
-                }
-            }
-        });
-
         // Use pre-set hot frame cache or create a new one, then warm from DB.
         // Spawn warm_from_db in the background — the cache starts empty but fills
         // within seconds. This avoids blocking server start for 40+ seconds on large DBs.
@@ -469,7 +411,6 @@ impl SCServer {
             // Runtime sync state (initialized via /sync/init)
             sync_state: sync_api::new_sync_state(),
             video_quality: self.video_quality.clone(),
-            api_request_count: api_request_count.clone(),
             pipe_manager: self.pipe_manager.clone(),
             vision_metrics: self.vision_metrics.clone(),
             // Allow up to 3 concurrent ffmpeg extractions. Beyond this, requests
@@ -867,15 +808,6 @@ impl SCServer {
             .layer(axum::middleware::from_fn_with_state(
                 app_state.clone(),
                 crate::routes::vault::vault_lock_middleware,
-            ))
-            .layer(axum::middleware::from_fn(
-                move |req: axum::extract::Request, next: axum::middleware::Next| {
-                    let counter = app_state.api_request_count.clone();
-                    async move {
-                        counter.fetch_add(1, Ordering::Relaxed);
-                        next.run(req).await
-                    }
-                },
             ))
             .layer(axum::middleware::from_fn(
                 crate::routes::timezone::timestamp_middleware,
