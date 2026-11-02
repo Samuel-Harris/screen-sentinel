@@ -4,7 +4,6 @@
 pub mod agents;
 pub mod connections;
 pub mod ffmpeg;
-pub mod memories;
 pub mod paths;
 pub mod permissions;
 pub mod pipes;
