@@ -21,3 +21,24 @@ pub mod pii_removal;
 pub use pii_removal::*;
 
 pub use language::{Language, TESSERACT_LANGUAGES};
+
+/// Whether an app or window owner name belongs to this app. The bundle is
+/// named "Screen Sentinel" while the CLI and processes use "screen-sentinel".
+pub fn is_screen_sentinel_app(app_name: &str) -> bool {
+    let name = app_name.to_lowercase();
+    name.contains("screen sentinel") || name.contains("screen-sentinel")
+}
+
+#[cfg(test)]
+mod own_app_tests {
+    use super::is_screen_sentinel_app;
+
+    #[test]
+    fn matches_bundle_cli_and_dev_names() {
+        assert!(is_screen_sentinel_app("Screen Sentinel"));
+        assert!(is_screen_sentinel_app("Screen Sentinel - Development"));
+        assert!(is_screen_sentinel_app("screen-sentinel"));
+        assert!(!is_screen_sentinel_app("screenshot"));
+        assert!(!is_screen_sentinel_app("Safari"));
+    }
+}

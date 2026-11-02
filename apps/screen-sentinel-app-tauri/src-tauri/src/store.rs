@@ -921,7 +921,7 @@ impl Default for SettingsStore {
             "Recorder".to_string(),
             "vault".to_string(),
             "OBS Studio".to_string(),
-            "screen-sentinel".to_string(),
+            "Screen Sentinel".to_string(),
         ];
 
         #[cfg(target_os = "macos")]

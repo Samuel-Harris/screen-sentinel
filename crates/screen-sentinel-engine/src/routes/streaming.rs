@@ -113,7 +113,7 @@ pub(crate) fn create_time_series_frame(chunk: FrameData) -> TimeSeriesFrame {
         .ocr_entries
         .into_iter()
         // Filter out Screen Sentinel frames at display time
-        .filter(|device_data| !device_data.app_name.to_lowercase().contains("screen-sentinel"))
+        .filter(|device_data| !screen_sentinel_core::is_screen_sentinel_app(&device_data.app_name))
         .map(|device_data| DeviceFrame {
             device_id: device_data.device_name,
             frame_id: chunk.frame_id,
@@ -428,7 +428,7 @@ async fn handle_stream_frames_socket(
                             drop(sent);
 
                             // Skip Screen Sentinel's own frames
-                            if hot_frame.app_name.to_lowercase().contains("screen-sentinel") {
+                            if screen_sentinel_core::is_screen_sentinel_app(&hot_frame.app_name) {
                                 continue;
                             }
 

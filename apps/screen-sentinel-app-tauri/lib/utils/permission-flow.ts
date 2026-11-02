@@ -358,7 +358,7 @@ function isScreenSentinelAppBundle(
   appPath: string | null | undefined,
 ): appPath is string {
   if (!appPath || !appPath.endsWith(".app")) return false;
-  return /screen-sentinel/i.test(appPath);
+  return /screen[- ]sentinel/i.test(appPath);
 }
 
 async function getOrCreateFlow(): Promise<PermissionFlow> {

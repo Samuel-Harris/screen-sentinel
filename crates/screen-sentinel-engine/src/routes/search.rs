@@ -10,6 +10,7 @@ use axum::{
 use oasgen::{oasgen, OaSchema};
 
 use chrono::{DateTime, Utc};
+use screen_sentinel_core::is_screen_sentinel_app;
 use screen_sentinel_db::{ContentType, DatabaseManager, Order, SearchResult};
 
 use futures::future::{try_join, try_join_all};
@@ -175,12 +176,6 @@ pub fn truncate_middle(text: &str, max_chars: usize) -> String {
     let start: String = text.chars().take(keep_start).collect();
     let end: String = text.chars().skip(char_count - keep_end).collect();
     format!("{}...(truncated {} chars)...{}", start, removed, end)
-}
-
-/// Case-insensitive check for whether an app row should be filtered out
-/// because it belongs to Screen Sentinel itself.
-pub fn is_screen_sentinel_app(app_name: &str) -> bool {
-    app_name.to_lowercase().contains("screen-sentinel")
 }
 
 /// Convert a `SearchResult` row into the public `ContentItem` shape used by
@@ -601,7 +596,7 @@ pub(crate) async fn keyword_search_handler(
 
         let filtered: Vec<_> = matches
             .into_iter()
-            .filter(|m| !m.app_name.to_lowercase().contains("screen-sentinel"))
+            .filter(|m| !is_screen_sentinel_app(&m.app_name))
             .collect();
 
         let groups = DatabaseManager::cluster_search_matches(filtered, 120);
@@ -631,7 +626,7 @@ pub(crate) async fn keyword_search_handler(
 
         let filtered: Vec<_> = matches
             .into_iter()
-            .filter(|m| !m.app_name.to_lowercase().contains("screen-sentinel"))
+            .filter(|m| !is_screen_sentinel_app(&m.app_name))
             .collect();
 
         Ok(JsonResponse(json!(filtered)))

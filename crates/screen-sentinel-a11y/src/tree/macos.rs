@@ -341,6 +341,7 @@ impl MacosTreeWalker {
             "keepassxc",
             "keychain access",
             "screen-sentinel",
+            "screen sentinel",
             "loginwindow",
         ];
         if EXCLUDED_APPS.iter().any(|ex| app_lower.contains(ex)) {

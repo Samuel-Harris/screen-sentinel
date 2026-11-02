@@ -180,7 +180,7 @@ impl HotFrameCache {
                     // Convert FrameData to HotFrames
                     for ocr_entry in &frame_data.ocr_entries {
                         // Skip Screen Sentinel's own frames
-                        if ocr_entry.app_name.to_lowercase().contains("screen-sentinel") {
+                        if screen_sentinel_core::is_screen_sentinel_app(&ocr_entry.app_name) {
                             continue;
                         }
                         let hot = HotFrame {

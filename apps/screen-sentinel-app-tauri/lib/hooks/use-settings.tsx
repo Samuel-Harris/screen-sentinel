@@ -175,7 +175,7 @@ const DEFAULT_IGNORED_WINDOWS_IN_ALL_OS = [
 	"Recorder",
 	"vault",
 	"OBS Studio",
-	"screen-sentinel",
+	"Screen Sentinel",
 ];
 
 const DEFAULT_IGNORED_WINDOWS_PER_OS: Record<string, string[]> = {

@@ -565,7 +565,7 @@ mod tests {
     async fn test_screen_sentinel_app_filtering() {
         // Simulate the filtering logic from create_time_series_frame
         fn should_include_entry(app_name: &str) -> bool {
-            !app_name.to_lowercase().contains("screen-sentinel")
+            !screen_sentinel_core::is_screen_sentinel_app(app_name)
         }
 
         // Regular apps should be included
@@ -615,7 +615,7 @@ mod tests {
         // Apply filter
         let filtered: Vec<_> = entries
             .into_iter()
-            .filter(|(app_name, _)| !app_name.to_lowercase().contains("screen-sentinel"))
+            .filter(|(app_name, _)| !screen_sentinel_core::is_screen_sentinel_app(app_name))
             .collect();
 
         assert!(
@@ -641,7 +641,7 @@ mod tests {
 
         let filtered: Vec<_> = entries
             .into_iter()
-            .filter(|(app_name, _)| !app_name.to_lowercase().contains("screen-sentinel"))
+            .filter(|(app_name, _)| !screen_sentinel_core::is_screen_sentinel_app(app_name))
             .collect();
 
         assert_eq!(filtered.len(), 2, "Should have 2 non-screen-sentinel entries");

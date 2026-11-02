@@ -156,6 +156,7 @@ const EXCLUDED_APPS: &[&str] = &[
     "seahorse",
     "kwalletmanager",
     "screen-sentinel",
+    "screen sentinel",
     "nm-connection-editor",
     "polkit",
     // Window managers / desktop shells — no user content

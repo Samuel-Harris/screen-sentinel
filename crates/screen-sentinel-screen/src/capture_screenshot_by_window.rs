@@ -96,7 +96,7 @@ static SKIP_APPS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
         // Screen Sentinel's own UI should never be captured
         "screen-sentinel",
         "Screen Sentinel - Development",
-        "Screen Sentinel beta",
+        "Screen Sentinel",
     ])
 });
 
@@ -113,7 +113,7 @@ static SKIP_APPS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
         // Screen Sentinel's own UI should never be captured
         "screen-sentinel",
         "Screen Sentinel - Development",
-        "Screen Sentinel beta",
+        "Screen Sentinel",
     ])
 });
 
@@ -134,7 +134,7 @@ static SKIP_APPS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
         // Screen Sentinel's own UI should never be captured
         "screen-sentinel",
         "Screen Sentinel - Development",
-        "Screen Sentinel beta",
+        "Screen Sentinel",
         "screen-sentinel-app",
     ])
 });
@@ -597,7 +597,7 @@ pub fn find_topmost_pid_on_monitor(
             continue;
         }
         // Skip Screen Sentinel's own UI
-        if w.owner_name.to_lowercase().contains("screen-sentinel") {
+        if screen_sentinel_core::is_screen_sentinel_app(&w.owner_name) {
             continue;
         }
         // Skip known system title windows
@@ -1066,7 +1066,7 @@ pub async fn capture_all_visible_windows(
         // have internal windows with empty titles that create duplicate DB records
         // Also skip system UI elements that have no owning app (empty app_name)
         // Safety-net: always exclude Screen Sentinel's own UI regardless of exact app name variant
-        let is_screen_sentinel_ui = app_name.to_lowercase().contains("screen-sentinel");
+        let is_screen_sentinel_ui = screen_sentinel_core::is_screen_sentinel_app(&app_name);
         let is_valid = !is_screen_sentinel_ui
             && !SKIP_APPS.contains(app_name.as_str())
             && !app_name.is_empty()

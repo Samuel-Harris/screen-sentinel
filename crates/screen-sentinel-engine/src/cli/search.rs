@@ -22,7 +22,8 @@ use std::path::PathBuf;
 
 use crate::cli::SearchArgs;
 use crate::routes::content::ContentItem;
-use crate::routes::search::{is_screen_sentinel_app, search_result_to_content_item};
+use crate::routes::search::search_result_to_content_item;
+use screen_sentinel_core::is_screen_sentinel_app;
 use crate::routes::time::parse_flexible_datetime;
 
 pub async fn handle_search_command(args: &SearchArgs) -> anyhow::Result<()> {
