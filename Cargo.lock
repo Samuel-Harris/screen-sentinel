@@ -8219,25 +8219,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "screenpipe-audio-eval"
-version = "0.4.15"
-dependencies = [
- "anyhow",
- "audiopipe",
- "chrono",
- "clap",
- "hound",
- "screenpipe-audio",
- "screenpipe-core",
- "screenpipe-db",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "toml 0.8.23",
-]
-
-[[package]]
 name = "screenpipe-capture"
 version = "0.1.0"
 dependencies = [
@@ -8480,18 +8461,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
-]
-
-[[package]]
-name = "screenpipe-meeting-eval"
-version = "0.4.15"
-dependencies = [
- "anyhow",
- "clap",
- "screenpipe-engine",
- "serde",
- "serde_json",
- "toml 0.8.23",
 ]
 
 [[package]]
