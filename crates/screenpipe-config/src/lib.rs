@@ -23,7 +23,9 @@
 mod defaults;
 mod persistence;
 mod recording;
+mod screen_lock;
 
 pub use defaults::*;
 pub use persistence::*;
 pub use recording::*;
+pub use screen_lock::{screen_is_locked, set_screen_locked};
