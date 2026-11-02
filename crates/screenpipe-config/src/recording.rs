@@ -279,14 +279,6 @@ pub struct RecordingSettings {
     #[serde(rename = "useChineseMirror")]
     pub use_chinese_mirror: bool,
 
-    /// Enable anonymous analytics (PostHog).
-    #[serde(rename = "analyticsEnabled")]
-    pub analytics_enabled: bool,
-
-    /// Persistent analytics ID (UUID, stable across sessions).
-    #[serde(rename = "analyticsId")]
-    pub analytics_id: String,
-
     /// Enable AI workflow event detection (cloud feature, requires subscription).
     /// When enabled, classifies desktop activity and triggers event-based pipes.
     #[serde(rename = "enableWorkflowEvents", default)]
@@ -377,8 +369,6 @@ impl Default for RecordingSettings {
             port: 3030,
             power_mode: None,
             use_chinese_mirror: false,
-            analytics_enabled: true,
-            analytics_id: String::new(),
             enable_workflow_events: false,
             device_tier: None,
             schedule_enabled: false,
@@ -512,7 +502,6 @@ mod tests {
             settings.ignored_windows,
             vec!["Control Center", "Notification Center"]
         );
-        assert_eq!(settings.analytics_id, "posthog-uuid");
 
         // Fields that don't exist in RecordingSettings (UI-only) are silently ignored
         // This is critical for flatten compat — SettingsStore has aiPresets, shortcuts, etc.

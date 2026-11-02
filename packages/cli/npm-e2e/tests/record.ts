@@ -21,7 +21,6 @@ export async function testRecord(ctx: TestContext): Promise<void> {
     "record",
     "--disable-audio",
     "--disable-vision",
-    "--disable-telemetry",
     "--disable-meeting-detector",
     "--port",
     String(recordPort),
