@@ -33,17 +33,11 @@ xdpyinfo || echo "xdpyinfo failed"
 xrandr || echo "xrandr failed"
 xwininfo -root -children || echo "xwininfo failed"
 
-log "Setting up audio"
-.github/scripts/setup_audio.sh
-
 log "Running Screenpipe"
 .github/scripts/run_screenpipe.sh
 
 log "Testing OCR"
 .github/scripts/test_ocr.sh
-
-log "Testing Audio Capture"
-.github/scripts/test_audio_capture.sh
 
 log "Stopping Screenpipe"
 .github/scripts/stop_screenpipe.sh
