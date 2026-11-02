@@ -589,7 +589,7 @@ where
 pub struct SettingsStore {
     // ── Recording settings (shared source of truth) ──────────────────────
     /// All recording/capture config lives here. Flattened so the JSON shape
-    /// is unchanged — `disableAudio`, `port`, `fps`, etc. stay at the top level.
+    /// is unchanged — `port`, `fps`, etc. stay at the top level.
     #[serde(flatten)]
     pub recording: screenpipe_config::RecordingSettings,
 
@@ -628,10 +628,6 @@ pub struct SettingsStore {
     pub start_recording_shortcut: String,
     #[serde(rename = "stopRecordingShortcut")]
     pub stop_recording_shortcut: String,
-    #[serde(rename = "startAudioShortcut")]
-    pub start_audio_shortcut: String,
-    #[serde(rename = "stopAudioShortcut")]
-    pub stop_audio_shortcut: String,
     #[serde(rename = "showChatShortcut")]
     pub show_chat_shortcut: String,
     #[serde(rename = "searchShortcut")]
@@ -650,13 +646,6 @@ pub struct SettingsStore {
     /// When disabled, users must click "update now" in the tray menu.
     #[serde(rename = "autoUpdate", default = "default_false")]
     pub auto_update: bool,
-    /// Auto-update store-installed pipes that haven't been locally modified.
-    #[serde(rename = "autoUpdatePipes", default = "default_true")]
-    pub auto_update_pipes: bool,
-    /// Use screenpipe cloud for AI-powered features like suggestions.
-    /// Better quality but sends activity context to the cloud (zero data retention).
-    #[serde(rename = "enhancedAI", default)]
-    pub enhanced_ai: bool,
     /// Timeline overlay mode: "fullscreen" (floating panel above everything) or
     /// "window" (normal resizable window with title bar).
     #[serde(rename = "overlayMode", default = "default_overlay_mode")]
@@ -675,7 +664,7 @@ pub struct SettingsStore {
     #[serde(rename = "chatAlwaysOnTop", default = "default_true")]
     pub chat_always_on_top: bool,
 
-    /// Show restart notifications when audio/vision capture stalls.
+    /// Show restart notifications when vision capture stalls.
     /// Disabled by default for now until the stall detector is more reliable.
     #[serde(rename = "showRestartNotifications", default)]
     pub show_restart_notifications: bool,
@@ -899,45 +888,6 @@ fn entitlement_feature(entitlement: &serde_json::Value, feature: &str) -> bool {
         .unwrap_or(false)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub enum AudioEngineFallbackReason {
-    NotLoggedIn,
-    NotSubscribed,
-    MissingDeepgramKey,
-}
-
-impl AudioEngineFallbackReason {
-    pub fn notification_title(&self) -> &'static str {
-        match self {
-            Self::NotLoggedIn | Self::NotSubscribed => "Screenpipe Cloud unavailable",
-            Self::MissingDeepgramKey => "Deepgram unavailable",
-        }
-    }
-
-    pub fn notification_body(&self) -> &'static str {
-        match self {
-            Self::NotLoggedIn => {
-                "You are not logged in, so audio is being transcribed locally with Whisper Turbo (fast). Log in to use Screenpipe Cloud."
-            }
-            Self::NotSubscribed => {
-                "Screenpipe Cloud requires an active subscription, so audio is being transcribed locally with Whisper Turbo (fast)."
-            }
-            Self::MissingDeepgramKey => {
-                "Deepgram has no API key configured, so audio is being transcribed locally with Whisper Turbo (fast)."
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Type)]
-#[serde(rename_all = "camelCase")]
-pub struct AudioEngineResolution {
-    pub requested: String,
-    pub active: String,
-    pub fallback_reason: Option<AudioEngineFallbackReason>,
-}
-
 #[derive(Serialize, Deserialize, Type, Clone)]
 #[serde(default)]
 pub struct Credits {
@@ -1042,11 +992,8 @@ Rules:
         Self {
             // App-specific defaults override RecordingSettings::default() where needed
             recording: screenpipe_config::RecordingSettings {
-                audio_transcription_engine: "whisper-large-v3-turbo-quantized".to_string(),
                 monitor_ids: vec!["default".to_string()],
-                audio_devices: vec!["default".to_string()],
                 use_pii_removal: true,
-                analytics_id: uuid::Uuid::new_v4().to_string(),
                 ignored_windows,
                 ..screenpipe_config::RecordingSettings::default()
             },
@@ -1078,14 +1025,6 @@ Rules:
             #[cfg(not(target_os = "windows"))]
             stop_recording_shortcut: "Super+Ctrl+X".to_string(),
             #[cfg(target_os = "windows")]
-            start_audio_shortcut: "Alt+Shift+A".to_string(),
-            #[cfg(not(target_os = "windows"))]
-            start_audio_shortcut: "Super+Ctrl+A".to_string(),
-            #[cfg(target_os = "windows")]
-            stop_audio_shortcut: "Alt+Shift+Z".to_string(),
-            #[cfg(not(target_os = "windows"))]
-            stop_audio_shortcut: "Super+Ctrl+Z".to_string(),
-            #[cfg(target_os = "windows")]
             show_chat_shortcut: "Alt+L".to_string(),
             #[cfg(not(target_os = "windows"))]
             show_chat_shortcut: "Control+Super+L".to_string(),
@@ -1101,8 +1040,6 @@ Rules:
             shortcut_overlay_size: "small".to_string(),
             device_id: uuid::Uuid::new_v4().to_string(),
             auto_update: false,
-            auto_update_pipes: true,
-            enhanced_ai: false,
             #[cfg(target_os = "macos")]
             overlay_mode: "fullscreen".to_string(),
             #[cfg(not(target_os = "macos"))]
@@ -1213,12 +1150,12 @@ impl SettingsStore {
     ///
     /// Since RecordingSettings is now embedded via flatten, this is mostly a
     /// clone with overrides for fields that need special handling (e.g. user_id
-    /// comes from the User auth object, user_name has a fallback chain).
+    /// comes from the User auth object).
     pub fn to_recording_settings(&self) -> screenpipe_config::RecordingSettings {
         let mut settings = self.recording.clone();
         // Override user_id with the Clerk JWT token from the auth user object.
-        // This token is used as the Bearer credential for screenpipe cloud
-        // (transcription proxy, Pi agent, etc.), not as a database ID.
+        // This token is used as the Bearer credential for screenpipe cloud,
+        // not as a database ID.
         // Fallback to user.id if token is unavailable.
         settings.user_id = self
             .user
@@ -1228,12 +1165,6 @@ impl SettingsStore {
             .or(self.user.id.as_ref().filter(|id| !id.is_empty()))
             .cloned()
             .unwrap_or_default();
-        // Fallback chain: userName setting → cloud name → cloud email
-        settings.user_name = settings
-            .user_name
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| self.user.name.clone().filter(|s| !s.trim().is_empty()))
-            .or_else(|| self.user.email.clone().filter(|s| !s.trim().is_empty()));
         settings
     }
 
@@ -1242,13 +1173,8 @@ impl SettingsStore {
         &self,
         data_dir: std::path::PathBuf,
     ) -> screenpipe_engine::RecordingConfig {
-        let resolved_engine = self.audio_engine_resolution().active;
         let settings = self.to_recording_settings();
-        let mut config = screenpipe_engine::RecordingConfig::from_settings(
-            &settings,
-            data_dir,
-            Some(&resolved_engine),
-        );
+        let mut config = screenpipe_engine::RecordingConfig::from_settings(&settings, data_dir);
         // Resolve the API auth key from the seeded cache. The cache is populated
         // asynchronously by `recording::spawn_screenpipe` via the shared helper
         // (`screenpipe_engine::auth_key::resolve_api_auth_key`) — which is the
@@ -1314,46 +1240,6 @@ impl SettingsStore {
         entitlement_checked_recently(entitlement) && entitlement_active(entitlement)
     }
 
-    pub fn audio_engine_resolution(&self) -> AudioEngineResolution {
-        let engine = self.recording.audio_transcription_engine.clone();
-        let has_cloud_auth = self
-            .user
-            .token
-            .as_ref()
-            .map_or(false, |token| !token.is_empty())
-            || self.user.id.as_ref().map_or(false, |id| !id.is_empty());
-        let is_subscribed = self.user.cloud_subscribed == Some(true);
-        let has_deepgram_key = !self.recording.deepgram_api_key.is_empty()
-            && self.recording.deepgram_api_key != "default";
-        let fallback = "whisper-large-v3-turbo-quantized".to_string();
-        let mut resolution = AudioEngineResolution {
-            requested: engine.clone(),
-            active: engine.clone(),
-            fallback_reason: None,
-        };
-
-        match engine.as_str() {
-            "screenpipe-cloud" if !has_cloud_auth => {
-                tracing::warn!("screenpipe-cloud selected but user not logged in, falling back to whisper-large-v3-turbo-quantized");
-                resolution.active = fallback;
-                resolution.fallback_reason = Some(AudioEngineFallbackReason::NotLoggedIn);
-            }
-            "screenpipe-cloud" if !is_subscribed => {
-                tracing::warn!("screenpipe-cloud selected but user is not a pro subscriber, falling back to whisper-large-v3-turbo-quantized");
-                resolution.active = fallback;
-                resolution.fallback_reason = Some(AudioEngineFallbackReason::NotSubscribed);
-            }
-            "deepgram" if !has_deepgram_key => {
-                tracing::warn!("deepgram selected but no API key configured, falling back to whisper-large-v3-turbo-quantized");
-                resolution.active = fallback;
-                resolution.fallback_reason = Some(AudioEngineFallbackReason::MissingDeepgramKey);
-            }
-            _ => {}
-        };
-
-        resolution
-    }
-
     pub fn save(&self, app: &AppHandle) -> Result<(), String> {
         let Ok(store) = get_store(app, None) else {
             return Err("Failed to get store".to_string());
@@ -1394,7 +1280,7 @@ pub fn init_store(app: &AppHandle) -> Result<SettingsStore, String> {
             // Fallback to defaults when deserialization fails (e.g., corrupted store)
             // DON'T save - preserve original store in case it can be manually recovered
             // This prevents crashes from invalid values like negative integers in u32 fields
-            // Non-fatal — logged as warn (not error) so Sentry doesn't pick it up.
+            // Non-fatal — logged as warn, not error.
             warn!(
                 "Failed to deserialize settings, using defaults (store not overwritten): {}",
                 e
@@ -1424,29 +1310,11 @@ pub fn init_store(app: &AppHandle) -> Result<SettingsStore, String> {
             store.recording.device_tier = Some(detected.as_str().to_string());
             should_save = true;
         }
-
-        // Unconditional safety guard: prevent parakeet/parakeet-mlx on platforms
-        // where it will crash (Low tier = OOM, macOS < 26 = MLX segfault).
-        if screenpipe_config::is_engine_unsafe(
-            &store.recording.audio_transcription_engine,
-            detected,
-        ) {
-            let safe = screenpipe_config::best_engine_for_platform(detected);
-            tracing::warn!(
-                "engine {} is unsafe on this platform (tier={:?}, macOS={:?}) — switching to {}",
-                store.recording.audio_transcription_engine,
-                detected,
-                screenpipe_config::macos_major_version(),
-                safe,
-            );
-            store.recording.audio_transcription_engine = safe.to_string();
-            should_save = true;
-        }
     }
 
     if should_save {
         if let Err(e) = store.save(app) {
-            // Non-fatal — logged as warn (not error) so Sentry doesn't pick it up.
+            // Non-fatal — logged as warn, not error.
             // Common cause on Windows: antivirus / Controlled Folder Access / OneDrive
             // blocks the first write; we retry on subsequent saves so the user isn't
             // actually stuck. Not worth paging Louis about.
@@ -1465,7 +1333,7 @@ pub fn init_onboarding_store(app: &AppHandle) -> Result<OnboardingStore, String>
         Err(e) => {
             // Fallback to defaults when deserialization fails
             // DON'T save - preserve original store
-            // Non-fatal — logged as warn (not error) so Sentry doesn't pick it up.
+            // Non-fatal — logged as warn, not error.
             warn!(
                 "Failed to deserialize onboarding, using defaults (store not overwritten): {}",
                 e
@@ -1476,7 +1344,7 @@ pub fn init_onboarding_store(app: &AppHandle) -> Result<OnboardingStore, String>
 
     if should_save {
         if let Err(e) = onboarding.save(app) {
-            // Non-fatal — logged as warn (not error) so Sentry doesn't pick it up.
+            // Non-fatal — logged as warn, not error.
             // See matching comment in init_settings_store.
             warn!("Failed to save initial onboarding store (non-fatal): {}", e);
         }
@@ -1484,163 +1352,10 @@ pub fn init_onboarding_store(app: &AppHandle) -> Result<OnboardingStore, String>
     Ok(onboarding)
 }
 
-// ─── Cloud Sync Settings ─────────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CloudSyncSettingsStore {
-    pub enabled: bool,
-    /// Base64-encoded encryption password for auto-init on startup
-    #[serde(default)]
-    pub encrypted_password: String,
-}
-
-impl CloudSyncSettingsStore {
-    #[allow(dead_code)]
-    pub fn get(app: &AppHandle) -> Result<Option<Self>, String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        if store.is_empty() {
-            return Ok(None);
-        }
-        let settings = serde_json::from_value(store.get("cloud_sync").unwrap_or(Value::Null));
-        match settings {
-            Ok(settings) => Ok(settings),
-            Err(_) => Ok(None),
-        }
-    }
-
-    pub fn save(&self, app: &AppHandle) -> Result<(), String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        store.set("cloud_sync", json!(self));
-        store.save().map_err(|e| e.to_string())?;
-        reencrypt_store_file(app);
-        Ok(())
-    }
-}
-
-// ─── Cloud Archive Settings ──────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CloudArchiveSettingsStore {
-    pub enabled: bool,
-    #[serde(default = "default_archive_retention")]
-    pub retention_days: u32,
-}
-
-fn default_archive_retention() -> u32 {
-    7
-}
-
-impl CloudArchiveSettingsStore {
-    pub fn get(app: &AppHandle) -> Result<Option<Self>, String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        if store.is_empty() {
-            return Ok(None);
-        }
-        let settings = serde_json::from_value(store.get("cloud_archive").unwrap_or(Value::Null));
-        match settings {
-            Ok(settings) => Ok(settings),
-            Err(_) => Ok(None),
-        }
-    }
-
-    pub fn save(&self, app: &AppHandle) -> Result<(), String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        store.set("cloud_archive", json!(self));
-        store.save().map_err(|e| e.to_string())?;
-        reencrypt_store_file(app);
-        Ok(())
-    }
-}
-
-// ─── ICS Calendar Settings ───────────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-pub struct IcsCalendarEntry {
-    pub name: String,
-    pub url: String,
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IcsCalendarSettingsStore {
-    pub entries: Vec<IcsCalendarEntry>,
-}
-
-impl IcsCalendarSettingsStore {
-    pub fn get(app: &AppHandle) -> Result<Option<Self>, String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        if store.is_empty() {
-            return Ok(None);
-        }
-        let settings = serde_json::from_value(store.get("ics_calendars").unwrap_or(Value::Null));
-        match settings {
-            Ok(settings) => Ok(settings),
-            Err(_) => Ok(None),
-        }
-    }
-
-    pub fn save(&self, app: &AppHandle) -> Result<(), String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        store.set("ics_calendars", json!(self));
-        store.save().map_err(|e| e.to_string())?;
-        reencrypt_store_file(app);
-        Ok(())
-    }
-}
-
-// ─── Pipe Suggestions Settings ───────────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PipeSuggestionsSettingsStore {
-    pub enabled: bool,
-    #[serde(default = "default_pipe_suggestion_frequency")]
-    pub frequency_hours: u32,
-    #[serde(default)]
-    pub last_shown_at: Option<String>,
-}
-
-fn default_pipe_suggestion_frequency() -> u32 {
-    24
-}
-
-impl Default for PipeSuggestionsSettingsStore {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            frequency_hours: 24,
-            last_shown_at: None,
-        }
-    }
-}
-
-impl PipeSuggestionsSettingsStore {
-    pub fn get(app: &AppHandle) -> Result<Option<Self>, String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        if store.is_empty() {
-            return Ok(None);
-        }
-        let settings = serde_json::from_value(store.get("pipe_suggestions").unwrap_or(Value::Null));
-        match settings {
-            Ok(settings) => Ok(settings),
-            Err(_) => Ok(None),
-        }
-    }
-
-    pub fn save(&self, app: &AppHandle) -> Result<(), String> {
-        let store = get_store(app, None).map_err(|e| e.to_string())?;
-        store.set("pipe_suggestions", json!(self));
-        store.save().map_err(|e| e.to_string())?;
-        reencrypt_store_file(app);
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
-
-    const FALLBACK_ENGINE: &str = "whisper-large-v3-turbo-quantized";
 
     #[test]
     fn auto_update_defaults_to_disabled() {
@@ -1666,68 +1381,6 @@ mod tests {
         .unwrap();
 
         assert!(settings.auto_update);
-    }
-
-    #[test]
-    fn screenpipe_cloud_falls_back_when_not_logged_in() {
-        let mut store = SettingsStore::default();
-        store.recording.audio_transcription_engine = "screenpipe-cloud".to_string();
-        store.user.id = None;
-        store.user.token = None;
-        store.user.cloud_subscribed = Some(true);
-
-        let resolution = store.audio_engine_resolution();
-
-        assert_eq!(resolution.requested, "screenpipe-cloud");
-        assert_eq!(resolution.active, FALLBACK_ENGINE);
-        assert_eq!(
-            resolution.fallback_reason,
-            Some(AudioEngineFallbackReason::NotLoggedIn)
-        );
-    }
-
-    #[test]
-    fn screenpipe_cloud_falls_back_when_not_subscribed() {
-        let mut store = SettingsStore::default();
-        store.recording.audio_transcription_engine = "screenpipe-cloud".to_string();
-        store.user.token = Some("token".to_string());
-        store.user.cloud_subscribed = Some(false);
-
-        let resolution = store.audio_engine_resolution();
-
-        assert_eq!(resolution.active, FALLBACK_ENGINE);
-        assert_eq!(
-            resolution.fallback_reason,
-            Some(AudioEngineFallbackReason::NotSubscribed)
-        );
-    }
-
-    #[test]
-    fn screenpipe_cloud_stays_active_for_subscribed_users() {
-        let mut store = SettingsStore::default();
-        store.recording.audio_transcription_engine = "screenpipe-cloud".to_string();
-        store.user.token = Some("token".to_string());
-        store.user.cloud_subscribed = Some(true);
-
-        let resolution = store.audio_engine_resolution();
-
-        assert_eq!(resolution.active, "screenpipe-cloud");
-        assert_eq!(resolution.fallback_reason, None);
-    }
-
-    #[test]
-    fn deepgram_falls_back_without_api_key() {
-        let mut store = SettingsStore::default();
-        store.recording.audio_transcription_engine = "deepgram".to_string();
-        store.recording.deepgram_api_key = String::new();
-
-        let resolution = store.audio_engine_resolution();
-
-        assert_eq!(resolution.active, FALLBACK_ENGINE);
-        assert_eq!(
-            resolution.fallback_reason,
-            Some(AudioEngineFallbackReason::MissingDeepgramKey)
-        );
     }
 
     // ---- Settings-loss recovery ----

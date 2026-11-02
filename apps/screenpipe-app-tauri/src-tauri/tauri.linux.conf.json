@@ -4,9 +4,7 @@
         "resources": [
             "assets/*"
         ],
-        "externalBin": [
-            "bun"
-        ],
+        "externalBin": [],
         "linux": {
             "deb": {
                 "depends": [

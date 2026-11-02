@@ -13,11 +13,9 @@ use tracing::{debug, error, info, warn};
 #[serde(rename_all = "camelCase")]
 pub enum OSPermission {
     ScreenRecording,
-    Microphone,
     Accessibility,
     Automation,
     InputMonitoring,
-    Calendar,
 }
 
 #[tauri::command(async)]
@@ -35,10 +33,6 @@ pub fn open_permission_settings(permission: OSPermission) {
                 )
                 .spawn()
                 .expect("Failed to open Screen Recording settings"),
-            OSPermission::Microphone => Command::new("open")
-                .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
-                .spawn()
-                .expect("Failed to open Microphone settings"),
             OSPermission::Accessibility => Command::new("open")
                 .arg(
                     "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
@@ -53,10 +47,6 @@ pub fn open_permission_settings(permission: OSPermission) {
                 .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
                 .spawn()
                 .expect("Failed to open Input Monitoring settings"),
-            OSPermission::Calendar => Command::new("open")
-                .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")
-                .spawn()
-                .expect("Failed to open Calendar settings"),
         };
     }
 }
@@ -67,7 +57,6 @@ pub fn open_permission_settings(permission: OSPermission) {
 pub async fn request_permission(app: tauri::AppHandle, permission: OSPermission) {
     #[cfg(target_os = "macos")]
     {
-        use nokhwa_bindings_macos::AVMediaType;
         match permission {
             OSPermission::ScreenRecording => {
                 use core_graphics_helmer_fork::access::ScreenCaptureAccess;
@@ -77,26 +66,6 @@ pub async fn request_permission(app: tauri::AppHandle, permission: OSPermission)
                     // If the user dismisses the modal, Settings is already open.
                     open_permission_settings(OSPermission::ScreenRecording);
                     ScreenCaptureAccess.request();
-                }
-            }
-            OSPermission::Microphone => {
-                use nokhwa_bindings_macos::AVAuthorizationStatus;
-                use objc::*;
-                let cls = objc::class!(AVCaptureDevice);
-                let status: AVAuthorizationStatus = unsafe {
-                    msg_send![cls, authorizationStatusForMediaType:AVMediaType::Audio.into_ns_str()]
-                };
-                match status {
-                    AVAuthorizationStatus::Authorized => {
-                        // Already granted, nothing to do
-                    }
-                    AVAuthorizationStatus::NotDetermined => {
-                        // First time — show the system prompt
-                        request_av_permission(app.clone(), AVMediaType::Audio);
-                    }
-                    _ => {
-                        open_permission_settings(OSPermission::Microphone);
-                    }
                 }
             }
             OSPermission::Accessibility => {
@@ -115,107 +84,8 @@ pub async fn request_permission(app: tauri::AppHandle, permission: OSPermission)
                 // check reads from INPUT_MONITORING_GROUND_TRUTH or preflight.
                 let _ = request_input_monitoring_permission().await;
             }
-            OSPermission::Calendar => {
-                if let Err(e) = crate::calendar::calendar_authorize().await {
-                    warn!("calendar permission request failed: {}", e);
-                    open_permission_settings(OSPermission::Calendar);
-                }
-            }
         }
     }
-}
-
-#[cfg(target_os = "macos")]
-fn request_av_permission(app: tauri::AppHandle, media_type: nokhwa_bindings_macos::AVMediaType) {
-    use nokhwa_bindings_macos::AVMediaType;
-
-    let is_audio = media_type == AVMediaType::Audio;
-    let app_for_callback = app.clone();
-    crate::window::with_autorelease_pool(|| {
-        use objc::{runtime::*, *};
-        use tauri_nspanel::block::ConcreteBlock;
-
-        let callback = move |granted: BOOL| {
-            if is_audio && granted != NO {
-                info!(
-                    "Microphone permission granted via AV callback — restarting capture for audio reinit"
-                );
-                let app = app_for_callback.clone();
-                tauri::async_runtime::spawn(async move {
-                    restart_capture_on_mic_grant(app).await;
-                });
-            }
-        };
-        let cls = class!(AVCaptureDevice);
-        let objc_fn_block: ConcreteBlock<(BOOL,), (), _> = ConcreteBlock::new(callback);
-        let objc_fn_pass = objc_fn_block.copy();
-        unsafe {
-            let _: () = msg_send![cls, requestAccessForMediaType:media_type.into_ns_str() completionHandler:objc_fn_pass];
-        };
-    });
-}
-
-/// Stop and restart capture so `capture_session::start` re-queries TCC and
-/// repopulates audio devices. Matches the settings-toggle path.
-///
-/// When the user grants the mic permission immediately on first launch, the
-/// AVCaptureDevice completion callback can fire before the backend
-/// `ServerCore` has been constructed — `start_capture` then errors with
-/// "Server not running" and capture stays dead until the user manually toggles
-/// it. Wait up to ~10s with short backoff so we ride out backend boot before
-/// giving up.
-#[cfg(target_os = "macos")]
-pub(crate) async fn restart_capture_on_mic_grant(app: tauri::AppHandle) {
-    use tauri::Manager;
-
-    let need_stop = {
-        let state = app.state::<crate::recording::RecordingState>();
-        let is_running = state.capture.lock().await.is_some();
-        is_running
-    };
-    if need_stop {
-        let state = app.state::<crate::recording::RecordingState>();
-        if let Err(e) = crate::recording::stop_capture(state, app.clone()).await {
-            warn!("stop_capture before mic-grant audio reinit: {}", e);
-        }
-    }
-
-    // Retry start_capture with backoff while the backend is still booting.
-    // "Server not running" / "Server not responding" are the two transient
-    // errors emitted before `ServerCore` is wired into RecordingState.
-    const MAX_ATTEMPTS: u32 = 20;
-    const BACKOFF_MS: u64 = 500;
-    let mut last_err: Option<String> = None;
-    for attempt in 1..=MAX_ATTEMPTS {
-        let state = app.state::<crate::recording::RecordingState>();
-        match crate::recording::start_capture(state, app.clone()).await {
-            Ok(()) => {
-                if attempt > 1 {
-                    info!(
-                        "start_capture after mic grant: succeeded on attempt {}/{}",
-                        attempt, MAX_ATTEMPTS
-                    );
-                }
-                return;
-            }
-            Err(e) => {
-                let transient = e.contains("Server not running")
-                    || e.contains("Server not responding");
-                if !transient {
-                    warn!("start_capture after mic grant: {}", e);
-                    return;
-                }
-                last_err = Some(e);
-                tokio::time::sleep(std::time::Duration::from_millis(BACKOFF_MS)).await;
-            }
-        }
-    }
-    warn!(
-        "start_capture after mic grant: gave up after {} attempts ({}s): {}",
-        MAX_ATTEMPTS,
-        (MAX_ATTEMPTS as u64 * BACKOFF_MS) / 1000,
-        last_err.unwrap_or_else(|| "unknown error".to_string())
-    );
 }
 
 // Accessibility permission APIs using ApplicationServices framework
@@ -286,7 +156,6 @@ fn core_to_os_status(status: screenpipe_core::permissions::PermissionStatus) -> 
 #[serde(rename_all = "camelCase")]
 pub struct OSPermissionsCheck {
     pub screen_recording: OSPermissionStatus,
-    pub microphone: OSPermissionStatus,
     pub accessibility: OSPermissionStatus,
 }
 
@@ -294,14 +163,6 @@ impl OSPermissionsCheck {
     pub fn necessary_granted(&self) -> bool {
         self.screen_recording.permitted()
     }
-}
-
-/// Check only microphone permission (no screen recording check)
-/// Use this for polling to avoid triggering macOS screen capture permission dialogs
-#[tauri::command(async)]
-#[specta::specta]
-pub fn check_microphone_permission() -> OSPermissionStatus {
-    core_to_os_status(screenpipe_core::permissions::check_microphone())
 }
 
 /// Check only screen recording permission (no dialog trigger)
@@ -396,26 +257,12 @@ pub async fn check_permission(permission: OSPermission) -> OSPermissionStatus {
     {
         match permission {
             OSPermission::ScreenRecording => check_screen_recording_permission(),
-            OSPermission::Microphone => check_microphone_permission(),
             OSPermission::Accessibility => check_accessibility_permission(),
             OSPermission::InputMonitoring => {
                 if screenpipe_a11y::check_input_monitoring() {
                     OSPermissionStatus::Granted
                 } else {
                     OSPermissionStatus::Denied
-                }
-            }
-            OSPermission::Calendar => {
-                use eventkit::AuthorizationStatus;
-                match crate::calendar::calendar_status().await {
-                    Ok(status) if status.authorized => OSPermissionStatus::Granted,
-                    Ok(status)
-                        if status.authorization_status
-                            == AuthorizationStatus::NotDetermined.to_string() =>
-                    {
-                        OSPermissionStatus::Empty
-                    }
-                    _ => OSPermissionStatus::Denied,
                 }
             }
             OSPermission::Automation => OSPermissionStatus::Denied,
@@ -437,10 +284,8 @@ pub async fn reset_permission(app: tauri::AppHandle, permission: OSPermission) -
 
         let service = match &permission {
             OSPermission::ScreenRecording => "ScreenCapture",
-            OSPermission::Microphone => "Microphone",
             OSPermission::Accessibility => "Accessibility",
             OSPermission::InputMonitoring => "ListenEvent",
-            OSPermission::Calendar => "Calendar",
             OSPermission::Automation => {
                 open_permission_settings(OSPermission::Automation);
                 return Ok(());
@@ -460,15 +305,6 @@ pub async fn reset_permission(app: tauri::AppHandle, permission: OSPermission) -
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(format!("tccutil reset {} failed: {}", service, stderr.trim()));
-        }
-
-        if matches!(permission, OSPermission::Calendar) {
-            tokio::task::spawn_blocking(|| {
-                let cal = screenpipe_connect::calendar::ScreenpipeCalendar::new();
-                cal.reset();
-            })
-            .await
-            .map_err(|e| format!("failed to reset EventKit store: {}", e))?;
         }
 
         Ok(())
@@ -496,10 +332,8 @@ pub async fn reset_and_request_permission(
 
         let service = match &permission {
             OSPermission::ScreenRecording => "ScreenCapture",
-            OSPermission::Microphone => "Microphone",
             OSPermission::Accessibility => "Accessibility",
             OSPermission::InputMonitoring => "ListenEvent",
-            OSPermission::Calendar => "Calendar",
             OSPermission::Automation => {
                 // Automation doesn't use tccutil reset flow — just open settings
                 open_permission_settings(OSPermission::Automation);
@@ -550,9 +384,6 @@ pub fn get_missing_permissions() -> Vec<OSPermission> {
         if !check.screen_recording.permitted() {
             missing.push(OSPermission::ScreenRecording);
         }
-        if !check.microphone.permitted() {
-            missing.push(OSPermission::Microphone);
-        }
         if !check.accessibility.permitted() {
             missing.push(OSPermission::Accessibility);
         }
@@ -572,25 +403,6 @@ pub fn get_missing_permissions() -> Vec<OSPermission> {
 pub fn do_permissions_check(initial_check: bool) -> OSPermissionsCheck {
     #[cfg(target_os = "macos")]
     {
-        use nokhwa_bindings_macos::AVMediaType;
-
-        fn check_av_permission(media_type: AVMediaType) -> OSPermissionStatus {
-            crate::window::with_autorelease_pool(|| {
-                use nokhwa_bindings_macos::AVAuthorizationStatus;
-                use objc::*;
-
-                let cls = objc::class!(AVCaptureDevice);
-                let status: AVAuthorizationStatus = unsafe {
-                    msg_send![cls, authorizationStatusForMediaType:media_type.into_ns_str()]
-                };
-                match status {
-                    AVAuthorizationStatus::NotDetermined => OSPermissionStatus::Empty,
-                    AVAuthorizationStatus::Authorized => OSPermissionStatus::Granted,
-                    _ => OSPermissionStatus::Denied,
-                }
-            })
-        }
-
         OSPermissionsCheck {
             screen_recording: {
                 use core_graphics_helmer_fork::access::ScreenCaptureAccess;
@@ -601,7 +413,6 @@ pub fn do_permissions_check(initial_check: bool) -> OSPermissionsCheck {
                     (false, false) => OSPermissionStatus::Denied,
                 }
             },
-            microphone: check_av_permission(AVMediaType::Audio),
             accessibility: check_accessibility_permission(),
         }
     }
@@ -610,7 +421,6 @@ pub fn do_permissions_check(initial_check: bool) -> OSPermissionsCheck {
     {
         OSPermissionsCheck {
             screen_recording: OSPermissionStatus::NotNeeded,
-            microphone: OSPermissionStatus::NotNeeded,
             accessibility: OSPermissionStatus::NotNeeded,
         }
     }
@@ -672,23 +482,6 @@ const CHROMIUM_BROWSERS: &[ChromiumBrowserInfo] = &[
         process_name: "Chromium",
     },
 ];
-
-/// Returns true on macOS 14.4+ where the CoreAudio Process Tap API is
-/// available. Used to gate the "experimental System Audio via CoreAudio"
-/// toggle — we don't show it on platforms where flipping it would be a
-/// no-op. False on Windows, Linux, and older macOS.
-#[tauri::command(async)]
-#[specta::specta]
-pub fn check_coreaudio_process_tap_available() -> bool {
-    #[cfg(target_os = "macos")]
-    {
-        screenpipe_audio::core::process_tap::is_process_tap_available()
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        false
-    }
-}
 
 /// Check if Arc browser is installed (macOS only)
 #[tauri::command(async)]
