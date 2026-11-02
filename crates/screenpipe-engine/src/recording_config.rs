@@ -72,10 +72,6 @@ pub struct RecordingConfig {
     // Cloud/auth
     pub user_id: Option<String>,
 
-    // Workflow events
-    /// Enable AI workflow event detection (cloud, requires subscription).
-    pub enable_workflow_events: bool,
-
     // Video
     /// Video quality preset controlling JPEG quality during frame extraction.
     /// Values: "low", "balanced", "high", "max". Default: "balanced".
@@ -171,7 +167,6 @@ impl RecordingConfig {
             async_image_pii_redaction: settings.async_image_pii_redaction,
             pii_backend: settings.pii_backend.clone(),
             pii_redaction_labels: settings.pii_redaction_labels.clone(),
-            enable_workflow_events: settings.enable_workflow_events,
             monitor_ids: settings.monitor_ids.clone(),
             use_all_monitors: settings.use_all_monitors,
             ignored_windows: settings.ignored_windows.clone(),
