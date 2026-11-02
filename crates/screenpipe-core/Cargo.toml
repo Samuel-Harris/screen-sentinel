@@ -65,10 +65,6 @@ tempfile = "3"
 
 [features]
 default = ["security"]
-# objc's msg_send! emits #[cfg(feature = "cargo-clippy")] gates internally;
-# declaring the feature silences "unexpected cfg" warnings in macOS builds
-# without changing behavior (it's never enabled at compile time).
-cargo-clippy = []
 security = ["dep:regex", "dep:lazy_static"]
 secrets = ["dep:screenpipe-secrets", "dep:screenpipe-vault", "dep:sqlx"]
 cloud-sync = [
@@ -91,8 +87,6 @@ libc = "0.2"
 accessibility-sys = { git = "https://github.com/eiz/accessibility.git", rev = "173e898d4a52ee0afe0224ecb458d324057856e7" }
 # accessibility = "0.1.6"
 accessibility = { git = "https://github.com/eiz/accessibility.git", rev = "173e898d4a52ee0afe0224ecb458d324057856e7" }
-objc = "0.2.7"
-objc-foundation = "0.1.1"
 
 core-foundation = "0.10"
 core-graphics = { version = "0.24.0", features = ["highsierra"] }

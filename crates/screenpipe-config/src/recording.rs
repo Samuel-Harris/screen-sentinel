@@ -6,17 +6,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Custom vocabulary entry for transcription biasing and word replacement.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-pub struct VocabEntry {
-    /// The word or phrase to bias toward during transcription.
-    pub word: String,
-    /// Optional replacement — if set, the transcribed `word` is replaced with this.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub replace_with: Option<String>,
-}
-
 /// A single schedule rule: a day-of-week + time range + what to record.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -37,7 +26,7 @@ pub struct ScheduleRule {
 /// Used by:
 /// - **Desktop app**: embedded inside `SettingsStore` via `#[serde(flatten)]`
 /// - **CLI**: built from command-line args or loaded from `~/.screenpipe/config.toml`
-/// - **Engine**: consumed directly for audio, vision, and UI recording
+/// - **Engine**: consumed directly for vision and UI recording
 ///
 /// All field names use `camelCase` serde rename to match the existing frontend
 /// JSON schema (store.bin). This ensures backwards compatibility — existing
@@ -46,97 +35,6 @@ pub struct ScheduleRule {
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[serde(default)]
 pub struct RecordingSettings {
-    // ── Audio ──────────────────────────────────────────────────────────
-    /// Disable all audio capture and transcription.
-    #[serde(rename = "disableAudio")]
-    pub disable_audio: bool,
-
-    /// Audio transcription engine identifier.
-    /// Values: "whisper-large-v3-turbo", "whisper-large-v3-turbo-quantized",
-    /// "deepgram", "screenpipe-cloud", etc.
-    #[serde(rename = "audioTranscriptionEngine")]
-    pub audio_transcription_engine: String,
-
-    /// Transcription mode: "realtime" or "batch".
-    /// Previously stored in SettingsStore.extra["transcriptionMode"].
-    #[serde(rename = "transcriptionMode")]
-    pub transcription_mode: String,
-
-    /// Stream live notes only for manually-started live meetings. This is
-    /// separate from 24/7 background transcription: the recorder still writes
-    /// durable chunks, while this powers the low-latency meeting note UI.
-    #[serde(rename = "meetingLiveTranscriptionEnabled")]
-    pub meeting_live_transcription_enabled: bool,
-
-    /// Provider for manually-started live notes. Defaults to the selected audio
-    /// transcription engine so local/custom engines work without Cloud.
-    #[serde(rename = "meetingLiveTranscriptionProvider")]
-    pub meeting_live_transcription_provider: String,
-
-    /// Audio device names/IDs to capture from.
-    #[serde(rename = "audioDevices")]
-    pub audio_devices: Vec<String>,
-
-    /// Automatically follow the system default audio devices.
-    #[serde(rename = "useSystemDefaultAudio")]
-    pub use_system_default_audio: bool,
-
-    /// Experimental: capture System Audio via the CoreAudio Process Tap API
-    /// (macOS 14.4+) instead of ScreenCaptureKit. The tap sidesteps SCK's
-    /// display-enumeration failures after sleep/wake and the GPU/compositor
-    /// wake overhead, but it cannot see audio rendered through a
-    /// VoiceProcessing AudioUnit (Zoom / Google Meet / Microsoft Teams all
-    /// use one for echo cancellation), so on meeting audio it silently
-    /// captures zeroed buffers even though tap creation succeeds.
-    ///
-    /// Default `false` (see `default_experimental_coreaudio_system_audio`).
-    /// SCK captures at the display compositor, which does see VoiceProcessing
-    /// output, so it is the right default for anyone on calls. Users who hit
-    /// SCK's sleep/wake display-enumeration bug can still opt in; when the tap
-    /// is on and creation fails (permission, macOS <14.4, OS quirk), stream.rs
-    /// falls back to the SCK path automatically. Ignored on non-macOS platforms.
-    #[serde(
-        rename = "experimentalCoreaudioSystemAudio",
-        default = "default_experimental_coreaudio_system_audio"
-    )]
-    pub experimental_coreaudio_system_audio: bool,
-
-    /// Experimental: request Windows WASAPI microphone Acoustic Echo Cancellation.
-    /// Ignored on non-Windows platforms and fail-open when unsupported by device/driver.
-    #[serde(rename = "windowsInputAecEnabled", default)]
-    pub windows_input_aec_enabled: bool,
-
-    /// Experimental: request Apple VoiceProcessingIO (AEC) on the default macOS microphone.
-    /// Ignored on non-macOS platforms. Only the system default input uses VPIO; other devices use HAL.
-    #[serde(rename = "macosInputVpioEnabled", default)]
-    pub macos_input_vpio_enabled: bool,
-
-    /// Duration of each audio chunk in seconds before transcription.
-    /// Stored as i32 to match existing store.bin schema (cast to u64 by engine).
-    #[serde(rename = "audioChunkDuration")]
-    pub audio_chunk_duration: i32,
-
-    /// Deepgram API key for cloud transcription.
-    /// Empty string or "default" means not configured.
-    /// Kept as String (not Option) to match existing store.bin schema.
-    #[serde(rename = "deepgramApiKey")]
-    pub deepgram_api_key: String,
-
-    /// Filter music-dominant audio before transcription using spectral analysis.
-    #[serde(rename = "filterMusic")]
-    pub filter_music: bool,
-
-    /// Maximum batch duration in seconds for batch transcription.
-    /// None = use engine-aware defaults (Deepgram=5000s, OpenAI=3000s, Whisper=600s).
-    /// Also controls the max deferral cap during active meetings.
-    #[serde(rename = "batchMaxDurationSecs", default)]
-    pub batch_max_duration_secs: Option<u64>,
-
-    /// Custom vocabulary for transcription biasing and word replacement.
-    /// Previously stored in SettingsStore.extra["vocabularyWords"].
-    #[serde(rename = "vocabularyWords", default)]
-    pub vocabulary: Vec<VocabEntry>,
-
     // ── Vision ─────────────────────────────────────────────────────────
     /// Disable all screen capture.
     #[serde(rename = "disableVision")]
@@ -144,7 +42,7 @@ pub struct RecordingSettings {
 
     /// Disable the timeline / rewind feature. When true, the engine skips
     /// timeline-only work: warming the hot frame cache from the DB at startup
-    /// and buffering captured frames/audio into the in-memory hot cache that
+    /// and buffering captured frames into the in-memory hot cache that
     /// only the timeline streaming endpoint reads.
     #[serde(rename = "disableTimeline", default)]
     pub disable_timeline: bool,
@@ -174,26 +72,6 @@ pub struct RecordingSettings {
     #[serde(rename = "disableSnapshotCompaction", default)]
     pub disable_snapshot_compaction: bool,
 
-    /// Skip the v2 meeting detector watcher (5s-interval process / AX scan).
-    /// Use when meeting detection is not consumed (task-mining, headless analysis,
-    /// agents that read accessibility_text and ui_events only) — avoids the
-    /// constant process enumeration + AX tree walk cost.
-    /// Side effect: meeting-related DB rows are not generated; the audio pipeline's
-    /// in_meeting override flag stays false.
-    #[serde(rename = "disableMeetingDetector", default)]
-    pub disable_meeting_detector: bool,
-
-    /// Apps / meeting services to exclude from automatic meeting detection
-    /// while leaving detection on for everything else. Case-insensitive
-    /// substring match against the running app's name/process AND the matched
-    /// detection profile's identifiers (native names + browser URL patterns),
-    /// so an entry can be what the user sees ("Discord") or a service domain
-    /// ("meet.google.com"). Use when one app trips the detector spuriously
-    /// (an always-open Teams, a Discord call you don't want logged) but you
-    /// still want Zoom/Meet/etc. detected. Empty = detect all known apps.
-    #[serde(rename = "ignoredMeetingApps", default)]
-    pub ignored_meeting_apps: Vec<String>,
-
     // ── Mitsukeru fork: event-driven capture overrides ─────────────────
     // ミツケル拡張：PowerProfile に依らず個別パラメータを直接指定するための上書き値。
     // None の場合は通常通り PowerProfile が決定。デスクトップ常時記録のような用途で
@@ -217,20 +95,6 @@ pub struct RecordingSettings {
     /// None = follow active PowerProfile.
     #[serde(rename = "minCaptureIntervalMs", default)]
     pub min_capture_interval_ms: Option<u64>,
-
-    /// Default behavior when a meeting is detected.
-    /// `"ask"` (default) surfaces a "+ HD" action on the existing meeting
-    /// notification; `"always"` auto-starts a meeting-bound HD session
-    /// every time; `"never"` is opt-out — only the manual tray timer
-    /// can start a session.
-    ///
-    /// Runtime-mutable via `POST /capture/hd/settings`; this field
-    /// just seeds the controller on startup.
-    #[serde(
-        rename = "hdRecordingDefault",
-        default = "default_hd_recording_default"
-    )]
-    pub hd_recording_default: String,
 
     /// Capture debounce (ms) installed while an HD session is active.
     /// Default 100 ms ≈ 10 fps — smooth enough for human replay without
@@ -326,22 +190,17 @@ pub struct RecordingSettings {
     #[serde(rename = "disableKeyboardCapture", default = "default_true")]
     pub disable_keyboard_capture: bool,
 
-    /// Continue recording audio when the screen is locked.
-    /// Default: false (audio pauses when screen is locked to save resources).
-    #[serde(rename = "recordWhileLocked", default)]
-    pub record_while_locked: bool,
-
-    /// Languages for transcription (ISO 639-1 codes).
+    /// Languages for OCR (ISO 639-1 codes).
     pub languages: Vec<String>,
 
     // ── Privacy ────────────────────────────────────────────────────────
-    /// Redact personally identifiable information from transcriptions.
+    /// Redact personally identifiable information from captured text.
     #[serde(rename = "usePiiRemoval")]
     pub use_pii_removal: bool,
 
     /// Enable the async PII reconciliation worker. When `true`, a
     /// background task runs after capture and OVERWRITES PII in the
-    /// source columns of `ocr_text`, `audio_transcriptions`,
+    /// source columns of `ocr_text`,
     /// `frames.accessibility_text`, and `ui_events.text_content`. Raw
     /// secrets are gone after the worker processes the row — that's
     /// the contract of the user-facing "AI PII removal" toggle.
@@ -407,37 +266,6 @@ pub struct RecordingSettings {
     #[serde(rename = "userId")]
     pub user_id: String,
 
-    /// Display name for speaker identification.
-    /// Fallback chain: this field → cloud auth name → cloud auth email.
-    /// Previously stored in SettingsStore.extra["userName"].
-    #[serde(rename = "userName", default)]
-    pub user_name: Option<String>,
-
-    /// OpenAI-compatible transcription endpoint URL.
-    /// Previously stored in SettingsStore.extra["openaiCompatibleEndpoint"].
-    #[serde(rename = "openaiCompatibleEndpoint", default)]
-    pub openai_compatible_endpoint: Option<String>,
-
-    /// OpenAI-compatible transcription API key.
-    /// Previously stored in SettingsStore.extra["openaiCompatibleApiKey"].
-    #[serde(rename = "openaiCompatibleApiKey", default)]
-    pub openai_compatible_api_key: Option<String>,
-
-    /// OpenAI-compatible transcription model name.
-    /// Previously stored in SettingsStore.extra["openaiCompatibleModel"].
-    #[serde(rename = "openaiCompatibleModel", default)]
-    pub openai_compatible_model: Option<String>,
-
-    /// Custom HTTP headers for OpenAI-compatible transcription requests.
-    /// JSON object, e.g. {"X-Custom-Header": "value"}.
-    #[serde(rename = "openaiCompatibleHeaders", default)]
-    pub openai_compatible_headers: Option<std::collections::HashMap<String, String>>,
-
-    /// Send raw WAV audio instead of MP3 to OpenAI-compatible endpoint.
-    /// Some ASR providers prefer uncompressed audio for better accuracy.
-    #[serde(rename = "openaiCompatibleRawAudio", default)]
-    pub openai_compatible_raw_audio: bool,
-
     // ── System ─────────────────────────────────────────────────────────
     /// HTTP server port for the screenpipe API.
     pub port: u16,
@@ -500,17 +328,6 @@ pub struct RecordingSettings {
 }
 
 impl RecordingSettings {
-    /// Returns the Deepgram API key if actually configured.
-    /// Treats empty string and "default" as not configured (matching existing behavior).
-    pub fn effective_deepgram_key(&self) -> Option<&str> {
-        let key = self.deepgram_api_key.as_str();
-        if key.is_empty() || key == "default" {
-            None
-        } else {
-            Some(key)
-        }
-    }
-
     /// Returns the user ID if actually set (non-empty).
     pub fn effective_user_id(&self) -> Option<&str> {
         let id = self.user_id.as_str();
@@ -520,35 +337,11 @@ impl RecordingSettings {
             Some(id)
         }
     }
-
-    /// Returns the display name/email used to label the local microphone speaker.
-    pub fn effective_user_name(&self) -> Option<&str> {
-        self.user_name
-            .as_deref()
-            .map(str::trim)
-            .filter(|name| !name.is_empty())
-    }
 }
 
 impl Default for RecordingSettings {
     fn default() -> Self {
         Self {
-            disable_audio: false,
-            audio_transcription_engine: crate::best_engine_for_platform(crate::detect_tier())
-                .to_string(),
-            transcription_mode: "batch".to_string(),
-            meeting_live_transcription_enabled: true,
-            meeting_live_transcription_provider: "selected-engine".to_string(),
-            audio_devices: vec![],
-            use_system_default_audio: true,
-            experimental_coreaudio_system_audio: false,
-            windows_input_aec_enabled: false,
-            macos_input_vpio_enabled: false,
-            audio_chunk_duration: 30,
-            deepgram_api_key: String::new(),
-            filter_music: false,
-            batch_max_duration_secs: None,
-            vocabulary: vec![],
             disable_vision: false,
             disable_timeline: false,
             monitor_ids: vec![],
@@ -556,13 +349,10 @@ impl Default for RecordingSettings {
             video_quality: "balanced".to_string(),
             max_snapshot_width: default_max_snapshot_width(),
             disable_snapshot_compaction: false,
-            disable_meeting_detector: false,
-            ignored_meeting_apps: vec![],
             idle_capture_interval_ms: None,
             visual_check_interval_ms: None,
             visual_change_threshold: None,
             min_capture_interval_ms: None,
-            hd_recording_default: default_hd_recording_default(),
             hd_recording_interval_ms: default_hd_recording_interval_ms(),
             capture_on_keystroke: None,
             capture_on_clipboard: None,
@@ -577,7 +367,6 @@ impl Default for RecordingSettings {
             pause_on_drm_content: false,
             disable_clipboard_capture: true,
             disable_keyboard_capture: true,
-            record_while_locked: false,
             languages: vec![],
             use_pii_removal: false,
             async_pii_redaction: false,
@@ -585,12 +374,6 @@ impl Default for RecordingSettings {
             pii_backend: default_pii_backend(),
             pii_redaction_labels: default_pii_redaction_labels(),
             user_id: String::new(),
-            user_name: None,
-            openai_compatible_endpoint: None,
-            openai_compatible_api_key: None,
-            openai_compatible_model: None,
-            openai_compatible_headers: None,
-            openai_compatible_raw_audio: false,
             port: 3030,
             power_mode: None,
             use_chinese_mirror: false,
@@ -609,17 +392,6 @@ impl Default for RecordingSettings {
 
 fn default_true() -> bool {
     true
-}
-
-/// Default `false` — the Process Tap can't see audio rendered through
-/// VoiceProcessing AudioUnits (Zoom / Google Meet / Microsoft Teams all
-/// use one for echo cancellation), so for meeting audio it silently
-/// captures zeroed buffers even though the tap creation succeeds. SCK
-/// captures at the display compositor which *does* see VoiceProcessing
-/// output, so it's the right default for every user who uses call apps.
-/// Users who hit SCK's sleep/wake display-enumeration bug can still opt in.
-fn default_experimental_coreaudio_system_audio() -> bool {
-    false
 }
 
 fn default_max_snapshot_width() -> u32 {
@@ -644,10 +416,6 @@ fn default_pii_redaction_labels() -> Vec<String> {
     vec!["secret".to_string()]
 }
 
-fn default_hd_recording_default() -> String {
-    "ask".to_string()
-}
-
 fn default_hd_recording_interval_ms() -> u64 {
     100
 }
@@ -670,7 +438,6 @@ mod tests {
         let settings: RecordingSettings = serde_json::from_str("{}").unwrap();
         assert_eq!(settings.port, 3030);
         assert_eq!(settings.video_quality, "balanced");
-        assert!(settings.use_system_default_audio);
         assert!(settings.ignore_incognito_windows);
     }
 
@@ -686,16 +453,7 @@ mod tests {
             "openaiCompatibleEndpoint": "https://api.example.com/v1"
         }"#;
         let settings: RecordingSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(settings.transcription_mode, "batch");
         assert_eq!(settings.power_mode.as_deref(), Some("battery_saver"));
-        assert_eq!(settings.user_name.as_deref(), Some("Alice"));
-        assert_eq!(settings.vocabulary.len(), 1);
-        assert_eq!(settings.vocabulary[0].word, "screenpipe");
-        assert_eq!(settings.batch_max_duration_secs, Some(600));
-        assert_eq!(
-            settings.openai_compatible_endpoint.as_deref(),
-            Some("https://api.example.com/v1")
-        );
     }
 
     #[test]
@@ -749,12 +507,6 @@ mod tests {
         let settings: RecordingSettings = serde_json::from_str(json).unwrap();
 
         // Recording fields parsed correctly
-        assert_eq!(
-            settings.audio_transcription_engine,
-            "whisper-large-v3-turbo"
-        );
-        assert_eq!(settings.audio_devices, vec!["MacBook Pro Microphone"]);
-        assert_eq!(settings.deepgram_api_key, "");
         assert_eq!(settings.user_id, "abc-123");
         assert_eq!(
             settings.ignored_windows,
@@ -766,9 +518,7 @@ mod tests {
         // This is critical for flatten compat — SettingsStore has aiPresets, shortcuts, etc.
 
         // Fields that were in extra HashMap now have defaults
-        assert_eq!(settings.transcription_mode, "batch"); // default, wasn't in JSON
         assert_eq!(settings.power_mode, None); // default
-        assert!(settings.vocabulary.is_empty()); // default
     }
 
     #[test]
@@ -800,47 +550,19 @@ mod tests {
 
         let store: FakeSettingsStore = serde_json::from_str(json).unwrap();
         assert_eq!(store.recording.port, 4040);
-        assert!(store.recording.disable_audio);
-        assert_eq!(store.recording.transcription_mode, "batch");
         assert_eq!(store.overlay_mode, "window");
         assert_eq!(store.show_screenpipe_shortcut, "Super+Alt+S");
         // chatHistory lands in extra (not known by either struct)
         assert!(store.extra.contains_key("chatHistory"));
+        // Legacy keys this struct no longer knows land in extra, so old stores still load.
+        assert!(store.extra.contains_key("disableAudio"));
+        assert!(store.extra.contains_key("transcriptionMode"));
 
         // Round-trip: serialize back and verify recording fields survive
         let serialized = serde_json::to_string(&store).unwrap();
         let roundtrip: FakeSettingsStore = serde_json::from_str(&serialized).unwrap();
         assert_eq!(roundtrip.recording.port, 4040);
-        assert_eq!(roundtrip.recording.transcription_mode, "batch");
         assert!(roundtrip.extra.contains_key("chatHistory"));
-    }
-
-    #[test]
-    fn helper_deepgram_key_sentinel_values() {
-        // Existing store.bin uses "" and "default" as sentinel for "not configured"
-        let json = r#"{"deepgramApiKey": ""}"#;
-        let s: RecordingSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(s.deepgram_api_key, "");
-
-        let json = r#"{"deepgramApiKey": "default"}"#;
-        let s: RecordingSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(s.deepgram_api_key, "default");
-
-        let json = r#"{"deepgramApiKey": "real-api-key-123"}"#;
-        let s: RecordingSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(s.deepgram_api_key, "real-api-key-123");
-    }
-
-    #[test]
-    fn audio_chunk_duration_accepts_i32() {
-        // SettingsStore has i32, so existing store.bin may have negative-ish or 0 values
-        let json = r#"{"audioChunkDuration": 30}"#;
-        let s: RecordingSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(s.audio_chunk_duration, 30);
-
-        let json = r#"{"audioChunkDuration": 0}"#;
-        let s: RecordingSettings = serde_json::from_str(json).unwrap();
-        assert_eq!(s.audio_chunk_duration, 0);
     }
 
     #[test]
