@@ -11,7 +11,6 @@ use screenpipe_db::DatabaseManager;
 use tracing::{debug, error, info};
 
 use crate::{
-
     hot_frame_cache::HotFrameCache,
     routes::{
         activity_summary::get_activity_summary,

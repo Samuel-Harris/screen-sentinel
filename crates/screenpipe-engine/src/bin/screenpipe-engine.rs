@@ -17,11 +17,8 @@ use screenpipe_core::paths;
 use screenpipe_db::DatabaseManager;
 use screenpipe_engine::{
     cli::{
-        mcp::handle_mcp_command,
-        search::handle_search_command,
-        status::handle_status_command,
-        vision::handle_vision_command,
-        Cli, Command, RecordArgSources,
+        mcp::handle_mcp_command, search::handle_search_command, status::handle_status_command,
+        vision::handle_vision_command, Cli, Command, RecordArgSources,
     },
     crash_log,
     high_fps_controller::HighFpsController,
