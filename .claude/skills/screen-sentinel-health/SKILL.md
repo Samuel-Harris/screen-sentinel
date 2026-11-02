@@ -149,7 +149,7 @@ echo "Check System Preferences > Privacy & Security > Screen Recording and Micro
 screen-sentinel
 
 # Or start app
-open /Applications/screen-sentinel.app
+open "/Applications/Screen Sentinel.app"
 ```
 
 ### Issue: No frames being captured

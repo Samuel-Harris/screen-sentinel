@@ -81,8 +81,8 @@ impl RewindWindowId {
 
     pub fn title(&self) -> &str {
         match self {
-            RewindWindowId::Main => "screen-sentinel",
-            RewindWindowId::Home => "screen-sentinel",
+            RewindWindowId::Main => "Screen Sentinel",
+            RewindWindowId::Home => "Screen Sentinel",
             RewindWindowId::Search => "search",
             RewindWindowId::Onboarding => "onboarding",
             RewindWindowId::PermissionRecovery => "fix permissions",
@@ -619,7 +619,7 @@ impl ShowRewindWindow {
                                 "/overlay",
                                 main_label_for_mode("window"),
                             )
-                            .title("screen-sentinel")
+                            .title("Screen Sentinel")
                             .inner_size(win_w, win_h)
                             .min_inner_size(800.0, 600.0)
                             .decorations(true)
@@ -641,7 +641,7 @@ impl ShowRewindWindow {
                                 "/overlay",
                                 main_label_for_mode("window"),
                             )
-                            .title("screen-sentinel")
+                            .title("Screen Sentinel")
                             .inner_size(win_w, win_h)
                             .min_inner_size(800.0, 600.0)
                             .decorations(true)
@@ -984,7 +984,7 @@ impl ShowRewindWindow {
                             "/overlay",
                             main_label_for_mode("fullscreen"),
                         )
-                        .title("screen-sentinel")
+                        .title("Screen Sentinel")
                         .visible_on_all_workspaces(true)
                         .always_on_top(true)
                         .decorations(false)
@@ -1039,7 +1039,7 @@ impl ShowRewindWindow {
                             "/overlay",
                             main_label_for_mode("fullscreen"),
                         )
-                        .title("screen-sentinel")
+                        .title("Screen Sentinel")
                         .inner_size(linux_w, linux_h)
                         .min_inner_size(800.0, 600.0)
                         .decorations(true)

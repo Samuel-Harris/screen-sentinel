@@ -30,7 +30,7 @@ const SCREEN_SENTINEL_API = `http://localhost:${port}`;
 // Discover the local API key, in priority order:
 //
 //   1. env vars set by the launcher (Claude Desktop config, terminal, etc.)
-//   2. CLI via bundled `bun` from screen-sentinel.app at a deterministic absolute
+//   2. CLI via bundled `bun` from Screen Sentinel.app at a deterministic absolute
 //      path. Runs `bun x screen-sentinel@latest auth token` → goes through the
 //      Rust CLI's `find_api_auth_key` resolver, which handles the encrypted
 //      keychain-backed secret store. This is the canonical path: same
@@ -72,9 +72,9 @@ function discoverApiKey(): string {
     process.platform === "darwin"
       ? [
           // Standard system-wide install
-          "/Applications/screen-sentinel.app/Contents/MacOS/bun",
+          "/Applications/Screen Sentinel.app/Contents/MacOS/bun",
           // Per-user install
-          path.join(home, "Applications", "screen-sentinel.app", "Contents", "MacOS", "bun"),
+          path.join(home, "Applications", "Screen Sentinel.app", "Contents", "MacOS", "bun"),
         ]
       : process.platform === "win32"
       ? [
@@ -180,7 +180,7 @@ function discoverApiKey(): string {
     [
       "[screen-sentinel-mcp] could not discover SCREEN_SENTINEL_LOCAL_API_KEY from any source.",
       "  - env vars (SCREEN_SENTINEL_LOCAL_API_KEY / SCREEN_SENTINEL_API_KEY) not set",
-      "  - bundled `bun` from screen-sentinel.app not found at any known install path",
+      "  - bundled `bun` from Screen Sentinel.app not found at any known install path",
       "  - npx fallback unavailable",
       "  - direct sqlite3 read of ~/.screen-sentinel/db.sqlite failed",
       "Fix: set SCREEN_SENTINEL_LOCAL_API_KEY in your MCP launcher's env block,",

@@ -763,7 +763,7 @@ export function PrivacySection() {
                     const { confirm } = await import("@tauri-apps/plugin-dialog");
                     const confirmed = await confirm(
                       "Regenerate API key? Existing browser extensions stay connected until you Apply & Restart, then they must reconnect with the new key.",
-                      { title: "screen-sentinel", kind: "info" },
+                      { title: "Screen Sentinel", kind: "info" },
                     );
                     if (!confirmed) return;
                     setRegeneratingKey(true);

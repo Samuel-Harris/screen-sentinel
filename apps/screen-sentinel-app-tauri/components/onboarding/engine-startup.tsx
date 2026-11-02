@@ -978,7 +978,7 @@ if the input is sparse, just describe what little you have warmly. don't apologi
         transition={{ duration: 0.4 }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="w-12 h-12 mb-2" src="/128x128.png" alt="screen-sentinel" />
+        <img className="w-12 h-12 mb-2" src="/128x128.png" alt="Screen Sentinel" />
         <h1 className="font-mono text-base font-bold text-foreground">
           Screen Sentinel
         </h1>

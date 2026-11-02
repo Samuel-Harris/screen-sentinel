@@ -684,7 +684,7 @@ async fn main() {
             #[cfg(target_os = "macos")]
             {
                 use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem, MenuItemBuilder};
-                let mut app_submenu_builder = SubmenuBuilder::new(app, "screen-sentinel")
+                let mut app_submenu_builder = SubmenuBuilder::new(app, "Screen Sentinel")
                     .item(&PredefinedMenuItem::about(app, Some("About Screen Sentinel"), None)?)
                     .separator();
                 app_submenu_builder = app_submenu_builder

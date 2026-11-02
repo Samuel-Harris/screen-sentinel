@@ -196,7 +196,7 @@ function HomeContent() {
       default:
         return (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <img src="/128x128.png" alt="screen-sentinel" className="w-16 h-16 opacity-30 mb-4" />
+            <img src="/128x128.png" alt="Screen Sentinel" className="w-16 h-16 opacity-30 mb-4" />
             <p className="text-sm font-mono">Screen Sentinel</p>
           </div>
         );

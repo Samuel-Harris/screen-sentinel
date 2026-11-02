@@ -1301,7 +1301,7 @@ async fn update_menu_if_needed(
             None => "Screen Sentinel — paused".to_string(),
         }
     } else {
-        "screen-sentinel".to_string()
+        "Screen Sentinel".to_string()
     };
     let app_for_tooltip = app.clone();
     let _ = app.run_on_main_thread(move || {

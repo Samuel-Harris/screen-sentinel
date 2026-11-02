@@ -294,7 +294,7 @@ this FAQ is organized around the questions people ask support most often: what t
   2. choose **Open** from the menu.
   3. click **Open** again on the warning dialog.
 
-  after the first launch, you can open it normally. if Gatekeeper still blocks, run `xattr -dr com.apple.quarantine /Applications/screen-sentinel.app` in Terminal, then reopen.
+  after the first launch, you can open it normally. if Gatekeeper still blocks, run `xattr -dr com.apple.quarantine "/Applications/Screen Sentinel.app"` in Terminal, then reopen.
 </Expandable>
 
 <Expandable title='Windows pipe error: "screen-sentinel.exe not found" or "Screen Sentinel is not recognized".'>
@@ -421,7 +421,7 @@ this FAQ is organized around the questions people ask support most often: what t
   fix:
 
   1. update to the latest Screen Sentinel.
-  2. if it still fails, reinstall the app. on macOS that re-bundles pi-agent into `screen-sentinel.app/Contents/Resources/`.
+  2. if it still fails, reinstall the app. on macOS that re-bundles pi-agent into `Screen Sentinel.app/Contents/Resources/`.
   3. on the CLI: `npx screen-sentinel@latest pipe install pi-agent`.
 
   if a pipe errors with `Failed to extract accountId`, set `preset: screen-sentinel-cloud` on the pipe — pi-agent is reading the wrong auth preset for ChatGPT tokens.
@@ -758,8 +758,8 @@ this FAQ is organized around the questions people ask support most often: what t
   same shape as the Anthropic case — your OpenAI account is out of credit. add a payment method at [platform.openai.com/billing](https://platform.openai.com/account/billing), or switch the provider to **screen-sentinel-cloud**, Anthropic, Ollama, or another configured model.
 </Expandable>
 
-<Expandable title='macOS error: "screen-sentinel.app is damaged and cannot be opened".'>
-  Gatekeeper on first launch. right-click the app in Finder → **Open** → **Open** again on the warning. if it persists, run `xattr -dr com.apple.quarantine /Applications/screen-sentinel.app` in Terminal and reopen.
+<Expandable title='macOS error: "Screen Sentinel.app is damaged and cannot be opened".'>
+  Gatekeeper on first launch. right-click the app in Finder → **Open** → **Open** again on the warning. if it persists, run `xattr -dr com.apple.quarantine "/Applications/Screen Sentinel.app"` in Terminal and reopen.
 </Expandable>
 
 <Expandable title='Windows pipe error: "screen-sentinel.exe not found" or "Screen Sentinel is not recognized as an internal or external command".'>

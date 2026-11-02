@@ -75,7 +75,7 @@ export function getCliPath() {
     case "windows":
       return "%LOCALAPPDATA%\\screen-sentinel\\screen-sentinel.exe";
     case "macos":
-      return "/Applications/screen-sentinel.app/Contents/MacOS/screen-sentinel";
+      return "/Applications/Screen Sentinel.app/Contents/MacOS/screen-sentinel";
     case "linux":
       return "/usr/local/bin/screen-sentinel";
     default:

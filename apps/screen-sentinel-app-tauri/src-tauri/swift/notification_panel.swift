@@ -200,7 +200,7 @@ struct NotificationContentView: View {
                         .resizable()
                         .frame(width: 14, height: 14)
                 }
-                Text("screen-sentinel")
+                Text("Screen Sentinel")
                     .font(Brand.swiftUIMonoFont(size: 10, weight: .medium))
                     .foregroundColor(.primary.opacity(0.4))
                 Spacer()

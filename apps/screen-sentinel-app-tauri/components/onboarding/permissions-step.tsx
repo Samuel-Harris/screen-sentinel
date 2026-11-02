@@ -241,7 +241,7 @@ export default function PermissionsStep({
       {/* Branding */}
       <div className="flex flex-col items-center mb-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="w-12 h-12 mb-2" src="/128x128.png" alt="screen-sentinel" />
+        <img className="w-12 h-12 mb-2" src="/128x128.png" alt="Screen Sentinel" />
         <h1 className="font-mono text-base font-bold text-foreground">
           Unlock the full experience
         </h1>
