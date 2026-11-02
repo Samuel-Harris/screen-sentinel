@@ -346,14 +346,6 @@ async fn main() -> anyhow::Result<()> {
     // Store the guard in a variable that lives for the entire main function
     let _log_guard = Some(setup_logging(&local_data_dir, record_args.debug)?);
 
-    // Non-blocking update check — runs in background, prints banner if outdated
-    tokio::spawn(async {
-        screenpipe_engine::cli_reminder::check_for_updates().await;
-    });
-
-    // Periodic terminal nudge to install the desktop app (CLI-only).
-    screenpipe_engine::cli_reminder::spawn();
-
     // Crash diagnostics. Integrators embed this binary as a child process
     // inside their own wrapper (e.g. an Electron app) and, when it dies, see
     // only the exit code — never *why*. Install a panic hook that writes the
@@ -781,30 +773,6 @@ async fn main() -> anyhow::Result<()> {
                 warn!("failed to initialize secret store: {}", e);
             }
         }
-    }
-
-    let user_token = std::env::var("SCREENPIPE_API_KEY").ok();
-
-    // Workflow event classifier — opt-in cloud feature. Polls recent activity
-    // and emits `WorkflowEvent`s on the bus so pipes with `trigger.events`
-    // frontmatter can run. Routed through the gateway by default; self-host
-    // can override with SCREENPIPE_EVENT_CLASSIFIER_URL.
-    if config.enable_workflow_events {
-        let classifier_url =
-            std::env::var("SCREENPIPE_EVENT_CLASSIFIER_URL").unwrap_or_else(|_| {
-                screenpipe_engine::workflow_classifier::DEFAULT_CLASSIFIER_URL.to_string()
-            });
-        let token = user_token.clone().unwrap_or_default();
-        let port = config.port;
-        tokio::spawn(async move {
-            screenpipe_engine::workflow_classifier::start_workflow_classifier(
-                classifier_url,
-                token,
-                port,
-                std::time::Duration::from_secs(30),
-            )
-            .await;
-        });
     }
 
     let server = server.with_high_fps_controller(high_fps_controller.clone());
