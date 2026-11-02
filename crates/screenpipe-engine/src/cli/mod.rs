@@ -5,7 +5,6 @@
 pub mod auth;
 pub mod backup;
 mod browser;
-pub mod connection;
 pub mod db;
 pub mod export;
 pub mod mcp;
@@ -83,12 +82,6 @@ pub enum Command {
     Mcp {
         #[command(subcommand)]
         subcommand: McpCommand,
-    },
-
-    /// Manage connected integrations (Telegram, Slack, Discord, etc.)
-    Connection {
-        #[command(subcommand)]
-        subcommand: ConnectionCommand,
     },
 
     /// Vault: encrypt/lock all screenpipe data at rest
@@ -327,12 +320,6 @@ pub struct RecordArgs {
     /// so skipping costs little data and frees CPU for input responsiveness.
     #[arg(long, default_value_t = 150)]
     pub pause_extraction_on_input_ms: u64,
-
-    /// Enable mDNS LAN discovery (advertise this instance + browse for peers).
-    /// Off by default: it opens a multicast socket, which triggers the macOS
-    /// "Local Network" permission prompt. Opt in for multi-device sync.
-    #[arg(long, env = "SCREENPIPE_ENABLE_MDNS", default_value_t = false)]
-    pub enable_mdns: bool,
 
     /// Pause screen capture when a DRM-protected streaming app
     /// (Netflix, Disney+, etc.) or a remote-desktop client (Omnissa/VMware
@@ -912,46 +899,6 @@ fn persist_recording_settings_to_store(
             data_dir.display()
         ))
     })
-}
-
-// =============================================================================
-// Connection subcommands
-// =============================================================================
-
-#[derive(Subcommand)]
-pub enum ConnectionCommand {
-    /// List all available integrations and their connection status
-    List {
-        /// Output as JSON
-        #[arg(long, default_value_t = false)]
-        json: bool,
-    },
-    /// Get saved credentials for a connection
-    Get {
-        /// Integration ID (e.g. telegram, slack, discord)
-        id: String,
-        /// Output as JSON
-        #[arg(long, default_value_t = false)]
-        json: bool,
-    },
-    /// Save credentials for a connection (key=value pairs)
-    Set {
-        /// Integration ID (e.g. telegram, slack, discord)
-        id: String,
-        /// Credentials as key=value pairs (e.g. bot_token=123 chat_id=456)
-        #[arg(required = true)]
-        credentials: Vec<String>,
-    },
-    /// Test saved credentials for a connection
-    Test {
-        /// Integration ID (e.g. telegram, slack, discord)
-        id: String,
-    },
-    /// Remove saved credentials for a connection
-    Remove {
-        /// Integration ID (e.g. telegram, slack, discord)
-        id: String,
-    },
 }
 
 // =============================================================================
