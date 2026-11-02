@@ -93,6 +93,7 @@ pub fn screen_is_locked() -> bool {
 /// Set the screen locked state (called from capture loop when lock-screen app detected).
 pub fn set_screen_locked(locked: bool) {
     SCREEN_IS_LOCKED.store(locked, Ordering::SeqCst);
+    screenpipe_config::set_screen_locked(locked);
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
@@ -215,6 +216,7 @@ pub fn start_sleep_monitor() {
     if initial_locked {
         info!("Screen is locked at startup — setting SCREEN_IS_LOCKED");
         SCREEN_IS_LOCKED.store(true, Ordering::SeqCst);
+        screenpipe_config::set_screen_locked(true);
     }
 
     // Thread 1: Listen for screen lock/unlock via CFNotificationCenter (Darwin notifications).
@@ -263,6 +265,7 @@ pub fn start_sleep_monitor() {
             _user_info: *const c_void,
         ) {
             let was_locked = SCREEN_IS_LOCKED.swap(true, Ordering::SeqCst);
+            screenpipe_config::set_screen_locked(true);
             if !was_locked {
                 // Can't use tracing macros in extern "C" callback safely,
                 // but the state change is what matters.
@@ -277,6 +280,7 @@ pub fn start_sleep_monitor() {
             _user_info: *const c_void,
         ) {
             let was_locked = SCREEN_IS_LOCKED.swap(false, Ordering::SeqCst);
+            screenpipe_config::set_screen_locked(false);
             if was_locked {
                 // State change logged via safety-net poll below if needed.
                 // Request invalidation of persistent SCStream handles so
@@ -337,6 +341,7 @@ pub fn start_sleep_monitor() {
 
         let locked = check_screen_locked_cgsession();
         let was_locked = SCREEN_IS_LOCKED.swap(locked, Ordering::SeqCst);
+        screenpipe_config::set_screen_locked(locked);
         if locked != was_locked {
             if locked {
                 info!("Screen locked (CGSession safety-net poll)");
@@ -468,6 +473,7 @@ pub fn start_sleep_monitor() {
 #[cfg(target_os = "macos")]
 fn on_will_sleep() {
     SCREEN_IS_LOCKED.store(true, Ordering::SeqCst);
+    screenpipe_config::set_screen_locked(true);
 
     // Pause DB write queue before sleep to prevent WAL corruption.
     // The drain loop will finish its current in-flight batch (already
@@ -494,6 +500,7 @@ fn on_did_wake(handle: &tokio::runtime::Handle) {
     // so we must poll here to avoid SCREEN_IS_LOCKED getting stuck true forever.
     let locked = check_screen_locked_cgsession();
     let was_locked = SCREEN_IS_LOCKED.swap(locked, Ordering::SeqCst);
+    screenpipe_config::set_screen_locked(locked);
     if was_locked && !locked {
         // CFNotification missed the unlock — we're fixing it here
     }
@@ -513,6 +520,7 @@ fn on_did_wake(handle: &tokio::runtime::Handle) {
 
         let locked = check_screen_locked_cgsession();
         let was_locked = SCREEN_IS_LOCKED.swap(locked, Ordering::SeqCst);
+        screenpipe_config::set_screen_locked(locked);
         if was_locked && !locked {
             info!("Screen unlocked after wake (CGSession safety-net cleared SCREEN_IS_LOCKED)");
             #[cfg(target_os = "macos")]
@@ -607,6 +615,7 @@ pub fn start_sleep_monitor() {
             };
 
             let was_locked = SCREEN_IS_LOCKED.swap(locked, Ordering::SeqCst);
+            screenpipe_config::set_screen_locked(locked);
             if locked != was_locked {
                 if locked {
                     info!("Screen locked (OpenInputDesktop unavailable)");
