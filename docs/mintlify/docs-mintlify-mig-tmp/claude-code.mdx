@@ -1,22 +1,22 @@
 ---
 title: "Claude Code - AI coding with screen context"
 sidebarTitle: "claude code"
-description: "Use screenpipe with Claude Code CLI to give Claude access to your screen history, meeting transcriptions, and app context while coding."
+description: "Use Screen Sentinel with Claude Code CLI to give Claude access to your screen history, meeting transcriptions, and app context while coding."
 icon: "terminal"
 ---
 
-[Claude Code](https://code.claude.com) is Anthropic's official CLI for agentic coding. with screenpipe integration, Claude can reference what you've been working on, recall information from your screen, and access meeting transcriptions.
+[Claude Code](https://code.claude.com) is Anthropic's official CLI for agentic coding. with Screen Sentinel integration, Claude can reference what you've been working on, recall information from your screen, and access meeting transcriptions.
 
 ## setup
 
 ```bash
-claude mcp add screenpipe --transport stdio -- npx -y screenpipe-mcp
+claude mcp add screen-sentinel --transport stdio -- npx -y screen-sentinel-mcp
 ```
 
 to make it available across all your projects:
 
 ```bash
-claude mcp add screenpipe --transport stdio --scope user -- npx -y screenpipe-mcp
+claude mcp add screen-sentinel --transport stdio --scope user -- npx -y screen-sentinel-mcp
 ```
 
 ## verify connection
@@ -40,7 +40,7 @@ once connected, Claude Code has access to these tools:
 
 ## usage examples
 
-ask Claude Code to use screenpipe naturally:
+ask Claude Code to use Screen Sentinel naturally:
 
 ```
 > what was I looking at in my browser an hour ago?
@@ -86,7 +86,7 @@ ask Claude Code to use screenpipe naturally:
 **recall context from earlier:**
 ```
 > I was reading a blog post about rust async earlier today,
-> search screenpipe and summarize the key points
+> search screen-sentinel and summarize the key points
 ```
 
 **reference meeting discussion:**
@@ -97,13 +97,13 @@ ask Claude Code to use screenpipe naturally:
 
 **debug with screen history:**
 ```
-> I saw an error message flash on screen, search screenpipe
+> I saw an error message flash on screen, search screen-sentinel
 > to find it and help me fix the issue
 ```
 
 **find code examples:**
 ```
-> search screenpipe for the python code I was looking at
+> search screen-sentinel for the python code I was looking at
 > in the browser yesterday about asyncio patterns
 ```
 
@@ -121,7 +121,7 @@ ask Claude Code to use screenpipe naturally:
 
 ## requirements
 
-- screenpipe running on localhost:3030
+- Screen Sentinel running on localhost:3130
 - Claude Code CLI installed
 - Node.js >= 18.0.0
 
@@ -129,48 +129,48 @@ ask Claude Code to use screenpipe naturally:
 
 **AI agent crashed with "Error: AI agent crashed — restarting automatically..."?**
 
-this happens when Claude Code can't communicate with screenpipe or screenpipe encounters an error. try these steps in order:
+this happens when Claude Code can't communicate with Screen Sentinel or Screen Sentinel encounters an error. try these steps in order:
 
-1. **check screenpipe is running:**
+1. **check Screen Sentinel is running:**
    ```bash
-   curl http://localhost:3030/health
+   curl http://localhost:3130/health
    ```
-   you should see `{"status":"healthy"}`. if this fails, start screenpipe first.
+   you should see `{"status":"healthy"}`. if this fails, start Screen Sentinel first.
 
 2. **verify MCP is connected:**
    ```bash
    claude mcp list
    ```
-   you should see `screenpipe` in the list with status "ready".
+   you should see `screen-sentinel` in the list with status "ready".
 
-3. **check screenpipe has recorded data:**
+3. **check Screen Sentinel has recorded data:**
    ```bash
-   curl "http://localhost:3030/search?limit=1"
+   curl "http://localhost:3130/search?limit=1"
    ```
-   if empty, screenpipe hasn't recorded anything yet—let it run for a minute and try again.
+   if empty, Screen Sentinel hasn't recorded anything yet—let it run for a minute and try again.
 
 4. **restart the MCP connection:**
    ```bash
-   claude mcp remove screenpipe
-   claude mcp add screenpipe --transport stdio -- npx -y screenpipe-mcp
+   claude mcp remove screen-sentinel
+   claude mcp add screen-sentinel --transport stdio -- npx -y screen-sentinel-mcp
    ```
 
-5. **check screenpipe logs:**
-   - macOS/Linux: `~/.screenpipe/screenpipe.log`
-   - Windows: check event viewer or `%APPDATA%\screenpipe\logs`
+5. **check Screen Sentinel logs:**
+   - macOS/Linux: `~/.screen-sentinel/screen-sentinel.log`
+   - Windows: check event viewer or `%APPDATA%\screen-sentinel\logs`
 
 **MCP not connecting?**
-- verify screenpipe is running: `curl http://localhost:3030/health`
+- verify Screen Sentinel is running: `curl http://localhost:3130/health`
 - check MCP status in Claude Code: `/mcp`
-- remove and re-add: `claude mcp remove screenpipe && claude mcp add screenpipe --transport stdio -- npx -y screenpipe-mcp`
+- remove and re-add: `claude mcp remove screen-sentinel && claude mcp add screen-sentinel --transport stdio -- npx -y screen-sentinel-mcp`
 
 **queries returning empty?**
-- check screenpipe has data: `curl "http://localhost:3030/search?limit=1"`
+- check Screen Sentinel has data: `curl "http://localhost:3130/search?limit=1"`
 - ensure screen recording permissions are granted
 - verify the time range you're querying
 
 **permission errors?**
 - macos: check System Settings > Privacy & Security > Screen Recording
-- ensure screenpipe app is listed and enabled
+- ensure Screen Sentinel app is listed and enabled
 
 still stuck? [ask in our discord](https://discord.gg/screenpipe).

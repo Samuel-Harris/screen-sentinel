@@ -34,8 +34,8 @@ jobs:
         run: |
           # Skip packages with macOS-specific Objective-C code that won't compile on Linux
           cargo clippy --workspace \
-            --exclude screenpipe-rfdetr-mlx \
-            --exclude screenpipe-screen \
+            --exclude screen-sentinel-rfdetr-mlx \
+            --exclude screen-sentinel-screen \
             --all-targets -- -W clippy::all
 
   optimize:
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apps/screenpipe-app-tauri
+        working-directory: apps/screen-sentinel-app-tauri
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2

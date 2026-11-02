@@ -1,25 +1,25 @@
 ---
 title: "cline - VS Code agent with screen memory"
 sidebarTitle: "cline"
-description: "Connect screenpipe to Cline via MCP to give this autonomous VS Code coding agent access to your screen history, meetings, and app context."
+description: "Connect Screen Sentinel to Cline via MCP to give this autonomous VS Code coding agent access to your screen history, meetings, and app context."
 icon: "code"
 ---
 
-[Cline](https://github.com/cline/cline) is an autonomous AI coding agent for VS Code with 30k+ GitHub stars. it supports MCP servers, so you can connect screenpipe to give Cline context about what you've been working on across all your apps.
+[Cline](https://github.com/cline/cline) is an autonomous AI coding agent for VS Code with 30k+ GitHub stars. it supports MCP servers, so you can connect Screen Sentinel to give Cline context about what you've been working on across all your apps.
 
 ## setup
 
 1. open VS Code with Cline installed
 2. open Cline settings (gear icon in Cline panel)
 3. go to **MCP Servers**
-4. add screenpipe:
+4. add Screen Sentinel:
 
 ```json
 {
   "mcpServers": {
-    "screenpipe": {
+    "screen-sentinel": {
       "command": "npx",
-      "args": ["-y", "screenpipe-mcp"]
+      "args": ["-y", "screen-sentinel-mcp"]
     }
   }
 }
@@ -42,7 +42,7 @@ once configured, Cline can search your screen history while coding:
 
 ## plan mode with context
 
-Cline's "Plan" mode works great with screenpipe:
+Cline's "Plan" mode works great with Screen Sentinel:
 
 1. switch to Plan mode
 2. ask Cline to find relevant context from your screen history
@@ -56,13 +56,13 @@ Cline's "Plan" mode works great with screenpipe:
 
 ## available tools
 
-screenpipe provides:
+Screen Sentinel provides:
 
 - **search-content** - search accessibility-first screen text, audio transcriptions, and input events
 
 ## requirements
 
-- screenpipe running on localhost:3030
+- Screen Sentinel running on localhost:3130
 - VS Code with Cline extension
 - Node.js >= 18.0.0
 

@@ -42,7 +42,7 @@ jobs:
           brew install ffmpeg pkg-config
           brew link --overwrite pkg-config
 
-      - name: Build screenpipe CLI binary
+      - name: Build Screen Sentinel CLI binary
         run: cd packages/cli && bun run build
 
       - name: Run npm e2e tests

@@ -2,7 +2,7 @@
 
 > **Status**: Draft  
 > **Issue**: #2165  
-> **Author**: screenpipe team  
+> **Author**: Screen Sentinel team  
 > **Date**: 2026-02-06
 
 ## 1. Problem Statement
@@ -17,7 +17,7 @@ User scrolls → frame_id changes → 150ms debounce
 → Server: DB lookup (file_path, offset_index)
 → ffprobe for video metadata (~200-500ms, cached after first call)
 → ffmpeg spawns, seeks, extracts single JPEG (~500ms-3s)
-→ writes JPEG to /tmp/screenpipe_frames/
+→ writes JPEG to /tmp/screen_sentinel_frames/
 → serves file back over HTTP
 → Browser renders <img>
 
@@ -42,7 +42,7 @@ From user Menelaus (Discord):
 The bottleneck is **ffmpeg process spawn per frame**. This is fundamentally wrong because:
 
 1. The data already exists in browser-playable format (HEVC/H.265 in fragmented MP4)
-2. Screenpipe uses `-movflags frag_keyframe+empty_moov+default_base_moof`, meaning the moov atom is at the start — **even actively-recording files are seekable**
+2. Screen Sentinel uses `-movflags frag_keyframe+empty_moov+default_base_moof`, meaning the moov atom is at the start — **even actively-recording files are seekable**
 3. At 0.5 fps, the GOP structure means most frames are keyframes, so browser seeking is frame-accurate
 4. WebKit on macOS (Tauri's webview) natively supports HEVC
 5. The `file_path` is already sent to the client in WebSocket metadata — it's just not used for display
@@ -78,7 +78,7 @@ We're spawning 28,800 ffmpeg processes per day for something the browser can do 
 -- video_chunks: one row per MP4 file
 CREATE TABLE video_chunks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_path TEXT NOT NULL  -- e.g., ~/.screenpipe/data/monitor_1_2026-02-06_10-30-00.mp4
+    file_path TEXT NOT NULL  -- e.g., ~/.screen-sentinel/data/monitor_1_2026-02-06_10-30-00.mp4
 );
 
 -- frames: one row per captured frame
@@ -147,12 +147,12 @@ interface DeviceFrameResponse {
 "security": {
     "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/**"]  // ⚠️ Does NOT include ~/.screenpipe/data/
+        "scope": ["$APPDATA/**"]  // ⚠️ Does NOT include ~/.screen-sentinel/data/
     }
 }
 ```
 
-**Problem**: Video files are at `~/.screenpipe/data/`, which is outside `$APPDATA` (`~/Library/Application Support/`). The asset protocol scope must be expanded, or we serve videos through the HTTP server.
+**Problem**: Video files are at `~/.screen-sentinel/data/`, which is outside `$APPDATA` (`~/Library/Application Support/`). The asset protocol scope must be expanded, or we serve videos through the HTTP server.
 
 ## 4. Proposed Architecture
 
@@ -198,7 +198,7 @@ PROPOSED:
          ▼                       ▼
 ┌─────────────────┐    ┌──────────────────────┐
 │ Backend Server   │    │ Local filesystem     │
-│ (localhost:3030) │    │ ~/.screenpipe/data/  │
+│ (localhost:3130) │    │ ~/.screen-sentinel/data/  │
 │                  │    │  monitor_*.mp4       │
 │ Sends metadata:  │    └──────────────────────┘
 │  + file_path     │
@@ -214,7 +214,7 @@ PROPOSED:
 **Option A: Expand Tauri asset protocol scope**
 
 ```json
-"scope": ["$APPDATA/**", "$HOME/.screenpipe/**"]
+"scope": ["$APPDATA/**", "$HOME/.screen-sentinel/**"]
 ```
 
 Then use `convertFileSrc(file_path)` → `asset://localhost/...` URL.
@@ -291,7 +291,7 @@ For serving video files with proper Range request support:
 async fn stream_video_file(
     Path(path): Path<String>,
 ) -> impl IntoResponse {
-    // Validate path is under screenpipe data dir (security)
+    // Validate path is under screen-sentinel data dir (security)
     // Serve file with Accept-Ranges, Content-Range headers
     // This enables the <video> element to seek efficiently
 }
@@ -383,7 +383,7 @@ function getVideoUrl(filePath: string): string {
         return convertFileSrc(filePath);
     } catch {
         // Fallback to HTTP endpoint
-        return `http://localhost:3030/video/stream?path=${encodeURIComponent(filePath)}`;
+        return `http://localhost:3130/video/stream?path=${encodeURIComponent(filePath)}`;
     }
 }
 ```
@@ -396,7 +396,7 @@ If the `<video>` element fires an `error` event (unsupported codec, corrupt file
 const handleVideoError = useCallback(() => {
     console.warn('Video element failed, falling back to ffmpeg frame extraction');
     setUseFfmpegFallback(true);
-    // Render <img src={`http://localhost:3030/frames/${frameId}`}> instead
+    // Render <img src={`http://localhost:3130/frames/${frameId}`}> instead
 }, [frameId]);
 ```
 
@@ -505,7 +505,7 @@ interface ChunkIndex {
 | Chunk A finalized AFTER we loaded it as "active" | Video was loaded when A was incomplete. Now it's complete with moov finalized. | No issue — fragmented MP4 has moov at start. Browser already has all the data it needs. |
 | Very recent frame not yet on disk | Frame captured but ffmpeg hasn't written it yet | offset_index points to a frame that doesn't exist in the file yet. Browser seek silently goes to nearest frame. WebSocket only sends frames AFTER they're written to video (via `FrameWriteTracker`). |
 | Live edge with 2-second frame interval (0.5fps) | User sees 2-second-old data | This is inherent to the capture rate. Not a video-loading issue. |
-| Screenpipe process restarts while viewing | Video connection lost, new chunks start | WebSocket reconnection already handles this. Video pool resets on reconnect. |
+| Screen Sentinel process restarts while viewing | Video connection lost, new chunks start | WebSocket reconnection already handles this. Video pool resets on reconnect. |
 
 ### 6.5 Multi-Monitor
 
@@ -611,7 +611,7 @@ interface ChunkIndex {
 
 - [ ] Create `VideoFrameDisplay` component with `<video>` seeking
 - [ ] Implement double-buffer pool (active + preloaded)
-- [ ] Expand asset protocol scope for `~/.screenpipe/data/`
+- [ ] Expand asset protocol scope for `~/.screen-sentinel/data/`
 - [ ] Handle `seeked` event for frame-ready signaling
 - [ ] Add ffmpeg `<img>` fallback on `<video>` error
 - [ ] Wire up to existing `CurrentFrameTimeline` props

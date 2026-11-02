@@ -1,4 +1,4 @@
-# Linux desktop with AT-SPI2 for testing screenpipe accessibility
+# Linux desktop with AT-SPI2 for testing Screen Sentinel accessibility
 # Access via browser at http://localhost:6080
 FROM ubuntu:24.04
 
@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     at-spi2-core libatspi2.0-dev libatk1.0-dev \
     # Build tools for Rust
     build-essential pkg-config curl git \
-    # Screenpipe native deps
+    # Screen Sentinel native deps
     libssl-dev libasound2-dev libavcodec-dev libavformat-dev \
     libavutil-dev libswresample-dev libavdevice-dev \
     libxdo-dev libdbus-1-dev libxcb1-dev libxcb-randr0-dev \
@@ -64,7 +64,7 @@ RUN echo '#!/bin/bash' > /start.sh && \
     echo 'exec bash' >> /start.sh && \
     chmod +x /start.sh
 
-WORKDIR /screenpipe
+WORKDIR /screen-sentinel
 EXPOSE 6080
 
 CMD ["/start.sh"]

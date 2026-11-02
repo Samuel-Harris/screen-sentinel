@@ -6,8 +6,8 @@ log() {
 export XDG_SESSION_TYPE="x11"
 export WAYLAND_DISPLAY=""
 
-# Change directory to Screenpipe folder
-cd /workspaces/screenpipe/
+# Change directory to Screen Sentinel folder
+cd /workspaces/screen-sentinel/
 
 log "Installing dependencies"
 .github/scripts/install_dependencies.sh
@@ -33,17 +33,17 @@ xdpyinfo || echo "xdpyinfo failed"
 xrandr || echo "xrandr failed"
 xwininfo -root -children || echo "xwininfo failed"
 
-log "Running Screenpipe"
-.github/scripts/run_screenpipe.sh
+log "Running Screen Sentinel"
+.github/scripts/run_screen_sentinel.sh
 
 log "Testing OCR"
 .github/scripts/test_ocr.sh
 
-log "Stopping Screenpipe"
-.github/scripts/stop_screenpipe.sh
+log "Stopping Screen Sentinel"
+.github/scripts/stop_screen_sentinel.sh
 
 log "Checking for crashes and expected behavior"
 .github/scripts/check_logs.sh
 
 log "Checking final storage usage"
-du -ha ~/.screenpipe/data
+du -ha ~/.screen-sentinel/data

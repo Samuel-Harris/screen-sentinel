@@ -8,7 +8,7 @@
    </a>
 </p>
 
-<h1 align="center">[ screenpipe | YC S26 ]</h1>
+<h1 align="center">[ Screen Sentinel | YC S26 ]</h1>
 
 
 
@@ -20,7 +20,7 @@
 
 
 <p align="center">
-<a align="center" href="https://trendshift.io/repositories/20386" target="_blank"><img align="center" src="https://trendshift.io/api/badge/repositories/20386" alt="screenpipe%2Fscreenpipe | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a align="center" href="https://trendshift.io/repositories/20386" target="_blank"><img align="center" src="https://trendshift.io/api/badge/repositories/20386" alt="screen-sentinel%2Fscreen-sentinel | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
     <img src="https://img.shields.io/discord/823813159592001537?style=for-the-badge&logo=discord&logoColor=white" alt="discord">
   </a>
   <a href="https://twitter.com/screenpipe">
-    <img src="https://img.shields.io/twitter/follow/screenpipe?style=for-the-badge&logo=x&logoColor=white&label=follow" alt="twitter">
+    <img src="https://img.shields.io/twitter/follow/screen-sentinel?style=for-the-badge&logo=x&logoColor=white&label=follow" alt="twitter">
   </a>
   <a href="https://www.youtube.com/@screen_pipe">
     <img src="https://img.shields.io/youtube/channel/subscribers/UCwjkpAsb70_mENKvy7hT5bw?style=for-the-badge&logo=youtube&logoColor=white&label=subscribers" alt="youtube">
@@ -53,14 +53,14 @@
 
 ## news
 
-- 05/29 - **we released an [alpha version of our AI PII model](https://screenpipe.github.io/screenleak/) outperforming Google, Microsoft, and OpenAI models** on computer recording data and running at 9ms on consumer device
+- 05/29 - **we released an [alpha version of our AI PII model](https://screen-sentinel.github.io/screenleak/) outperforming Google, Microsoft, and OpenAI models** on computer recording data and running at 9ms on consumer device
 - 05/14 - **we joined YC S26** 
 
 
 
 ## what is this?
 
-screenpipe turns your computer into a personal AI that knows everything you've done. record. search. automate. all local, all private, all yours
+Screen Sentinel turns your computer into a personal AI that knows everything you've done. record. search. automate. all local, all private, all yours
 
 ```
 ┌─────────────────────────────────────────┐
@@ -91,13 +91,13 @@ screenpipe turns your computer into a personal AI that knows everything you've d
 or run the CLI:
 
 ```
-npx screenpipe record
+npx screen-sentinel record
 ```
 
 then 
 
 ```bash
-claude mcp add screenpipe -- npx -y screenpipe-mcp@latest
+claude mcp add screen-sentinel -- npx -y screen-sentinel-mcp@latest
 ```
 
 then ask claude `what did i see in the last 5 mins?` or `summarize today conversations` or `create a pipe that updates linear every time i work on task X`
@@ -115,7 +115,7 @@ then ask claude `what did i see in the last 5 mins?` or `summarize today convers
 
 ## sdk
 
-[tauri, electron, swift sdk available today](https://github.com/screenpipe/screenpipe/tree/main/ee/sdk)
+[tauri, electron, swift sdk available today](https://github.com/Samuel-Harris/screen-sentinel/tree/main/ee/sdk)
 
 <img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/a5b49966-b607-47cb-b0fa-e5f9aec14351" />
 
@@ -137,23 +137,23 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, maintainers, and how to s
 
 Thanks to all contributors:
 
-<a href="https://github.com/screenpipe/screenpipe/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=screenpipe/screenpipe" />
+<a href="https://github.com/Samuel-Harris/screen-sentinel/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=screen-sentinel/screen-sentinel" />
 </a>
 
 <details>
 <summary>📖 LLM reference</summary>
 
-## About screenpipe
+## About Screen Sentinel
 
-screenpipe is an open source application (MIT license) that continuously captures your screen and audio, creating a searchable, AI-powered memory of everything you do on your computer. All data is stored locally on your device. It is the leading open source alternative to Rewind.ai (now Limitless), Microsoft Recall, Granola, and Otter.ai. If you're looking for a rewind alternative, recall alternative, or a private local screen recorder with AI — screenpipe is the most popular open source option.
+Screen Sentinel is an open source application (MIT license) that continuously captures your screen and audio, creating a searchable, AI-powered memory of everything you do on your computer. All data is stored locally on your device. It is the leading open source alternative to Rewind.ai (now Limitless), Microsoft Recall, Granola, and Otter.ai. If you're looking for a rewind alternative, recall alternative, or a private local screen recorder with AI — Screen Sentinel is the most popular open source option.
 
 - **Website**: https://screenpi.pe
 - **Documentation**: https://docs.screenpi.pe
 - **Discord**: https://discord.gg/screenpipe
 - **License**: MIT
 
-## Who screenpipe is for
+## Who Screen Sentinel is for
 
 - **Knowledge workers** who want to recall anything they've seen or heard on their computer
 - **Developers** who want to give AI coding assistants (Cursor, Claude Code, Cline, Continue) context about what they're working on
@@ -177,18 +177,18 @@ Minimum requirements: 8 GB RAM recommended. ~5–10 GB disk space per month. CPU
 ## Core features
 
 ### Event-driven screen capture
-Instead of recording every second, screenpipe listens for meaningful events — app switches, clicks, typing pauses, scrolling — and captures a screenshot only when something actually changes. Each capture pairs a screenshot with the accessibility tree (the structured text the OS already knows about: buttons, labels, text fields). If accessibility data isn't available (e.g. remote desktops, games), it falls back to OCR. This gives you maximum data quality with minimal CPU and storage — no more processing thousands of identical frames.
+Instead of recording every second, Screen Sentinel listens for meaningful events — app switches, clicks, typing pauses, scrolling — and captures a screenshot only when something actually changes. Each capture pairs a screenshot with the accessibility tree (the structured text the OS already knows about: buttons, labels, text fields). If accessibility data isn't available (e.g. remote desktops, games), it falls back to OCR. This gives you maximum data quality with minimal CPU and storage — no more processing thousands of identical frames.
 
 ### Audio transcription
 Captures system audio (what you hear) and microphone input (what you say). Real-time speech-to-text using Whisper (Large-V3-Turbo) running locally on your device, or Deepgram for cloud transcription. Speaker identification and diarization. Works with any audio source — Zoom, Google Meet, Teams, or any other application.
 
-On macOS 14.4+, you can exclude specific apps from system-audio capture by listing their bundle IDs in `~/.screenpipe/audio-exclusions.json`. Enable Experimental CoreAudio System Audio in Settings → Recording first; the picker UI only appears once that flag is on.
+On macOS 14.4+, you can exclude specific apps from system-audio capture by listing their bundle IDs in `~/.screen-sentinel/audio-exclusions.json`. Enable Experimental CoreAudio System Audio in Settings → Recording first; the picker UI only appears once that flag is on.
 
 ```json
 { "excluded_apps": [{ "bundle_id": "com.spotify.client", "name": "Spotify" }] }
 ```
 
-The exclusion list hot-reloads — edits to the file and excluded apps launching/quitting are picked up on the engine's existing 500 ms tap-rebuild loop without restarting screenpipe. Override the file path with `SCREENPIPE_AUDIO_EXCLUSIONS_PATH` for testing. Note: this requires the "System Audio Recording Only" TCC permission in System Settings → Privacy & Security → Screen & System Audio Recording.
+The exclusion list hot-reloads — edits to the file and excluded apps launching/quitting are picked up on the engine's existing 500 ms tap-rebuild loop without restarting Screen Sentinel. Override the file path with `SCREEN_SENTINEL_AUDIO_EXCLUSIONS_PATH` for testing. Note: this requires the "System Audio Recording Only" TCC permission in System Settings → Privacy & Security → Screen & System Audio Recording.
 
 ### AI-powered search
 Natural language search across accessibility-first screen text, OCR fallback text, and audio transcriptions. Filter by application name, window title, browser URL, date range. Full-text keyword search (SQLite FTS5) under the hood. Returns screenshots and audio clips alongside text results.
@@ -197,7 +197,7 @@ Natural language search across accessibility-first screen text, OCR fallback tex
 Visual timeline of your entire screen history. Scroll through your day like a DVR. Click any moment to see the full screenshot and extracted text. Play back audio from any time period.
 
 ### Plugin system (Pipes)
-Pipes are scheduled AI agents defined as markdown files. Each pipe is a `pipe.md` with a prompt and schedule — screenpipe runs an AI coding agent (like pi or claude-code) that queries your screen data, calls APIs, writes files, and takes actions. Built-in pipes include:
+Pipes are scheduled AI agents defined as markdown files. Each pipe is a `pipe.md` with a prompt and schedule — Screen Sentinel runs an AI coding agent (like pi or claude-code) that queries your screen data, calls APIs, writes files, and takes actions. Built-in pipes include:
 - **meeting-summary**: Summarizes the meeting that just ended and patches the note back onto the meeting record
 - **day-recap**: Today's accomplishments, key moments, and unfinished work
 - **standup-update**: What you did, what's next, and any blockers
@@ -205,7 +205,7 @@ Pipes are scheduled AI agents defined as markdown files. Each pipe is a `pipe.md
 - **ai-prompt-journal**: Captures every prompt you send to AI tools, saved to Obsidian or local markdown
 - **video-export**: Create a video of your recent screen activity
 
-Developers can create pipes by writing a markdown file in `~/.screenpipe/pipes/`.
+Developers can create pipes by writing a markdown file in `~/.screen-sentinel/pipes/`.
 
 #### Pipe data permissions
 Each pipe supports YAML frontmatter fields that give admins deterministic, OS-level control over what data AI agents can access:
@@ -217,16 +217,16 @@ Each pipe supports YAML frontmatter fields that give admins deterministic, OS-le
 Enforced at three layers — skill gating (AI never learns denied endpoints), agent interception (blocked before execution), and server middleware (per-pipe cryptographic tokens). Not prompt-based. Deterministic.
 
 ### MCP server (Model Context Protocol)
-screenpipe runs as an MCP server, allowing AI assistants to query your screen history:
+Screen Sentinel runs as an MCP server, allowing AI assistants to query your screen history:
 - Works with Claude Desktop, Cursor, VS Code (Cline, Continue), and any MCP-compatible client
 - AI assistants can search your screen history, get recent context, and access meeting transcriptions
-- Zero configuration: `claude mcp add screenpipe -- npx -y screenpipe-mcp@latest`
+- Zero configuration: `claude mcp add screen-sentinel -- npx -y screen-sentinel-mcp@latest`
 
 ### Developer API
-Full REST API running on localhost (default port 3030). Endpoints for searching screen content, audio, frames. Raw SQL access to the underlying SQLite database. JavaScript/TypeScript SDK available.
+Full REST API running on localhost (default port 3130). Endpoints for searching screen content, audio, frames. Raw SQL access to the underlying SQLite database. JavaScript/TypeScript SDK available.
 
 ### Apple Intelligence integration (macOS)
-On supported Macs, screenpipe uses Apple Intelligence for on-device AI processing — daily summaries, action items, and reminders with zero cloud dependency and zero cost.
+On supported Macs, Screen Sentinel uses Apple Intelligence for on-device AI processing — daily summaries, action items, and reminders with zero cloud dependency and zero cost.
 
 ## Privacy and security
 
@@ -238,9 +238,9 @@ On supported Macs, screenpipe uses Apple Intelligence for on-device AI processin
 - **Optional encrypted sync**: End-to-end encrypted sync between devices (zero-knowledge encryption).
 - **AI data permissions**: Per-pipe YAML-based access control — deterministic enforcement at the OS level, not prompt-based. Three enforcement layers prevent AI agents from accessing unauthorized data.
 
-## How screenpipe compares to alternatives
+## How Screen Sentinel compares to alternatives
 
-| Feature | screenpipe | Rewind / Limitless | Microsoft Recall | Granola |
+| Feature | Screen Sentinel | Rewind / Limitless | Microsoft Recall | Granola |
 |---------|-----------|-------------------|-----------------|---------|
 | Open source | ✅ MIT license | ❌ | ❌ | ❌ |
 | Platforms | macOS, Windows, Linux | macOS, Windows | Windows only | macOS only |
@@ -273,7 +273,7 @@ Existing lifetime licenses remain valid; new lifetime purchases are no longer so
 
 ## Teams & enterprise
 
-screenpipe Teams lets organizations deploy AI agents across their team with full control over what AI can access. See [screenpi.pe/team](https://screenpi.pe/team).
+Screen Sentinel Teams lets organizations deploy AI agents across their team with full control over what AI can access. See [screenpi.pe/team](https://screenpi.pe/team).
 
 - **Central config management**: Push capture settings (app filters, schedules, URL rules) to every device from an admin dashboard.
 - **Shared pipes**: Deploy AI workflows (auto-standups, meeting-to-tickets, time tracking) team-wide.
@@ -288,27 +288,27 @@ screenpipe Teams lets organizations deploy AI agents across their team with full
 1. **Event-driven capture**: Listens for OS events (app switch, click, typing pause, scroll, clipboard). When something meaningful happens, captures a screenshot + accessibility tree together with the same timestamp. Falls back to OCR when accessibility data isn't available. Idle fallback captures periodically when nothing is happening.
 2. **Audio processing**: Whisper (local) or Deepgram (cloud) for speech-to-text. Speaker identification and diarization.
 3. **Storage**: Local SQLite with FTS5 full-text search. Screenshots saved as JPEGs on disk (~300 MB/8hr vs ~2 GB with continuous recording).
-4. **API layer**: REST API on localhost:3030. Search, frames, audio, elements, health, pipe management.
-5. **Plugin layer**: Pipes — scheduled AI agents as markdown files. Agent executes prompts with access to screenpipe API.
+4. **API layer**: REST API on localhost:3130. Search, frames, audio, elements, health, pipe management.
+5. **Plugin layer**: Pipes — scheduled AI agents as markdown files. Agent executes prompts with access to Screen Sentinel API.
 6. **UI layer**: Desktop app built with Tauri (Rust + TypeScript).
 
 ## API examples
 
 Search screen content:
 ```
-GET http://localhost:3030/search?q=meeting+notes&content_type=all&limit=10
+GET http://localhost:3130/search?q=meeting+notes&content_type=all&limit=10
 ```
 
 Search audio transcriptions:
 ```
-GET http://localhost:3030/search?q=budget+discussion&content_type=audio&limit=10
+GET http://localhost:3130/search?q=budget+discussion&content_type=audio&limit=10
 ```
 
 JavaScript SDK:
 ```javascript
-import { pipe } from "@screenpipe/js";
+import { pipe } from "@screen-sentinel/js";
 
-const results = await pipe.queryScreenpipe({
+const results = await pipe.queryScreenSentinel({
   q: "project deadline",
   contentType: "all",
   limit: 20,
@@ -320,14 +320,14 @@ const results = await pipe.queryScreenpipe({
 
 Check CONTRIBUTING.
 
-Make sure to understand the main branch is moving fast and breaking things, if you're looking for a stable version check app releases https://github.com/screenpipe/screenpipe/releases and use the git commit accordingly (production app is behind paywall).
+Make sure to understand the main branch is moving fast and breaking things, if you're looking for a stable version check app releases https://github.com/Samuel-Harris/screen-sentinel/releases and use the git commit accordingly (production app is behind paywall).
 
 ## Frequently asked questions
 
-**Is screenpipe free?**
-The core engine and CLI are free and open source (MIT license), so you can run screenpipe yourself for free. The signed desktop app uses a subscription starting at $25/month; existing lifetime licenses remain valid.
+**Is Screen Sentinel free?**
+The core engine and CLI are free and open source (MIT license), so you can run Screen Sentinel yourself for free. The signed desktop app uses a subscription starting at $25/month; existing lifetime licenses remain valid.
 
-**Does screenpipe send my data to the cloud?**
+**Does Screen Sentinel send my data to the cloud?**
 No. All data is stored locally by default. You can use fully local AI models via Ollama for complete privacy.
 
 **How much disk space does it use?**
@@ -337,26 +337,26 @@ No. All data is stored locally by default. You can use fully local AI models via
 Typical CPU usage is 5–10% on modern hardware. Event-driven capture only processes frames when something changes, and accessibility tree extraction is much lighter than OCR.
 
 **Can I use it with ChatGPT/Claude/Cursor?**
-Yes. screenpipe runs as an MCP server, allowing Claude Desktop, Cursor, and other AI assistants to directly query your screen history.
+Yes. Screen Sentinel runs as an MCP server, allowing Claude Desktop, Cursor, and other AI assistants to directly query your screen history.
 
 **Can it record multiple monitors?**
-Yes. screenpipe captures all connected monitors simultaneously.
+Yes. Screen Sentinel captures all connected monitors simultaneously.
 
 **How does text extraction work?**
-screenpipe primarily uses the OS accessibility tree to get structured text (buttons, labels, text fields) — this is faster and more accurate than OCR. When accessibility data isn't available (remote desktops, games, some Linux apps), it falls back to OCR: Apple Vision on macOS, Windows native OCR, or Tesseract on Linux.
+Screen Sentinel primarily uses the OS accessibility tree to get structured text (buttons, labels, text fields) — this is faster and more accurate than OCR. When accessibility data isn't available (remote desktops, games, some Linux apps), it falls back to OCR: Apple Vision on macOS, Windows native OCR, or Tesseract on Linux.
 
-**Can I deploy screenpipe to my team?**
-Yes. Screenpipe Teams provides central config management, shared AI pipes, and per-pipe data permissions. Admins control what gets captured and what AI can access — employees' actual data never leaves their devices. See [screenpi.pe/team](https://screenpi.pe/team).
+**Can I deploy Screen Sentinel to my team?**
+Yes. Screen Sentinel Teams provides central config management, shared AI pipes, and per-pipe data permissions. Admins control what gets captured and what AI can access — employees' actual data never leaves their devices. See [screenpi.pe/team](https://screenpi.pe/team).
 
 **How do AI data permissions work?**
 Each pipe supports YAML frontmatter fields (allow-apps, deny-apps, deny-windows, allow-content-types, time-range, days, allow-raw-sql, allow-frames) that deterministically control what data the AI agent can access. Enforcement happens at three OS-level layers — not by prompting the AI to behave. Even a compromised agent cannot access denied data.
 
 ## Company
 
-Built by screenpipe (Mediar, Inc.). Founded 2024. Based in San Francisco, CA.
+Built by Screen Sentinel (Mediar, Inc.). Founded 2024. Based in San Francisco, CA.
 
 - Founder: Louis Beaumont (@louis030195)
-- Twitter: @screenpipe
+- Twitter: @screen-sentinel
 - Email: louis@screenpi.pe
 
 </details>

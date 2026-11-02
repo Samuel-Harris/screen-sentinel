@@ -6,60 +6,60 @@
  * - S9: DB integrity after crash, concurrent DB access
  * - S14: COM thread conflict (Windows)
  *
- * These tests kill and restart screenpipe, so they run LAST.
+ * These tests kill and restart Screen Sentinel, so they run LAST.
  */
 
 import {
   suite, test, summary, screenshot, fetchJson, sleep,
-  HEALTH_URL, IS_WINDOWS, IS_MACOS, isScreenpipeRunning,
+  HEALTH_URL, IS_WINDOWS, IS_MACOS, isScreenSentinelRunning,
 } from "./lib";
 
 suite("lifecycle & stability");
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Get list of screenpipe-related PIDs */
-function getScreenpipePids(): number[] {
+/** Get list of screen-sentinel-related PIDs */
+function getScreenSentinelPids(): number[] {
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync([
       "powershell", "-NoProfile", "-Command",
-      "Get-Process -Name 'screenpipe*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id",
+      "Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id",
     ]);
     return proc.stdout.toString().trim().split(/\r?\n/).filter(Boolean).map(Number).filter(n => !isNaN(n));
   } else {
-    const proc = Bun.spawnSync(["pgrep", "-f", "screenpipe"]);
+    const proc = Bun.spawnSync(["pgrep", "-f", "screen-sentinel"]);
     return proc.stdout.toString().trim().split(/\n/).filter(Boolean).map(Number).filter(n => !isNaN(n));
   }
 }
 
-/** Check if port 3030 is in use */
+/** Check if port 3130 is in use */
 function isPortInUse(): boolean {
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-      "Get-NetTCPConnection -LocalPort 3030 -ErrorAction SilentlyContinue | Select-Object -First 1"]);
+      "Get-NetTCPConnection -LocalPort 3130 -ErrorAction SilentlyContinue | Select-Object -First 1"]);
     return proc.stdout.toString().trim().length > 0;
   } else {
-    const proc = Bun.spawnSync(["lsof", "-i", ":3030"]);
+    const proc = Bun.spawnSync(["lsof", "-i", ":3130"]);
     return proc.exitCode === 0;
   }
 }
 
-/** Find screenpipe executable path */
-function findScreenpipeExe(): string | null {
+/** Find Screen Sentinel executable path */
+function findScreenSentinelExe(): string | null {
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-      "(Get-Process -Name 'screenpipe*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"]);
+      "(Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"]);
     const path = proc.stdout.toString().trim();
     return path || null;
   } else {
-    const proc = Bun.spawnSync(["bash", "-c", "ps aux | grep -i screenpipe | grep -v grep | head -1 | awk '{print $11}'"]);
+    const proc = Bun.spawnSync(["bash", "-c", "ps aux | grep -i Screen Sentinel | grep -v grep | head -1 | awk '{print $11}'"]);
     const path = proc.stdout.toString().trim();
     return path || null;
   }
 }
 
-/** Start screenpipe app (best effort) */
-function startScreenpipe(exePath: string) {
+/** Start Screen Sentinel app (best effort) */
+function startScreenSentinel(exePath: string) {
   if (IS_WINDOWS) {
     Bun.spawnSync(["powershell", "-NoProfile", "-Command",
       `Start-Process '${exePath}'`]);
@@ -83,14 +83,14 @@ async function waitForHealthUp(timeoutS: number): Promise<boolean> {
 
 // ── Pre-flight: record exe path before we kill anything ─────────────────────
 
-const exePath = findScreenpipeExe();
-console.log(`  screenpipe exe: ${exePath ?? "not found"}`);
+const exePath = findScreenSentinelExe();
+console.log(`  screen-sentinel exe: ${exePath ?? "not found"}`);
 
 // ── S9: Concurrent DB access under load ─────────────────────────────────────
 
 await test("concurrent DB access (50 requests)", async () => {
   const promises = Array.from({ length: 50 }, (_, i) =>
-    fetch(`http://localhost:3030/search?limit=1&q=test${i}`)
+    fetch(`http://localhost:3130/search?limit=1&q=test${i}`)
       .then(r => ({ ok: r.ok, status: r.status }))
       .catch(e => ({ ok: false, status: 0, error: e.message }))
   );
@@ -105,9 +105,9 @@ await test("mixed read/write concurrent access", async () => {
   // Interleave search and health requests (simulating real usage)
   const promises = [];
   for (let i = 0; i < 20; i++) {
-    promises.push(fetch(`http://localhost:3030/search?limit=1&content_type=ocr`).then(r => r.ok));
+    promises.push(fetch(`http://localhost:3130/search?limit=1&content_type=ocr`).then(r => r.ok));
     promises.push(fetch(HEALTH_URL).then(r => r.ok));
-    promises.push(fetch(`http://localhost:3030/search?limit=5&q=e2e`).then(r => r.ok));
+    promises.push(fetch(`http://localhost:3130/search?limit=5&q=e2e`).then(r => r.ok));
   }
   const results = await Promise.all(promises);
   const failures = results.filter(r => !r);
@@ -138,11 +138,11 @@ if (IS_WINDOWS) {
 
 await test("CPU not spiking on idle (10s sample)", async () => {
   if (IS_WINDOWS) {
-    // Measure screenpipe CPU over 10s
+    // Measure Screen Sentinel CPU over 10s
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", `
       $samples = @()
       for ($i = 0; $i -lt 5; $i++) {
-        $cpu = (Get-Process -Name 'screenpipe*' -ErrorAction SilentlyContinue | Measure-Object -Property CPU -Sum).Sum
+        $cpu = (Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Measure-Object -Property CPU -Sum).Sum
         $samples += $cpu
         Start-Sleep -Seconds 2
       }
@@ -157,7 +157,7 @@ await test("CPU not spiking on idle (10s sample)", async () => {
   } else {
     // macOS: use ps to sample CPU %
     const proc = Bun.spawnSync(["bash", "-c",
-      "ps aux | grep -i screenpipe | grep -v grep | awk '{sum+=$3} END {print sum}'"]);
+      "ps aux | grep -i Screen Sentinel | grep -v grep | awk '{sum+=$3} END {print sum}'"]);
     const cpuPct = parseFloat(proc.stdout.toString().trim());
     if (!isNaN(cpuPct) && cpuPct > 30) {
       throw new Error(`high CPU on idle: ${cpuPct.toFixed(1)}%`);
@@ -192,35 +192,35 @@ await test("no orphaned ffmpeg processes", async () => {
 
 await test("force quit + recovery (DB intact)", async () => {
   if (!exePath) {
-    console.log("  (skipped: could not find screenpipe exe path)");
+    console.log("  (skipped: could not find Screen Sentinel exe path)");
     return;
   }
 
   // Record a search result count before kill
   let preKillCount = 0;
   try {
-    const pre = await fetchJson("http://localhost:3030/search?limit=1&content_type=ocr");
+    const pre = await fetchJson("http://localhost:3130/search?limit=1&content_type=ocr");
     preKillCount = pre?.pagination?.total ?? 0;
   } catch {}
 
-  // Force kill screenpipe
-  console.log("  force killing screenpipe...");
+  // Force kill Screen Sentinel
+  console.log("  force killing screen-sentinel...");
   if (IS_WINDOWS) {
     Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-      "Get-Process -Name 'screenpipe*' -ErrorAction SilentlyContinue | Stop-Process -Force"]);
+      "Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Stop-Process -Force"]);
   } else {
-    Bun.spawnSync(["pkill", "-9", "-f", "screenpipe-app"]);
+    Bun.spawnSync(["pkill", "-9", "-f", "screen-sentinel-app"]);
   }
   await sleep(3000);
 
   // Verify it's dead
-  if (isScreenpipeRunning()) {
-    throw new Error("screenpipe still running after force kill");
+  if (isScreenSentinelRunning()) {
+    throw new Error("Screen Sentinel still running after force kill");
   }
 
   // Restart
-  console.log("  restarting screenpipe...");
-  startScreenpipe(exePath);
+  console.log("  restarting screen-sentinel...");
+  startScreenSentinel(exePath);
 
   // Wait for health API
   const recovered = await waitForHealthUp(60);
@@ -230,7 +230,7 @@ await test("force quit + recovery (DB intact)", async () => {
 
   // Verify DB is intact — search should still work
   await sleep(5000);
-  const post = await fetchJson("http://localhost:3030/search?limit=1&content_type=ocr");
+  const post = await fetchJson("http://localhost:3130/search?limit=1&content_type=ocr");
   const postKillCount = post?.pagination?.total ?? 0;
 
   // Total should be >= pre-kill (new frames may have been added)
@@ -242,25 +242,25 @@ await test("force quit + recovery (DB intact)", async () => {
 
 // ── S8: Port conflict on restart ────────────────────────────────────────────
 
-await test("port 3030 not conflicting", async () => {
-  // After recovery, verify only one process owns port 3030
+await test("port 3130 not conflicting", async () => {
+  // After recovery, verify only one process owns port 3130
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-      "(Get-NetTCPConnection -LocalPort 3030 -ErrorAction SilentlyContinue | Where-Object State -eq 'Listen').Count"]);
+      "(Get-NetTCPConnection -LocalPort 3130 -ErrorAction SilentlyContinue | Where-Object State -eq 'Listen').Count"]);
     const count = parseInt(proc.stdout.toString().trim()) || 0;
     if (count > 1) {
-      throw new Error(`${count} listeners on port 3030 (port conflict)`);
+      throw new Error(`${count} listeners on port 3130 (port conflict)`);
     }
     if (count === 0) {
       console.log("  (no listeners yet, app may still be starting)");
     } else {
-      console.log(`  port 3030 listeners: ${count}`);
+      console.log(`  port 3130 listeners: ${count}`);
     }
   } else {
-    const proc = Bun.spawnSync(["bash", "-c", "lsof -i :3030 -sTCP:LISTEN | tail -n +2 | wc -l"]);
+    const proc = Bun.spawnSync(["bash", "-c", "lsof -i :3130 -sTCP:LISTEN | tail -n +2 | wc -l"]);
     const count = parseInt(proc.stdout.toString().trim()) || 0;
     if (count > 1) {
-      throw new Error(`${count} listeners on port 3030 (port conflict)`);
+      throw new Error(`${count} listeners on port 3130 (port conflict)`);
     }
   }
 });
@@ -294,7 +294,7 @@ await test("settings survive restart (S10.3)", async () => {
 
   // Verify the app's settings endpoint still works
   try {
-    const res = await fetch("http://localhost:3030/search?limit=1");
+    const res = await fetch("http://localhost:3130/search?limit=1");
     if (!res.ok) throw new Error(`search broken after restart: ${res.status}`);
   } catch (e: any) {
     throw new Error(`settings/API broken after restart: ${e.message}`);
@@ -336,14 +336,14 @@ await test("disk space check (S9.6)", async () => {
     console.log(`  free disk space: ${freeGB}GB`);
   }
   // Regardless of space, app should still be running
-  if (!isScreenpipeRunning()) throw new Error("app not running");
+  if (!isScreenSentinelRunning()) throw new Error("app not running");
 });
 
 // ── S9: Large search result handling ────────────────────────────────────
 
 await test("large DB query (<2s for 100 results) (S9.7)", async () => {
   const start = Date.now();
-  const data = await fetchJson("http://localhost:3030/search?limit=100&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=100&content_type=ocr");
   const elapsed = Date.now() - start;
   const count = data?.data?.length ?? 0;
   const total = data?.pagination?.total ?? 0;
@@ -373,14 +373,14 @@ await test("frame skip rate on idle screen (S5.3)", async () => {
 
 await test("clean quit leaves no orphans (S8.1)", async () => {
   if (!exePath) {
-    console.log("  (skipped: could not find screenpipe exe path)");
+    console.log("  (skipped: could not find Screen Sentinel exe path)");
     return;
   }
 
   // Record PIDs before quit
-  const pidsBefore = getScreenpipePids();
+  const pidsBefore = getScreenSentinelPids();
   if (pidsBefore.length === 0) {
-    console.log("  (skipped: screenpipe not running)");
+    console.log("  (skipped: Screen Sentinel not running)");
     return;
   }
 
@@ -390,12 +390,12 @@ await test("clean quit leaves no orphans (S8.1)", async () => {
       Bun.spawnSync(["taskkill", "/PID", String(pid)]);
     }
   } else {
-    Bun.spawnSync(["pkill", "-TERM", "-f", "screenpipe-app"]);
+    Bun.spawnSync(["pkill", "-TERM", "-f", "screen-sentinel-app"]);
   }
   await sleep(10_000);
 
   // Check all processes exited
-  const pidsAfter = getScreenpipePids();
+  const pidsAfter = getScreenSentinelPids();
   const orphans = pidsAfter.filter(p => pidsBefore.includes(p));
   if (orphans.length > 0) {
     console.log(`  warning: ${orphans.length} orphaned process(es) after graceful quit`);
@@ -410,28 +410,28 @@ await test("clean quit leaves no orphans (S8.1)", async () => {
   }
 
   // Restart for subsequent tests
-  startScreenpipe(exePath);
+  startScreenSentinel(exePath);
   const recovered = await waitForHealthUp(60);
   if (!recovered) {
-    throw new Error("could not restart screenpipe after clean quit test");
+    throw new Error("could not restart Screen Sentinel after clean quit test");
   }
 });
 
 // ── S9.1: Slow DB insert warning (log check) ────────────────────────────
 
 await test("check logs for slow DB warnings (S9.1)", async () => {
-  // Look for screenpipe logs and check for slow insert warnings
+  // Look for Screen Sentinel logs and check for slow insert warnings
   let logContent = "";
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", `
-      $logDir = Join-Path $env:LOCALAPPDATA 'screenpipe'
+      $logDir = Join-Path $env:LOCALAPPDATA 'screen-sentinel'
       $logFile = Get-ChildItem -Path $logDir -Filter '*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
       if ($logFile) { Get-Content $logFile.FullName -Tail 500 } else { Write-Output 'NO_LOG' }
     `], { timeout: 10_000 });
     logContent = proc.stdout.toString();
   } else {
     const proc = Bun.spawnSync(["bash", "-c",
-      "tail -500 ~/Library/Logs/screenpipe/*.log 2>/dev/null || echo NO_LOG"]);
+      "tail -500 ~/Library/Logs/screen-sentinel/*.log 2>/dev/null || echo NO_LOG"]);
     logContent = proc.stdout.toString();
   }
 
@@ -461,7 +461,7 @@ await test("OCR pipeline handles rapid queries (S5.7)", async () => {
   const promises = [];
   for (let i = 0; i < 30; i++) {
     promises.push(
-      fetch(`http://localhost:3030/search?limit=1&content_type=ocr&offset=${i}`)
+      fetch(`http://localhost:3130/search?limit=1&content_type=ocr&offset=${i}`)
         .then(r => ({ ok: r.ok, status: r.status }))
         .catch(() => ({ ok: false, status: 0 }))
     );

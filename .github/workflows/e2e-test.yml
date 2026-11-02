@@ -77,11 +77,11 @@ jobs:
       uses: actions/cache@v4
       with:
         path: |
-          apps/screenpipe-app-tauri/src-tauri/ffmpeg
-          apps/screenpipe-app-tauri/src-tauri/vcredist
-          apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
-          apps/screenpipe-app-tauri/src-tauri/bun-x86_64-pc-windows-msvc.exe
-        key: Windows-e2e-artifacts-v2-${{ hashFiles('apps/screenpipe-app-tauri/scripts/pre_build.js') }}
+          apps/screen-sentinel-app-tauri/src-tauri/ffmpeg
+          apps/screen-sentinel-app-tauri/src-tauri/vcredist
+          apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
+          apps/screen-sentinel-app-tauri/src-tauri/bun-x86_64-pc-windows-msvc.exe
+        key: Windows-e2e-artifacts-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/scripts/pre_build.js') }}
         restore-keys: |
           Windows-e2e-artifacts-v2-
 
@@ -109,8 +109,8 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screenpipe-app-tauri/src-tauri
-        shared-key: screenpipe-tauri-e2e
+        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
     - name: Configure Bun cache on same drive as workspace (Windows perf fix)
@@ -121,14 +121,14 @@ jobs:
         echo "BUN_INSTALL_GLOBAL_DIR=${drive}:/bun-global" >> $env:GITHUB_ENV
 
     - name: Install frontend dependencies
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       run: bun install --frozen-lockfile
 
     - name: Download ONNX Runtime (CPU) for Windows
       shell: pwsh
       run: |
         $url = "https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-win-x64-1.22.0.zip"
-        $tauriDir = "apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0"
+        $tauriDir = "apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0"
         $ortDir = "ort-system-lib"
         # retry: the GitHub release CDN intermittently returns 504, which would otherwise fail the whole job
         for ($attempt = 1; $attempt -le 5; $attempt++) {
@@ -142,7 +142,7 @@ jobs:
           }
         }
         if (Test-Path $tauriDir) { Remove-Item $tauriDir -Recurse -Force }
-        7z x onnxruntime-win-x64-1.22.0.zip -o"apps/screenpipe-app-tauri/src-tauri/" -y
+        7z x onnxruntime-win-x64-1.22.0.zip -o"apps/screen-sentinel-app-tauri/src-tauri/" -y
         if (Test-Path $ortDir) { Remove-Item $ortDir -Recurse -Force }
         Copy-Item -Path $tauriDir -Destination $ortDir -Recurse -Force
 
@@ -155,28 +155,28 @@ jobs:
     - name: Cache Next.js build
       uses: actions/cache@v4
       with:
-        path: ./apps/screenpipe-app-tauri/.next
-        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screenpipe-app-tauri/package.json', 'apps/screenpipe-app-tauri/bun.lock', 'apps/screenpipe-app-tauri/next.config.mjs', 'apps/screenpipe-app-tauri/postcss.config.mjs', 'apps/screenpipe-app-tauri/app/**', 'apps/screenpipe-app-tauri/components/**', 'apps/screenpipe-app-tauri/lib/**', 'apps/screenpipe-app-tauri/styles/**') }}
+        path: ./apps/screen-sentinel-app-tauri/.next
+        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
         restore-keys: |
           ${{ runner.os }}-next-v2-
 
     - name: Build
       uses: tauri-apps/tauri-action@v0.5.17
       env:
-        OPENBLAS_PATH: ${{ github.workspace }}/apps/screenpipe-app-tauri/src-tauri/openblas
+        OPENBLAS_PATH: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/openblas
         # Bypass the billing gate in the e2e build so the suite exercises real
         # features; the dedicated gate spec re-enables it at runtime.
-        NEXT_PUBLIC_SCREENPIPE_E2E: "true"
+        NEXT_PUBLIC_SCREEN_SENTINEL_E2E: "true"
       with:
         args: "--no-sign --debug --no-bundle -- --features e2e"
-        projectPath: "./apps/screenpipe-app-tauri"
+        projectPath: "./apps/screen-sentinel-app-tauri"
         tauriScript: bunx tauri -v
 
     # ORT_STRATEGY=system links against onnxruntime.lib but does NOT copy
     # onnxruntime.dll next to the test binary the way the default
     # download-binaries+copy-dylibs path would. Without a copy here the
     # Windows DLL loader fails to find onnxruntime.dll at runtime and the
-    # screenpipe-server thread panics with "Failed to initialize ORT API"
+    # screen-sentinel-server thread panics with "Failed to initialize ORT API"
     # on the very first ort::api() call. Tauri's bundle step does this for
     # release builds (see tauri.windows.conf.json resourcesMap), but
     # `--no-bundle` skips it.
@@ -184,7 +184,7 @@ jobs:
       shell: pwsh
       run: |
         $src = "${{ github.workspace }}/ort-system-lib/lib"
-        $dst = "${{ github.workspace }}/apps/screenpipe-app-tauri/src-tauri/target/debug"
+        $dst = "${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/target/debug"
         if (-not (Test-Path $dst)) {
           New-Item -ItemType Directory -Path $dst -Force | Out-Null
         }
@@ -218,7 +218,7 @@ jobs:
 
     - name: Run E2E Tests
       shell: pwsh
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       env:
         RECORD_VIDEO: "true"
       run: |
@@ -227,17 +227,17 @@ jobs:
 
     - name: Run Windows Core Recording E2E
       shell: pwsh
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       env:
         RECORD_VIDEO: "true"
-        SCREENPIPE_E2E_SEED: "onboarding,no-audio"
+        SCREEN_SENTINEL_E2E_SEED: "onboarding,no-audio"
       run: |
         bun run wdio run e2e/wdio.conf.ts --spec e2e/specs/windows-core-recording.spec.ts
 
     - name: Generate E2E Coverage Report
       if: always()
       shell: pwsh
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       run: |
         bun run e2e:coverage
         bun run e2e:coverage:runtime
@@ -248,19 +248,19 @@ jobs:
       with:
         name: windows-e2e-test-artifacts
         path: |
-          ./apps/screenpipe-app-tauri/e2e/videos
-          ./apps/screenpipe-app-tauri/e2e/screenshots
-          ./apps/screenpipe-app-tauri/e2e/results
-          ./apps/screenpipe-app-tauri/e2e/COVERAGE.md
-          ./apps/screenpipe-app-tauri/e2e/COVERAGE.runtime.md
+          ./apps/screen-sentinel-app-tauri/e2e/videos
+          ./apps/screen-sentinel-app-tauri/e2e/screenshots
+          ./apps/screen-sentinel-app-tauri/e2e/results
+          ./apps/screen-sentinel-app-tauri/e2e/COVERAGE.md
+          ./apps/screen-sentinel-app-tauri/e2e/COVERAGE.runtime.md
 
-    - name: Upload Screenpipe data
+    - name: Upload Screen Sentinel data
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: windows-screenpipe-data
+        name: windows-screen-sentinel-data
         include-hidden-files: true
-        path: ./apps/screenpipe-app-tauri/.e2e
+        path: ./apps/screen-sentinel-app-tauri/.e2e
 
   linux-e2e-test:
     name: Linux E2E Tests
@@ -477,30 +477,30 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screenpipe-app-tauri/src-tauri
-        shared-key: screenpipe-tauri-e2e
+        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
     - name: Install frontend dependencies
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       run: bun install --frozen-lockfile
 
     - name: Cache Linux build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          apps/screenpipe-app-tauri/src-tauri/ffmpeg
-          apps/screenpipe-app-tauri/src-tauri/tesseract
-          apps/screenpipe-app-tauri/src-tauri/bun-x86_64-unknown-linux-gnu
-        key: Linux-e2e-artifacts-v2-${{ hashFiles('apps/screenpipe-app-tauri/scripts/pre_build.js') }}
+          apps/screen-sentinel-app-tauri/src-tauri/ffmpeg
+          apps/screen-sentinel-app-tauri/src-tauri/tesseract
+          apps/screen-sentinel-app-tauri/src-tauri/bun-x86_64-unknown-linux-gnu
+        key: Linux-e2e-artifacts-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/scripts/pre_build.js') }}
         restore-keys: |
           Linux-e2e-artifacts-v2-
 
     - name: Cache Next.js build
       uses: actions/cache@v4
       with:
-        path: ./apps/screenpipe-app-tauri/.next
-        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screenpipe-app-tauri/package.json', 'apps/screenpipe-app-tauri/bun.lock', 'apps/screenpipe-app-tauri/next.config.mjs', 'apps/screenpipe-app-tauri/postcss.config.mjs', 'apps/screenpipe-app-tauri/app/**', 'apps/screenpipe-app-tauri/components/**', 'apps/screenpipe-app-tauri/lib/**', 'apps/screenpipe-app-tauri/styles/**') }}
+        path: ./apps/screen-sentinel-app-tauri/.next
+        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
         restore-keys: |
           ${{ runner.os }}-next-v2-
 
@@ -510,10 +510,10 @@ jobs:
         OPENBLAS_PATH: ${{ env.OPENBLAS_PATH }}
         # Bypass the billing gate in the e2e build so the suite exercises real
         # features; the dedicated gate spec re-enables it at runtime.
-        NEXT_PUBLIC_SCREENPIPE_E2E: "true"
+        NEXT_PUBLIC_SCREEN_SENTINEL_E2E: "true"
       with:
         args: "--no-sign --debug --no-bundle -- --features e2e"
-        projectPath: "./apps/screenpipe-app-tauri"
+        projectPath: "./apps/screen-sentinel-app-tauri"
         tauriScript: bunx tauri -v
 
     - name: Set up virtual display with window manager
@@ -521,7 +521,7 @@ jobs:
 
     - name: Run E2E Tests
       shell: bash
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       run: |
         rm -rf ./e2e/results
         export XDG_RUNTIME_DIR=/run/user/$(id -u)
@@ -537,7 +537,7 @@ jobs:
     - name: Generate E2E Coverage Report
       if: always()
       shell: bash
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       run: |
         bun run e2e:coverage
         bun run e2e:coverage:runtime
@@ -548,19 +548,19 @@ jobs:
       with:
         name: linux-e2e-test-artifacts
         path: |
-          ./apps/screenpipe-app-tauri/e2e/videos
-          ./apps/screenpipe-app-tauri/e2e/screenshots
-          ./apps/screenpipe-app-tauri/e2e/results
-          ./apps/screenpipe-app-tauri/e2e/COVERAGE.md
-          ./apps/screenpipe-app-tauri/e2e/COVERAGE.runtime.md
+          ./apps/screen-sentinel-app-tauri/e2e/videos
+          ./apps/screen-sentinel-app-tauri/e2e/screenshots
+          ./apps/screen-sentinel-app-tauri/e2e/results
+          ./apps/screen-sentinel-app-tauri/e2e/COVERAGE.md
+          ./apps/screen-sentinel-app-tauri/e2e/COVERAGE.runtime.md
 
-    - name: Upload Screenpipe data
+    - name: Upload Screen Sentinel data
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: linux-screenpipe-data
+        name: linux-screen-sentinel-data
         include-hidden-files: true
-        path: ./apps/screenpipe-app-tauri/.e2e
+        path: ./apps/screen-sentinel-app-tauri/.e2e
 
   macos-e2e-test:
     name: macOS E2E Tests
@@ -598,18 +598,18 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screenpipe-app-tauri/src-tauri
-        shared-key: screenpipe-tauri-e2e
+        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
     - name: Cache macOS build artifacts
       uses: actions/cache@v4
       with:
         path: |
-          apps/screenpipe-app-tauri/src-tauri/ffmpeg-aarch64-apple-darwin
-          apps/screenpipe-app-tauri/src-tauri/ffprobe-aarch64-apple-darwin
-          apps/screenpipe-app-tauri/src-tauri/bun-aarch64-apple-darwin
-        key: macOS-e2e-artifacts-v2-${{ hashFiles('apps/screenpipe-app-tauri/scripts/pre_build.js') }}
+          apps/screen-sentinel-app-tauri/src-tauri/ffmpeg-aarch64-apple-darwin
+          apps/screen-sentinel-app-tauri/src-tauri/ffprobe-aarch64-apple-darwin
+          apps/screen-sentinel-app-tauri/src-tauri/bun-aarch64-apple-darwin
+        key: macOS-e2e-artifacts-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/scripts/pre_build.js') }}
         restore-keys: |
           macOS-e2e-artifacts-v2-
 
@@ -618,33 +618,33 @@ jobs:
       run: brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
 
     - name: Install frontend dependencies
-      working-directory: apps/screenpipe-app-tauri
+      working-directory: apps/screen-sentinel-app-tauri
       shell: bash
       run: bun install --frozen-lockfile
 
     - name: Cache Next.js build
       uses: actions/cache@v4
       with:
-        path: ./apps/screenpipe-app-tauri/.next
-        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screenpipe-app-tauri/package.json', 'apps/screenpipe-app-tauri/bun.lock', 'apps/screenpipe-app-tauri/next.config.mjs', 'apps/screenpipe-app-tauri/postcss.config.mjs', 'apps/screenpipe-app-tauri/app/**', 'apps/screenpipe-app-tauri/components/**', 'apps/screenpipe-app-tauri/lib/**', 'apps/screenpipe-app-tauri/styles/**') }}
+        path: ./apps/screen-sentinel-app-tauri/.next
+        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
         restore-keys: |
           ${{ runner.os }}-next-v2-
 
     - name: Build
       uses: tauri-apps/tauri-action@v0.5.17
       env:
-        SCREENPIPE_RELEASE_TARGET: aarch64-apple-darwin
+        SCREEN_SENTINEL_RELEASE_TARGET: aarch64-apple-darwin
         # Bypass the billing gate in the e2e build so the suite exercises real
         # features; the dedicated gate spec re-enables it at runtime.
-        NEXT_PUBLIC_SCREENPIPE_E2E: "true"
+        NEXT_PUBLIC_SCREEN_SENTINEL_E2E: "true"
       with:
         args: "--no-sign --debug --no-bundle -- --features e2e"
-        projectPath: "./apps/screenpipe-app-tauri"
+        projectPath: "./apps/screen-sentinel-app-tauri"
         tauriScript: bunx tauri -v
 
     - name: Run E2E Tests
       shell: bash
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       env:
         RECORD_VIDEO: "true"
       run: |
@@ -654,7 +654,7 @@ jobs:
     - name: Generate E2E Coverage Report
       if: always()
       shell: bash
-      working-directory: ./apps/screenpipe-app-tauri
+      working-directory: ./apps/screen-sentinel-app-tauri
       run: |
         bun run e2e:coverage
         bun run e2e:coverage:runtime
@@ -665,16 +665,16 @@ jobs:
       with:
         name: macos-e2e-test-artifacts
         path: |
-          ./apps/screenpipe-app-tauri/e2e/videos
-          ./apps/screenpipe-app-tauri/e2e/screenshots
-          ./apps/screenpipe-app-tauri/e2e/results
-          ./apps/screenpipe-app-tauri/e2e/COVERAGE.md
-          ./apps/screenpipe-app-tauri/e2e/COVERAGE.runtime.md
+          ./apps/screen-sentinel-app-tauri/e2e/videos
+          ./apps/screen-sentinel-app-tauri/e2e/screenshots
+          ./apps/screen-sentinel-app-tauri/e2e/results
+          ./apps/screen-sentinel-app-tauri/e2e/COVERAGE.md
+          ./apps/screen-sentinel-app-tauri/e2e/COVERAGE.runtime.md
 
-    - name: Upload Screenpipe data
+    - name: Upload Screen Sentinel data
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: macos-screenpipe-data
+        name: macos-screen-sentinel-data
         include-hidden-files: true
-        path: ./apps/screenpipe-app-tauri/.e2e
+        path: ./apps/screen-sentinel-app-tauri/.e2e

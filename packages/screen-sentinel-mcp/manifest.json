@@ -1,0 +1,61 @@
+{
+  "manifest_version": "0.3",
+  "name": "screen-sentinel",
+  "display_name": "Screen Sentinel",
+  "version": "0.0.0-injected-from-package-json",
+  "description": "Search your screen recordings with AI",
+  "long_description": "Screen Sentinel is a 24/7 screen recorder that lets you search everything you've seen. This extension connects Claude to your local Screen Sentinel instance, enabling AI-powered search through your digital memory.",
+  "author": {
+    "name": "screen-sentinel",
+    "url": "https://screenpi.pe"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Samuel-Harris/screen-sentinel"
+  },
+  "homepage": "https://screenpi.pe",
+  "documentation": "https://github.com/Samuel-Harris/screen-sentinel/tree/main/packages/screen-sentinel-mcp",
+  "support": "https://github.com/Samuel-Harris/screen-sentinel/issues",
+  "license": "MIT",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"]
+    }
+  },
+  "tools": [
+    {
+      "name": "search-content",
+      "description": "Search through recorded screen content and UI elements"
+    },
+    {
+      "name": "export-video",
+      "description": "Export screen recordings as an MP4 for a time range"
+    },
+    {
+      "name": "activity-summary",
+      "description": "Lightweight compressed activity overview for a time range (apps, recent texts)"
+    },
+    {
+      "name": "search-elements",
+      "description": "Search structured UI elements (accessibility tree nodes and OCR text blocks)"
+    },
+    {
+      "name": "frame-context",
+      "description": "Get accessibility text, parsed tree nodes, and extracted URLs for a specific frame"
+    }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  },
+  "keywords": ["screen-recording", "ocr", "automation", "memory", "search"],
+  "privacy_policies": [
+    "https://github.com/Samuel-Harris/screen-sentinel/tree/main/packages/screen-sentinel-mcp#privacy-policy",
+    "https://screenpi.pe/privacy"
+  ]
+}

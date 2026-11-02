@@ -125,9 +125,9 @@ jobs:
           if [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
             export CFLAGS="-mcpu=apple-m1 -U__ARM_FEATURE_MATMUL_INT8"
             export CXXFLAGS="-mcpu=apple-m1 -U__ARM_FEATURE_MATMUL_INT8"
-            cargo build --release -p screenpipe-engine --bin screenpipe --features rfdetr-mlx,redact-onnx-coreml --target ${{ matrix.target }}
+            cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features rfdetr-mlx,redact-onnx-coreml --target ${{ matrix.target }}
           else
-            cargo build --release -p screenpipe-engine --bin screenpipe --features redact-onnx-coreml --target ${{ matrix.target }}
+            cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features redact-onnx-coreml --target ${{ matrix.target }}
           fi
 
       - name: Codesign binary
@@ -154,10 +154,10 @@ jobs:
           codesign --force --options runtime \
             --sign "$APPLE_SIGNING_IDENTITY" \
             --timestamp \
-            target/${{ matrix.target }}/release/screenpipe
+            target/${{ matrix.target }}/release/screen-sentinel
 
           # Verify signature
-          codesign --verify --verbose target/${{ matrix.target }}/release/screenpipe
+          codesign --verify --verbose target/${{ matrix.target }}/release/screen-sentinel
           echo "codesign: verified"
 
       - name: Notarize binary
@@ -168,10 +168,10 @@ jobs:
         run: |
           # notarytool requires zip/dmg/pkg
           ditto -c -k --keepParent \
-            target/${{ matrix.target }}/release/screenpipe \
-            $RUNNER_TEMP/screenpipe-notarize.zip
+            target/${{ matrix.target }}/release/screen-sentinel \
+            $RUNNER_TEMP/screen-sentinel-notarize.zip
 
-          xcrun notarytool submit $RUNNER_TEMP/screenpipe-notarize.zip \
+          xcrun notarytool submit $RUNNER_TEMP/screen-sentinel-notarize.zip \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
@@ -195,30 +195,30 @@ jobs:
 
       - name: Create deployment package
         run: |
-          mkdir -p screenpipe-${{ env.VERSION }}-${{ matrix.target }}/bin
-          cp target/${{ matrix.target }}/release/screenpipe screenpipe-${{ env.VERSION }}-${{ matrix.target }}/bin/
+          mkdir -p screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin
+          cp target/${{ matrix.target }}/release/screen-sentinel screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin/
 
           # Bundle mlx.metallib next to CLI binary (macOS aarch64 only)
           # MLX searches for mlx.metallib next to the binary at runtime.
           # CI cmake uses JIT mode so metallib isn't compiled — download pre-built from GitHub releases.
           if [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
-            curl -L -f -o screenpipe-${{ env.VERSION }}-${{ matrix.target }}/bin/mlx.metallib \
-              "https://github.com/screenpipe/screenpipe/releases/download/mlx-metallib-v0.2.0/mlx.metallib" \
-              && echo "✅ Bundled mlx.metallib for CLI ($(du -h screenpipe-${{ env.VERSION }}-${{ matrix.target }}/bin/mlx.metallib | cut -f1))" \
+            curl -L -f -o screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin/mlx.metallib \
+              "https://github.com/Samuel-Harris/screen-sentinel/releases/download/mlx-metallib-v0.2.0/mlx.metallib" \
+              && echo "✅ Bundled mlx.metallib for CLI ($(du -h screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin/mlx.metallib | cut -f1))" \
               || echo "⚠️ Failed to download mlx.metallib"
           fi
 
-          tar -czf screenpipe-${{ env.VERSION }}-${{ matrix.target }}.tar.gz -C screenpipe-${{ env.VERSION }}-${{ matrix.target }} .
+          tar -czf screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}.tar.gz -C screen-sentinel-${{ env.VERSION }}-${{ matrix.target }} .
 
       - name: Calculate SHA256
         run: |
-          echo "MAC_SHA256_${{ matrix.target }}=$(shasum -a 256 screenpipe-*.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_ENV
+          echo "MAC_SHA256_${{ matrix.target }}=$(shasum -a 256 screen-sentinel-*.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: screenpipe-macos-${{ matrix.target }}
-          path: screenpipe-*.tar.gz
+          name: screen-sentinel-macos-${{ matrix.target }}
+          path: screen-sentinel-*.tar.gz
 
   build-windows:
     needs: check_commit
@@ -275,10 +275,10 @@ jobs:
           # Pre-download CPU onnxruntime so ort crate finds it via ORT_LIB_LOCATION
           $url = "https://github.com/microsoft/onnxruntime/releases/download/v1.22.0/onnxruntime-win-x64-1.22.0.zip"
           $zipFile = "onnxruntime-win-x64-1.22.0.zip"
-          $extractDir = "apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0"
+          $extractDir = "apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0"
           Invoke-WebRequest -Uri $url -OutFile $zipFile
           if (Test-Path $extractDir) { Remove-Item $extractDir -Recurse -Force }
-          7z x $zipFile -o"apps/screenpipe-app-tauri/src-tauri/" -y
+          7z x $zipFile -o"apps/screen-sentinel-app-tauri/src-tauri/" -y
           Write-Host "ONNX Runtime extracted to $extractDir"
           Get-ChildItem "$extractDir/lib" | ForEach-Object { Write-Host $_.Name }
 
@@ -299,9 +299,9 @@ jobs:
       - name: Setup OpenBLAS
         shell: pwsh
         run: |
-          cd apps/screenpipe-app-tauri
+          cd apps/screen-sentinel-app-tauri
           bun scripts/setup_openblas.js
-          "OPENBLAS_PATH=${{ github.workspace }}/apps/screenpipe-app-tauri/src-tauri/openblas" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "OPENBLAS_PATH=${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/openblas" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Shorten target dir to avoid MAX_PATH
         shell: powershell
@@ -333,12 +333,12 @@ jobs:
           GGML_AVX512_BF16: "OFF"
           CMAKE_ARGS: "-DGGML_NATIVE=OFF -DGGML_AVX512=OFF -DGGML_AVX512_VBMI=OFF -DGGML_AVX512_VNNI=OFF -DGGML_AVX512_BF16=OFF -DCMAKE_C_FLAGS=/arch:AVX2 -DCMAKE_CXX_FLAGS=/arch:AVX2"
           ORT_STRATEGY: system
-          ORT_LIB_LOCATION: ${{ github.workspace }}/apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
-          OPENBLAS_PATH: ${{ github.workspace }}/apps/screenpipe-app-tauri/src-tauri/openblas
+          ORT_LIB_LOCATION: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
+          OPENBLAS_PATH: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/openblas
           # Use prebuilt NASM objects on Windows: https://aws.github.io/aws-lc-rs/requirements/windows.html#prebuilt-nasm-objects
           AWS_LC_SYS_PREBUILT_NASM: "1"
         run: |
-          cargo build --release -p screenpipe-engine --bin screenpipe --features directml,redact-onnx-directml --target x86_64-pc-windows-msvc
+          cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features directml,redact-onnx-directml --target x86_64-pc-windows-msvc
 
       - name: Install CodeSignTool for SSL.com EV signing (Windows)
         shell: powershell
@@ -351,7 +351,7 @@ jobs:
           echo "CODESIGNTOOL_PATH=$cstDest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "CodeSignTool installed at $cstDest"
 
-      - name: Sign screenpipe.exe with SSL.com EV (Windows)
+      - name: Sign screen-sentinel.exe with SSL.com EV (Windows)
         shell: powershell
         env:
           ESIGNER_USERNAME: ${{ secrets.ESIGNER_USERNAME }}
@@ -360,18 +360,18 @@ jobs:
           ESIGNER_CREDENTIAL_ID: ${{ secrets.ESIGNER_CREDENTIAL_ID }}
         run: |
           # Authenticode-sign our own binary so Windows/Defender stop flagging it
-          # as "Unknown publisher". Only screenpipe.exe is signed here: the bundled
+          # as "Unknown publisher". Only screen-sentinel.exe is signed here: the bundled
           # DLLs (onnxruntime, vcruntime/msvcp) are already vendor-signed, and each
           # SSL.com sign consumes monthly quota, so we sign exactly one PE per release.
           # sign-ssl.ps1 no-ops when ESIGNER_* secrets are absent (forks/PRs).
-          $exe = (Resolve-Path "target/x86_64-pc-windows-msvc/release/screenpipe.exe").Path
-          & apps/screenpipe-app-tauri/src-tauri/sign-ssl.ps1 $exe
+          $exe = (Resolve-Path "target/x86_64-pc-windows-msvc/release/screen-sentinel.exe").Path
+          & apps/screen-sentinel-app-tauri/src-tauri/sign-ssl.ps1 $exe
           if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: signing failed for $exe"; exit 1 }
           if ($env:ESIGNER_USERNAME) {
             $sig = Get-AuthenticodeSignature $exe
             Write-Host "Authenticode status: $($sig.Status)"
             if ($sig.Status -ne 'Valid') {
-              Write-Host "ERROR: screenpipe.exe not validly signed (status=$($sig.Status))"
+              Write-Host "ERROR: screen-sentinel.exe not validly signed (status=$($sig.Status))"
               exit 1
             }
             Write-Host "Signed by: $($sig.SignerCertificate.Subject)"
@@ -400,17 +400,17 @@ jobs:
       - name: Create deployment package
         shell: pwsh
         run: |
-          $packageDir = "screenpipe-${{ env.VERSION }}-x86_64-pc-windows-msvc"
+          $packageDir = "screen-sentinel-${{ env.VERSION }}-x86_64-pc-windows-msvc"
           New-Item -Path "$packageDir/bin" -ItemType Directory -Force
-          Copy-Item "target/x86_64-pc-windows-msvc/release/screenpipe.exe" "$packageDir/bin/"
+          Copy-Item "target/x86_64-pc-windows-msvc/release/screen-sentinel.exe" "$packageDir/bin/"
           # Copy onnxruntime.dll - try target dir first (ort copy-dylibs), fallback to ORT_LIB_LOCATION
           $ortDll = "target/x86_64-pc-windows-msvc/release/onnxruntime.dll"
           if (!(Test-Path $ortDll)) {
-            $ortDll = "apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0/lib/onnxruntime.dll"
+            $ortDll = "apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0/lib/onnxruntime.dll"
           }
           Copy-Item $ortDll "$packageDir/bin/"
           # Copy OpenBLAS DLL(s) for qwen3-asr (libopenblas.dll or openblas.dll)
-          $openblasBin = "apps/screenpipe-app-tauri/src-tauri/openblas/bin"
+          $openblasBin = "apps/screen-sentinel-app-tauri/src-tauri/openblas/bin"
           if (Test-Path $openblasBin) {
             Copy-Item "$openblasBin/*.dll" "$packageDir/bin/" -Force
           }
@@ -439,14 +439,14 @@ jobs:
       - name: Calculate SHA256
         shell: pwsh
         run: |
-          $hash = Get-FileHash "screenpipe-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip" -Algorithm SHA256
+          $hash = Get-FileHash "screen-sentinel-${{ env.VERSION }}-x86_64-pc-windows-msvc.zip" -Algorithm SHA256
           "WIN_SHA256=$($hash.Hash)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: screenpipe-windows
-          path: screenpipe-*.zip
+          name: screen-sentinel-windows
+          path: screen-sentinel-*.zip
 
   build-linux:
     needs: check_commit
@@ -526,7 +526,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          cargo build --release -p screenpipe-engine --bin screenpipe --features redact-onnx-cpu --target ${{ matrix.target }}
+          cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features redact-onnx-cpu --target ${{ matrix.target }}
 
       - name: Set version
         run: |
@@ -544,19 +544,19 @@ jobs:
 
       - name: Create deployment package
         run: |
-          mkdir -p screenpipe-${{ env.VERSION }}-${{ matrix.target }}/bin
-          cp target/${{ matrix.target }}/release/screenpipe screenpipe-${{ env.VERSION }}-${{ matrix.target }}/bin/
-          tar -czf screenpipe-${{ env.VERSION }}-${{ matrix.target }}.tar.gz -C screenpipe-${{ env.VERSION }}-${{ matrix.target }} .
+          mkdir -p screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin
+          cp target/${{ matrix.target }}/release/screen-sentinel screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin/
+          tar -czf screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}.tar.gz -C screen-sentinel-${{ env.VERSION }}-${{ matrix.target }} .
 
       - name: Calculate SHA256
         run: |
-          echo "LINUX_SHA256_${{ matrix.target }}=$(sha256sum screenpipe-*.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_ENV
+          echo "LINUX_SHA256_${{ matrix.target }}=$(sha256sum screen-sentinel-*.tar.gz | cut -d ' ' -f 1)" >> $GITHUB_ENV
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: screenpipe-linux-${{ matrix.target }}
-          path: screenpipe-*.tar.gz
+          name: screen-sentinel-linux-${{ matrix.target }}
+          path: screen-sentinel-*.tar.gz
 
   publish-npm:
     runs-on: ubuntu-latest
@@ -592,41 +592,41 @@ jobs:
         run: |
           # macOS ARM64
           mkdir -p /tmp/darwin-arm64
-          mkdir -p packages/cli/screenpipe-darwin-arm64/bin
-          tar -xzf artifacts/screenpipe-macos-aarch64-apple-darwin/screenpipe-*.tar.gz -C /tmp/darwin-arm64
-          cp /tmp/darwin-arm64/bin/screenpipe packages/cli/screenpipe-darwin-arm64/bin/ 2>/dev/null || \
-            (cd artifacts/screenpipe-macos-aarch64-apple-darwin && tar -xzf screenpipe-*.tar.gz && cp bin/screenpipe ../../packages/cli/screenpipe-darwin-arm64/bin/)
+          mkdir -p packages/cli/screen-sentinel-darwin-arm64/bin
+          tar -xzf artifacts/screen-sentinel-macos-aarch64-apple-darwin/screen-sentinel-*.tar.gz -C /tmp/darwin-arm64
+          cp /tmp/darwin-arm64/bin/screen-sentinel packages/cli/screen-sentinel-darwin-arm64/bin/ 2>/dev/null || \
+            (cd artifacts/screen-sentinel-macos-aarch64-apple-darwin && tar -xzf screen-sentinel-*.tar.gz && cp bin/screen-sentinel ../../packages/cli/screen-sentinel-darwin-arm64/bin/)
           # Bundle mlx.metallib for Parakeet MLX GPU support
-          cp /tmp/darwin-arm64/bin/mlx.metallib packages/cli/screenpipe-darwin-arm64/bin/ 2>/dev/null || \
-            (cd artifacts/screenpipe-macos-aarch64-apple-darwin && cp bin/mlx.metallib ../../packages/cli/screenpipe-darwin-arm64/bin/ 2>/dev/null) || \
+          cp /tmp/darwin-arm64/bin/mlx.metallib packages/cli/screen-sentinel-darwin-arm64/bin/ 2>/dev/null || \
+            (cd artifacts/screen-sentinel-macos-aarch64-apple-darwin && cp bin/mlx.metallib ../../packages/cli/screen-sentinel-darwin-arm64/bin/ 2>/dev/null) || \
             echo "⚠️ mlx.metallib not found in artifact"
-          chmod +x packages/cli/screenpipe-darwin-arm64/bin/screenpipe
-          test -f packages/cli/screenpipe-darwin-arm64/bin/screenpipe
+          chmod +x packages/cli/screen-sentinel-darwin-arm64/bin/screen-sentinel
+          test -f packages/cli/screen-sentinel-darwin-arm64/bin/screen-sentinel
 
           # macOS x64
-          mkdir -p packages/cli/screenpipe-darwin-x64/bin
-          cd artifacts/screenpipe-macos-x86_64-apple-darwin && tar -xzf screenpipe-*.tar.gz && cp bin/screenpipe ../../packages/cli/screenpipe-darwin-x64/bin/ && cd ../..
-          chmod +x packages/cli/screenpipe-darwin-x64/bin/screenpipe
+          mkdir -p packages/cli/screen-sentinel-darwin-x64/bin
+          cd artifacts/screen-sentinel-macos-x86_64-apple-darwin && tar -xzf screen-sentinel-*.tar.gz && cp bin/screen-sentinel ../../packages/cli/screen-sentinel-darwin-x64/bin/ && cd ../..
+          chmod +x packages/cli/screen-sentinel-darwin-x64/bin/screen-sentinel
 
           # Linux x64
-          mkdir -p packages/cli/screenpipe-linux-x64/bin
-          cd artifacts/screenpipe-linux-x86_64-unknown-linux-gnu && tar -xzf screenpipe-*.tar.gz && cp bin/screenpipe ../../packages/cli/screenpipe-linux-x64/bin/ && cd ../..
-          chmod +x packages/cli/screenpipe-linux-x64/bin/screenpipe
-          test -f packages/cli/screenpipe-linux-x64/bin/screenpipe
+          mkdir -p packages/cli/screen-sentinel-linux-x64/bin
+          cd artifacts/screen-sentinel-linux-x86_64-unknown-linux-gnu && tar -xzf screen-sentinel-*.tar.gz && cp bin/screen-sentinel ../../packages/cli/screen-sentinel-linux-x64/bin/ && cd ../..
+          chmod +x packages/cli/screen-sentinel-linux-x64/bin/screen-sentinel
+          test -f packages/cli/screen-sentinel-linux-x64/bin/screen-sentinel
 
           # Windows x64
-          mkdir -p packages/cli/screenpipe-win32-x64/bin
-          cd artifacts/screenpipe-windows && unzip -o screenpipe-*.zip -d extracted && cp extracted/bin/screenpipe.exe ../../packages/cli/screenpipe-win32-x64/bin/ && cp extracted/bin/*.dll ../../packages/cli/screenpipe-win32-x64/bin/ 2>/dev/null || true && cd ../..
+          mkdir -p packages/cli/screen-sentinel-win32-x64/bin
+          cd artifacts/screen-sentinel-windows && unzip -o screen-sentinel-*.zip -d extracted && cp extracted/bin/screen-sentinel.exe ../../packages/cli/screen-sentinel-win32-x64/bin/ && cp extracted/bin/*.dll ../../packages/cli/screen-sentinel-win32-x64/bin/ 2>/dev/null || true && cd ../..
 
       - name: Update package versions
         run: |
-          for pkg in screenpipe screenpipe-darwin-arm64 screenpipe-darwin-x64 screenpipe-linux-x64 screenpipe-win32-x64; do
+          for pkg in Screen Sentinel screen-sentinel-darwin-arm64 screen-sentinel-darwin-x64 screen-sentinel-linux-x64 screen-sentinel-win32-x64; do
             cd packages/cli/$pkg
             npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version 2>/dev/null || true
             cd ../../..
           done
           # Update optionalDependencies versions in main package
-          cd packages/cli/screenpipe
+          cd packages/cli/screen-sentinel
           node -e "
             const pkg = require('./package.json');
             for (const dep of Object.keys(pkg.optionalDependencies || {})) {
@@ -646,7 +646,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for pkg in screenpipe-darwin-arm64 screenpipe-darwin-x64 screenpipe-linux-x64 screenpipe-win32-x64; do
+          for pkg in screen-sentinel-darwin-arm64 screen-sentinel-darwin-x64 screen-sentinel-linux-x64 screen-sentinel-win32-x64; do
             cd packages/cli/$pkg
             err=$(mktemp)
             if npm publish --access public 2>"$err"; then
@@ -665,10 +665,10 @@ jobs:
       - name: Verify platform package tarballs
         run: |
           for pkg in \
-            @screenpipe/cli-darwin-arm64 \
-            @screenpipe/cli-darwin-x64 \
-            @screenpipe/cli-linux-x64 \
-            @screenpipe/cli-win32-x64; do
+            @screen-sentinel/cli-darwin-arm64 \
+            @screen-sentinel/cli-darwin-x64 \
+            @screen-sentinel/cli-linux-x64 \
+            @screen-sentinel/cli-win32-x64; do
             ok=false
             for attempt in $(seq 1 30); do
               url=$(npm view "$pkg@${{ env.VERSION }}" dist.tarball 2>/dev/null || true)
@@ -699,7 +699,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          cd packages/cli/screenpipe
+          cd packages/cli/screen-sentinel
           err=$(mktemp)
           if npm publish --access public 2>"$err"; then
             echo "::notice::published main package"
@@ -750,21 +750,21 @@ jobs:
           # This avoids flooding the releases page
           gh release delete cli-latest --yes 2>/dev/null || true
           gh release create cli-latest --title "CLI v${{ env.VERSION }}" --notes "Latest CLI build: v${{ env.VERSION }}" --prerelease || true
-          for file in artifacts/screenpipe-macos-*/screenpipe-*.tar.gz; do
+          for file in artifacts/screen-sentinel-macos-*/screen-sentinel-*.tar.gz; do
             if [ -f "$file" ]; then
               gh release upload cli-latest "$file" --clobber
             else
               echo "Warning: $file not found"
             fi
           done
-          for file in artifacts/screenpipe-windows/screenpipe-*.zip; do
+          for file in artifacts/screen-sentinel-windows/screen-sentinel-*.zip; do
             if [ -f "$file" ]; then
               gh release upload cli-latest "$file" --clobber
             else
               echo "Warning: $file not found"
             fi
           done
-          for file in artifacts/screenpipe-linux-*/screenpipe-*.tar.gz; do
+          for file in artifacts/screen-sentinel-linux-*/screen-sentinel-*.tar.gz; do
             if [ -f "$file" ]; then
               gh release upload cli-latest "$file" --clobber
             else

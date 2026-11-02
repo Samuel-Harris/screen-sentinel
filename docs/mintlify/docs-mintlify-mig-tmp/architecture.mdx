@@ -1,13 +1,13 @@
 ---
-title: "screenpipe architecture: event-driven capture and storage"
+title: "Screen Sentinel architecture: event-driven capture and storage"
 sidebarTitle: "architecture"
-description: "How screenpipe uses event-driven capture, accessibility tree extraction, OCR fallback, and SQLite storage to build a searchable local memory of your screen."
+description: "How Screen Sentinel uses event-driven capture, accessibility tree extraction, OCR fallback, and SQLite storage to build a searchable local memory of your screen."
 icon: "sitemap"
 ---
 
 ## overview
 
-screenpipe is a Rust application that captures your screen and audio using an event-driven architecture, processes them locally, and stores everything in a SQLite database. instead of recording every second, it listens for meaningful OS events and captures only when something actually changes — pairing each screenshot with accessibility tree data for maximum quality at minimal cost.
+Screen Sentinel is a Rust application that captures your screen and audio using an event-driven architecture, processes them locally, and stores everything in a SQLite database. instead of recording every second, it listens for meaningful OS events and captures only when something actually changes — pairing each screenshot with accessibility tree data for maximum quality at minimal cost.
 
 ```mermaid
 graph LR
@@ -35,7 +35,7 @@ graph LR
         FS[JPEG files]
     end
 
-    subgraph serve["API · localhost:3030"]
+    subgraph serve["API · localhost:3130"]
         REST[REST API]
         MCP[MCP server]
     end
@@ -94,20 +94,20 @@ sequenceDiagram
 
 ## crates
 
-screenpipe is a Rust workspace with specialized crates:
+Screen Sentinel is a Rust workspace with specialized crates:
 
 ```mermaid
 graph TD
-    APP[screenpipe-app-tauri<br/><i>desktop app</i>]
-    SERVER[screenpipe-server<br/><i>REST API · routes</i>]
-    DB[screenpipe-db<br/><i>SQLite · types</i>]
-    VISION[screenpipe-vision<br/><i>screen capture · OCR fallback</i>]
-    AUDIO[screenpipe-audio<br/><i>audio capture · STT</i>]
-    CORE[screenpipe-core<br/><i>pipes · config</i>]
-    EVENTS[screenpipe-events<br/><i>event system</i>]
-    A11Y[screenpipe-accessibility<br/><i>UI events · accessibility tree</i>]
-    AI[screenpipe-apple-intelligence<br/><i>Foundation Models</i>]
-    INT[screenpipe-integrations<br/><i>MCP · reminders</i>]
+    APP[screen-sentinel-app-tauri<br/><i>desktop app</i>]
+    SERVER[screen-sentinel-server<br/><i>REST API · routes</i>]
+    DB[screen-sentinel-db<br/><i>SQLite · types</i>]
+    VISION[screen-sentinel-vision<br/><i>screen capture · OCR fallback</i>]
+    AUDIO[screen-sentinel-audio<br/><i>audio capture · STT</i>]
+    CORE[screen-sentinel-core<br/><i>pipes · config</i>]
+    EVENTS[screen-sentinel-events<br/><i>event system</i>]
+    A11Y[screen-sentinel-accessibility<br/><i>UI events · accessibility tree</i>]
+    AI[screen-sentinel-apple-intelligence<br/><i>Foundation Models</i>]
+    INT[screen-sentinel-integrations<br/><i>MCP · reminders</i>]
 
     APP --> SERVER
     APP --> AI
@@ -127,7 +127,7 @@ graph TD
 
 ### 1. event-driven capture
 
-screenpipe listens for meaningful OS events instead of polling at a fixed FPS. when an event fires, it captures a screenshot and walks the accessibility tree together — same timestamp, same frame.
+Screen Sentinel listens for meaningful OS events instead of polling at a fixed FPS. when an event fires, it captures a screenshot and walks the accessibility tree together — same timestamp, same frame.
 
 | trigger | description |
 |---------|-------------|
@@ -140,10 +140,10 @@ screenpipe listens for meaningful OS events instead of polling at a fixed FPS. w
 
 | what | how | crate |
 |------|-----|-------|
-| **screen** | event-triggered screenshot of the active monitor | `screenpipe-vision` |
-| **text extraction** | accessibility tree walk (structured text: buttons, labels, fields) | `screenpipe-accessibility` |
-| **OCR fallback** | when accessibility data is empty (remote desktops, games, some Linux apps) | `screenpipe-vision` |
-| **audio** | multiple input/output devices in configurable chunks (default 30s) | `screenpipe-audio` |
+| **screen** | event-triggered screenshot of the active monitor | `screen-sentinel-vision` |
+| **text extraction** | accessibility tree walk (structured text: buttons, labels, fields) | `screen-sentinel-accessibility` |
+| **OCR fallback** | when accessibility data is empty (remote desktops, games, some Linux apps) | `screen-sentinel-vision` |
+| **audio** | multiple input/output devices in configurable chunks (default 30s) | `screen-sentinel-audio` |
 
 ### 2. processing
 
@@ -162,12 +162,12 @@ additional processing: speaker identification, PII redaction, frame deduplicatio
 
 all data stays local on your machine:
 
-- **SQLite** at `~/.screenpipe/db.sqlite` — metadata, accessibility text, OCR fallback text, transcriptions, speakers, tags, UI elements
-- **media** at `~/.screenpipe/data/` — JPEG screenshots (event-driven frames), audio chunks
+- **SQLite** at `~/.screen-sentinel/db.sqlite` — metadata, accessibility text, OCR fallback text, transcriptions, speakers, tags, UI elements
+- **media** at `~/.screen-sentinel/data/` — JPEG screenshots (event-driven frames), audio chunks
 
 ### 4. API
 
-REST API on `localhost:3030`:
+REST API on `localhost:3130`:
 
 | endpoint | description |
 |----------|-------------|
@@ -184,9 +184,9 @@ see [API reference](/cli-reference) for the full endpoint list.
 
 ### 5. pipes
 
-pipes are AI agents (`.md` prompt files) that run on your screen data. they're executed by an AI agent that reads the prompt, queries the screenpipe API, and takes action.
+pipes are AI agents (`.md` prompt files) that run on your screen data. they're executed by an AI agent that reads the prompt, queries the Screen Sentinel API, and takes action.
 
-pipes live in `~/.screenpipe/pipes/{name}/` and run on cron-like schedules.
+pipes live in `~/.screen-sentinel/pipes/{name}/` and run on cron-like schedules.
 
 ### 6. desktop app
 
@@ -205,8 +205,8 @@ graph LR
         UI[shadcn/ui components]
     end
 
-    subgraph backend["screenpipe-server"]
-        API[REST API :3030]
+    subgraph backend["screen-sentinel-server"]
+        API[REST API :3130]
     end
 
     RS --> WV
@@ -234,7 +234,7 @@ key tables:
 inspect directly:
 
 ```bash
-sqlite3 ~/.screenpipe/db.sqlite .schema
+sqlite3 ~/.screen-sentinel/db.sqlite .schema
 ```
 
 ## resource usage
@@ -251,10 +251,10 @@ runs 24/7 on a MacBook Pro M3 (32 GB) or a $400 Windows laptop:
 
 | component | path |
 |-----------|------|
-| API server | [screenpipe-server/src/](https://github.com/screenpipe/screenpipe/tree/main/crates/screenpipe-server/src) |
-| screen capture | [screenpipe-vision/src/core.rs](https://github.com/screenpipe/screenpipe/blob/main/crates/screenpipe-vision/src/core.rs) |
-| audio capture | [screenpipe-audio/src/](https://github.com/screenpipe/screenpipe/tree/main/crates/screenpipe-audio/src) |
-| database | [screenpipe-db/src/db.rs](https://github.com/screenpipe/screenpipe/blob/main/crates/screenpipe-db/src/db.rs) |
-| pipes | [screenpipe-core/src/pipes/](https://github.com/screenpipe/screenpipe/tree/main/crates/screenpipe-core/src/pipes) |
-| MCP server | [screenpipe-mcp/src/index.ts](https://github.com/screenpipe/screenpipe/blob/main/packages/screenpipe-mcp/src/index.ts) |
-| desktop app | [screenpipe-app-tauri/](https://github.com/screenpipe/screenpipe/tree/main/apps/screenpipe-app-tauri) |
+| API server | [screen-sentinel-server/src/](https://github.com/Samuel-Harris/screen-sentinel/tree/main/crates/screen-sentinel-server/src) |
+| screen capture | [screen-sentinel-vision/src/core.rs](https://github.com/Samuel-Harris/screen-sentinel/blob/main/crates/screen-sentinel-vision/src/core.rs) |
+| audio capture | [screen-sentinel-audio/src/](https://github.com/Samuel-Harris/screen-sentinel/tree/main/crates/screen-sentinel-audio/src) |
+| database | [screen-sentinel-db/src/db.rs](https://github.com/Samuel-Harris/screen-sentinel/blob/main/crates/screen-sentinel-db/src/db.rs) |
+| pipes | [screen-sentinel-core/src/pipes/](https://github.com/Samuel-Harris/screen-sentinel/tree/main/crates/screen-sentinel-core/src/pipes) |
+| MCP server | [screen-sentinel-mcp/src/index.ts](https://github.com/Samuel-Harris/screen-sentinel/blob/main/packages/screen-sentinel-mcp/src/index.ts) |
+| desktop app | [screen-sentinel-app-tauri/](https://github.com/Samuel-Harris/screen-sentinel/tree/main/apps/screen-sentinel-app-tauri) |

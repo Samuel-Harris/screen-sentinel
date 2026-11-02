@@ -11,7 +11,7 @@
 import { join, dirname } from "path";
 import {
   ARTIFACTS_DIR, HEALTH_URL, IS_WINDOWS, IS_MACOS,
-  isScreenpipeRunning, getSystemInfo,
+  isScreenSentinelRunning, getSystemInfo,
 } from "./lib";
 import { mkdirSync } from "fs";
 
@@ -50,7 +50,7 @@ for (let i = 0; i < args.length; i++) {
 const sysInfo = getSystemInfo();
 
 console.log(c.bold("╔══════════════════════════════════════╗"));
-console.log(c.bold("║   screenpipe e2e test runner         ║"));
+console.log(c.bold("║   Screen Sentinel e2e test runner         ║"));
 console.log(c.bold("╚══════════════════════════════════════╝"));
 console.log("");
 console.log(`artifacts: ${ARTIFACTS_DIR}`);
@@ -65,8 +65,8 @@ console.log("");
 mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 // Preflight: check app is running
-if (!isScreenpipeRunning()) {
-  console.log(c.red("error: screenpipe is not running"));
+if (!isScreenSentinelRunning()) {
+  console.log(c.red("error: Screen Sentinel is not running"));
   console.log("start the app first, then run tests");
   process.exit(1);
 }

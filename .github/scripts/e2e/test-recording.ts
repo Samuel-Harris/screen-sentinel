@@ -44,7 +44,7 @@ if (IS_MACOS) {
 }
 
 await test("search returns text", async () => {
-  const data = await fetchJson("http://localhost:3030/search?limit=1&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=1&content_type=ocr");
   const results = data?.data ?? [];
   if (results.length === 0) throw new Error("no OCR results");
 });
@@ -100,7 +100,7 @@ await test("static screen = low frame activity (S5.1)", async () => {
 });
 
 await test("OCR produces text results (S5.2)", async () => {
-  const data = await fetchJson("http://localhost:3030/search?limit=5&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=5&content_type=ocr");
   const results = data?.data ?? [];
   if (results.length === 0) {
     throw new Error("no OCR results — pipeline may be broken");
@@ -117,7 +117,7 @@ await test("OCR produces text results (S5.2)", async () => {
 // ── S5.9: Window capture mode ────────────────────────────────────────────
 
 await test("search results have app context (S5.9)", async () => {
-  const data = await fetchJson("http://localhost:3030/search?limit=10&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=10&content_type=ocr");
   const results = data?.data ?? [];
   let withApp = 0;
   for (const r of results) {
@@ -203,7 +203,7 @@ await test("recording stable regardless of display config (S3.8)", async () => {
   }
 
   // Also verify search still works (recording is producing data)
-  const data = await fetchJson("http://localhost:3030/search?limit=1&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=1&content_type=ocr");
   if ((data?.data?.length ?? 0) === 0) {
     console.log("  warning: no OCR results despite ok frame_status");
   } else {

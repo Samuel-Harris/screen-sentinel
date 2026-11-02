@@ -1,6 +1,6 @@
 ---
 name: feature request
-about: suggest an idea for screenpipe
+about: suggest an idea for Screen Sentinel
 title: "[feature] "
 labels: enhancement
 assignees: ''

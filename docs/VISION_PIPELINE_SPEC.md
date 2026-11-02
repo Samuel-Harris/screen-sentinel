@@ -8,7 +8,7 @@
 
 ### 1.1 The Promise
 
-Screenpipe promises: "AI that knows everything you've seen, said, or heard." Users expect that anything they saw on screen is searchable later. Missing data = broken product.
+Screen Sentinel promises: "AI that knows everything you've seen, said, or heard." Users expect that anything they saw on screen is searchable later. Missing data = broken product.
 
 ### 1.2 What's Broken Today (v2.0.440)
 
@@ -20,7 +20,7 @@ Root cause: OCR runs synchronously inside the capture loop. `process_max_average
 
 **Bug 3: Health endpoint lies.** Reports `frame_status: ok` with `last_frame_timestamp` 6+ minutes stale. The tray icon shows "recording" when no data is being captured. The user has no way to know the pipeline is stalled.
 
-**Bug 4: Permission recovery restart spam.** The permission recovery component polls every 500ms with no single-fire guard. When permissions are granted, it fires `stopScreenpipe()` + `spawnScreenpipe()` 13 times in 10 seconds, causing cascading server restarts, orphaned process kills, and OCR channel closures.
+**Bug 4: Permission recovery restart spam.** The permission recovery component polls every 500ms with no single-fire guard. When permissions are granted, it fires `stopScreenSentinel()` + `spawnScreenSentinel()` 13 times in 10 seconds, causing cascading server restarts, orphaned process kills, and OCR channel closures.
 
 ### 1.3 User Impact
 
@@ -161,7 +161,7 @@ SAFETY NET:
   - Server just started      → immediate first frame, skip all filters
 ```
 
-The UI event feed from `screenpipe-accessibility` already provides app switches, keyboard activity, and mouse events. The adaptive FPS feature already reads from it. The change is: use events as **capture triggers**, not just interval hints.
+The UI event feed from `screen-sentinel-accessibility` already provides app switches, keyboard activity, and mouse events. The adaptive FPS feature already reads from it. The change is: use events as **capture triggers**, not just interval hints.
 
 ### 3.4 Frame Comparison Improvements
 
@@ -271,7 +271,7 @@ These can ship immediately on the current architecture:
 
 1. **Fix frame write tracker race** — change the DB writer to retry for up to 2 seconds (not 100ms) before giving up, and log at WARN level (not debug) when frames are dropped. Or: ensure video queue is consumed before OCR queue.
 
-2. **Fix permission recovery restart spam** — add `useRef(false)` guard so `stopScreenpipe` + `spawnScreenpipe` fires exactly once.
+2. **Fix permission recovery restart spam** — add `useRef(false)` guard so `stopScreenSentinel` + `spawnScreenSentinel` fires exactly once.
 
 3. **Add `max_skip_duration`** — in `continuous_capture`, track `last_ocr_send_time`. If elapsed > 10 seconds, bypass similarity check and send current frame. Simple 5-line change that prevents "stuck at N frames forever."
 
@@ -288,13 +288,13 @@ Move OCR processing out of `continuous_capture` and into a separate tokio task.
 - New `ocr_worker` task receives from a dedicated channel, runs OCR per window, sends results to the existing `ocr_frame_queue`
 - `process_ocr_task` / `process_max_average_frame` move from being called inside the capture loop to being called inside the OCR worker
 
-**Files**: `crates/screenpipe-vision/src/core.rs`, `crates/screenpipe-server/src/video.rs`
+**Files**: `crates/screen-sentinel-vision/src/core.rs`, `crates/screen-sentinel-server/src/video.rs`
 
 **Risk**: Medium. Changes the data flow but the OCR logic itself doesn't change. Existing OCR cache, Apple Native engine, window capture all stay the same.
 
 ### Phase 2: Event-Driven Capture Triggers
 
-Wire UI events (from `screenpipe-accessibility`) as capture triggers.
+Wire UI events (from `screen-sentinel-accessibility`) as capture triggers.
 
 **Changes**:
 - `continuous_capture` listens on a secondary channel for "capture now" signals
@@ -302,7 +302,7 @@ Wire UI events (from `screenpipe-accessibility`) as capture triggers.
 - When triggered, the capture loop runs immediately instead of waiting for the periodic interval
 - Debounce: max 2 captures per second from event triggers
 
-**Files**: `crates/screenpipe-vision/src/core.rs`, `crates/screenpipe-accessibility/` (if the ActivityFeed needs new event types)
+**Files**: `crates/screen-sentinel-vision/src/core.rs`, `crates/screen-sentinel-accessibility/` (if the ActivityFeed needs new event types)
 
 **Risk**: Low. Additive change — the periodic capture still runs as a fallback.
 
@@ -315,7 +315,7 @@ Share OCR workers across monitors with priority scheduling.
 - Priority queue: transition frames (from event triggers) > active monitor frames > idle monitor frames
 - Per-monitor adaptive rate: focused monitor at full FPS, background monitors at reduced rate
 
-**Files**: `crates/screenpipe-server/src/video.rs` (VideoCapture setup), `crates/screenpipe-server/src/core.rs` (worker pool), `crates/screenpipe-server/src/vision_manager/`
+**Files**: `crates/screen-sentinel-server/src/video.rs` (VideoCapture setup), `crates/screen-sentinel-server/src/core.rs` (worker pool), `crates/screen-sentinel-server/src/vision_manager/`
 
 **Risk**: Medium-high. Changes the threading model. Needs careful testing with 1, 2, and 3 monitors.
 
@@ -396,7 +396,7 @@ The decoupled pipeline must ensure:
 
 ### 7.4 Multi-Machine Scenarios
 
-**Scenario: MacBook + Mac Mini, both running screenpipe, cloud sync enabled**
+**Scenario: MacBook + Mac Mini, both running Screen Sentinel, cloud sync enabled**
 
 Each machine runs its own local pipeline independently:
 ```
@@ -430,7 +430,7 @@ With OCR decoupled from capture, a frame can exist in the DB before OCR complete
 
 To not paint ourselves into a corner for cloud sync:
 
-1. **Video file paths must be relative.** Store `data/monitor_21_2026-02-13_02-24-24.mp4` in the DB, not `/Users/louis/.screenpipe/data/...`. The base directory is machine-specific; the relative path is portable. *(Note: check if this is already the case — if absolute paths are stored, this needs a migration.)*
+1. **Video file paths must be relative.** Store `data/monitor_21_2026-02-13_02-24-24.mp4` in the DB, not `/Users/louis/.screen-sentinel/data/...`. The base directory is machine-specific; the relative path is portable. *(Note: check if this is already the case — if absolute paths are stored, this needs a migration.)*
 
 2. **`sync_id` should be set at DB insertion time.** The DB writer generates a UUID when inserting the frame row. Not at capture time (too early — frame might be dropped) and not at sync time (too late — other machines can't reference it).
 

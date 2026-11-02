@@ -58,20 +58,20 @@ app.py
 *.py3z
 __pycache__/
 
-screenpipe-app-tauri/src-tauri/.next/
+screen-sentinel-app-tauri/src-tauri/.next/
 .vercel
 .wrangler/
 
 .playwright*
 
-apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-arm64-1.19.2/
-apps/screenpipe-app-tauri/src-tauri/onnxruntime-win-x64-1.19.2/
-crates/screenpipe-audio/onnxruntime-win-x64-1.19.2.zip
-crates/screenpipe-audio/onnxruntime-win-arm64-1.19.2.zip
-crates/screenpipe-audio/openblas-0.3.31-x64.zip
-crates/screenpipe-audio/openblas-0.3.31-woa64-dll.zip
-apps/screenpipe-app-tauri/src-tauri/openblas/
-apps/screenpipe-app-tauri/src-tauri/mlx.metallib
+apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-arm64-1.19.2/
+apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.19.2/
+crates/screen-sentinel-audio/onnxruntime-win-x64-1.19.2.zip
+crates/screen-sentinel-audio/onnxruntime-win-arm64-1.19.2.zip
+crates/screen-sentinel-audio/openblas-0.3.31-x64.zip
+crates/screen-sentinel-audio/openblas-0.3.31-woa64-dll.zip
+apps/screen-sentinel-app-tauri/src-tauri/openblas/
+apps/screen-sentinel-app-tauri/src-tauri/mlx.metallib
 .serena/
 .worktrees/
 

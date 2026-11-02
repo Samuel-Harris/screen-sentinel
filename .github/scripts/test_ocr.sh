@@ -2,7 +2,7 @@
 set -e
 
 # Create test image with clear text
-convert -size 400x150 xc:white -font DejaVu-Sans -pointsize 32 -fill black -draw "text 20,80 'Hello, Screenpipe OCR'" test_image.png
+convert -size 400x150 xc:white -font DejaVu-Sans -pointsize 32 -fill black -draw "text 20,80 'Hello, Screen Sentinel OCR'" test_image.png
 
 # Display the image
 DISPLAY=:99 display test_image.png &
@@ -18,12 +18,12 @@ for i in $(seq 1 $MAX_RETRIES); do
   sleep $RETRY_INTERVAL
 
   # Show resource usage
-  ps -p $(cat screenpipe.pid) -o %cpu,%mem,cmd || true
+  ps -p $(cat screen-sentinel.pid) -o %cpu,%mem,cmd || true
 
   # Check for OCR text
-  OCR_TEXT=$(sqlite3 $HOME/.screenpipe/db.sqlite "SELECT text FROM ocr_text;" 2>/dev/null || echo "")
+  OCR_TEXT=$(sqlite3 $HOME/.screen-sentinel/db.sqlite "SELECT text FROM ocr_text;" 2>/dev/null || echo "")
 
-  if echo "$OCR_TEXT" | grep -qi "Hello, Screenpipe OCR"; then
+  if echo "$OCR_TEXT" | grep -qi "Hello, Screen Sentinel OCR"; then
     OCR_FOUND=true
     break
   fi
@@ -39,9 +39,9 @@ if [ "$OCR_FOUND" = true ]; then
 else
   echo "OCR test failed: Text was not recognized after ${MAX_RETRIES} attempts"
   echo "Final OCR text in database:"
-  sqlite3 $HOME/.screenpipe/db.sqlite "SELECT text FROM ocr_text;" 2>/dev/null | head -20 || echo "(empty)"
+  sqlite3 $HOME/.screen-sentinel/db.sqlite "SELECT text FROM ocr_text;" 2>/dev/null | head -20 || echo "(empty)"
   echo ""
   echo "Last 100 lines of log:"
-  tail -n 100 screenpipe_output.log
+  tail -n 100 screen_sentinel_output.log
   exit 1
 fi

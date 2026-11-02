@@ -1,0 +1,44 @@
+{
+  "name": "screen-sentinel-mcp",
+  "version": "0.18.10",
+  "description": "MCP server for Screen Sentinel - search your screen recordings and audio transcriptions",
+  "main": "dist/index.js",
+  "bin": {
+    "screen-sentinel-mcp": "dist/cli.js",
+    "screen-sentinel-mcp-http": "dist/http-server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/cli.js",
+    "start:http": "node dist/cli.js --http",
+    "dev": "ts-node src/cli.ts",
+    "dev:http": "ts-node src/cli.ts --http",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "screen-sentinel",
+    "model-context-protocol",
+    "claude",
+    "ai",
+    "screen-recording",
+    "ocr",
+    "audio-transcription"
+  ],
+  "author": "Screen Sentinel",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "typescript": "^5.9.3",
+    "ts-node": "^10.9.2",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

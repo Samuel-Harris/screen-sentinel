@@ -5,27 +5,27 @@
   "enforceMappedSourceTests": true,
   "trackedCrates": [
     {
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "testRoots": ["tests"],
       "sourceRoots": ["src"]
     },
     {
-      "crate": "screenpipe-db",
+      "crate": "screen-sentinel-db",
       "testRoots": ["tests"],
       "sourceRoots": ["src"]
     },
     {
-      "crate": "screenpipe-audio",
+      "crate": "screen-sentinel-audio",
       "testRoots": ["tests"],
       "sourceRoots": ["src"]
     },
     {
-      "crate": "screenpipe-screen",
+      "crate": "screen-sentinel-screen",
       "testRoots": ["tests"],
       "sourceRoots": ["src"]
     },
     {
-      "crate": "screenpipe-a11y",
+      "crate": "screen-sentinel-a11y",
       "testRoots": ["tests"],
       "sourceRoots": ["src"]
     }
@@ -102,7 +102,7 @@
     {
       "id": "engine-config-lifecycle",
       "label": "Engine config, health, sleep, and power lifecycle",
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "files": [
         "src/recording_config.rs",
         "src/schedule_monitor.rs",
@@ -125,7 +125,7 @@
     {
       "id": "engine-capture-timeline",
       "label": "Engine capture, frame linking, HD, and timeline cache",
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "files": [
         "src/event_driven_capture.rs",
         "src/focus_aware_controller.rs",
@@ -157,7 +157,7 @@
     {
       "id": "engine-api-routes",
       "label": "Engine API route logic and stream contracts",
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "files": [
         "src/routes/activity_summary.rs",
         "src/routes/health.rs",
@@ -183,7 +183,7 @@
     {
       "id": "engine-local-api-search-integration",
       "label": "Engine local API search route over indexed DB data",
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "files": [
         "tests/endpoint_test.rs"
       ],
@@ -198,7 +198,7 @@
     {
       "id": "engine-focus-os",
       "label": "Engine focus and OS integration helpers",
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "files": [
         "src/focus_tracker/darwin.rs",
         "src/focus_tracker/windows.rs"
@@ -214,7 +214,7 @@
     {
       "id": "engine-meeting-privacy-sync",
       "label": "Engine meetings, privacy, pipes, and sync units",
-      "crate": "screenpipe-engine",
+      "crate": "screen-sentinel-engine",
       "files": [
         "src/calendar_speaker_id.rs",
         "src/cli/install.rs",
@@ -249,7 +249,7 @@
     {
       "id": "db-search-indexing",
       "label": "Database OCR/accessibility search indexing",
-      "crate": "screenpipe-db",
+      "crate": "screen-sentinel-db",
       "files": [
         "src/text_normalizer.rs",
         "src/text_similarity.rs",
@@ -271,7 +271,7 @@
     {
       "id": "db-timeline-frames",
       "label": "Database frames, timeline, and storage joins",
-      "crate": "screenpipe-db",
+      "crate": "screen-sentinel-db",
       "files": [
         "src/db.rs",
         "src/types.rs",
@@ -293,7 +293,7 @@
     {
       "id": "db-audio-meetings-speakers",
       "label": "Database audio, live meetings, and speaker state",
-      "crate": "screenpipe-db",
+      "crate": "screen-sentinel-db",
       "files": [
         "tests/audio_duplicate_test.rs",
         "tests/chunk_outcome_test.rs",
@@ -318,7 +318,7 @@
     {
       "id": "db-accessibility-ui-events",
       "label": "Database accessibility elements and UI events",
-      "crate": "screenpipe-db",
+      "crate": "screen-sentinel-db",
       "files": [
         "tests/db_config_test.rs",
         "tests/heavy_read_test.rs",
@@ -337,7 +337,7 @@
     {
       "id": "audio-transcription-pipeline",
       "label": "Audio transcription, batching, and result cleanup",
-      "crate": "screenpipe-audio",
+      "crate": "screen-sentinel-audio",
       "files": [
         "src/core/engine.rs",
         "src/core/run_record_and_transcribe.rs",
@@ -360,7 +360,7 @@
     {
       "id": "audio-device-stream-health",
       "label": "Audio device, stream, and lag health",
-      "crate": "screenpipe-audio",
+      "crate": "screen-sentinel-audio",
       "files": [
         "src/audio_manager/device_monitor.rs",
         "src/audio_manager/manager.rs",
@@ -386,7 +386,7 @@
     {
       "id": "audio-meetings-speakers-dedup",
       "label": "Audio meetings, speakers, and transcript dedupe",
-      "crate": "screenpipe-audio",
+      "crate": "screen-sentinel-audio",
       "files": [
         "src/audio_manager/reconciliation.rs",
         "src/meeting_detector.rs",
@@ -417,7 +417,7 @@
     {
       "id": "audio-pipeline-benchmarks",
       "label": "Audio pipeline benchmark and quality probes",
-      "crate": "screenpipe-audio",
+      "crate": "screen-sentinel-audio",
       "files": [
         "tests/audio_pipeline_benchmark/audio_fixtures.rs",
         "tests/audio_pipeline_benchmark/cross_device_benchmark.rs",
@@ -439,7 +439,7 @@
     {
       "id": "audio-models-filtering",
       "label": "Audio model download and music filtering",
-      "crate": "screenpipe-audio",
+      "crate": "screen-sentinel-audio",
       "files": [
         "src/models/download.rs",
         "src/utils/audio/music_detection.rs",
@@ -458,7 +458,7 @@
     {
       "id": "screen-capture-windowing",
       "label": "Screen capture windowing, filtering, retry, and snapshots",
-      "crate": "screenpipe-screen",
+      "crate": "screen-sentinel-screen",
       "files": [
         "src/browser_utils/mod.rs",
         "src/capture_screenshot_by_window.rs",
@@ -485,7 +485,7 @@
     {
       "id": "screen-capture-ocr-contract",
       "label": "Screen capture to OCR result contract",
-      "crate": "screenpipe-screen",
+      "crate": "screen-sentinel-screen",
       "files": [
         "src/core.rs"
       ],
@@ -500,7 +500,7 @@
     {
       "id": "screen-macos-ocr",
       "label": "macOS native OCR",
-      "crate": "screenpipe-screen",
+      "crate": "screen-sentinel-screen",
       "files": [
         "src/apple.rs",
         "tests/apple_vision_test.rs"
@@ -516,7 +516,7 @@
     {
       "id": "screen-windows-ocr",
       "label": "Windows native OCR",
-      "crate": "screenpipe-screen",
+      "crate": "screen-sentinel-screen",
       "files": [
         "tests/windows_vision_test.rs"
       ],
@@ -531,7 +531,7 @@
     {
       "id": "screen-custom-ocr",
       "label": "Custom OCR smoke",
-      "crate": "screenpipe-screen",
+      "crate": "screen-sentinel-screen",
       "files": [
         "tests/custom_ocr_test.rs"
       ],
@@ -546,7 +546,7 @@
     {
       "id": "a11y-core-tree-cross-platform",
       "label": "Accessibility tree, cache, budget, and incognito logic",
-      "crate": "screenpipe-a11y",
+      "crate": "screen-sentinel-a11y",
       "files": [
         "src/activity_feed.rs",
         "src/budget.rs",
@@ -571,7 +571,7 @@
     {
       "id": "a11y-linux-tree",
       "label": "Linux accessibility tree units",
-      "crate": "screenpipe-a11y",
+      "crate": "screen-sentinel-a11y",
       "files": [
         "src/incognito/linux.rs",
         "src/platform/linux.rs",
@@ -589,7 +589,7 @@
     {
       "id": "a11y-macos-tree",
       "label": "macOS accessibility tree units and real app probes",
-      "crate": "screenpipe-a11y",
+      "crate": "screen-sentinel-a11y",
       "files": [
         "src/incognito/macos.rs",
         "src/platform/macos.rs",
@@ -609,7 +609,7 @@
     {
       "id": "a11y-windows-tree",
       "label": "Windows accessibility tree and UIA units",
-      "crate": "screenpipe-a11y",
+      "crate": "screen-sentinel-a11y",
       "files": [
         "src/incognito/windows.rs",
         "src/platform/windows.rs",

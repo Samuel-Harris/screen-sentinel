@@ -75,7 +75,7 @@ No more H.265 video encoding. No more FFmpeg for frame extraction.
 Each capture writes a JPEG directly to disk:
 
 ```
-~/.screenpipe/data/
+~/.screen-sentinel/data/
   2026-02-20/
     1708423935123_m0.jpg     # monitor 0 screenshot
     1708423937456_m0.jpg
@@ -225,7 +225,7 @@ Not phased. One PR per step, each shippable independently, but all ship in the s
 
 ### Step 1: DB migration + snapshot write path
 - Add new columns to `frames`
-- `SnapshotWriter`: JPEG write to `~/.screenpipe/data/YYYY-MM-DD/`
+- `SnapshotWriter`: JPEG write to `~/.screen-sentinel/data/YYYY-MM-DD/`
 - `insert_snapshot_frame()` in DB
 - Update `get_frame_data()` to serve snapshots directly
 
@@ -277,7 +277,7 @@ Not phased. One PR per step, each shippable independently, but all ship in the s
 
 ### Storage
 - [ ] Snapshots written as valid JPEG, correct resolution, readable by Preview/Photos
-- [ ] Directory `~/.screenpipe/data/YYYY-MM-DD/` created automatically
+- [ ] Directory `~/.screen-sentinel/data/YYYY-MM-DD/` created automatically
 - [ ] Frame retrieval: snapshot frames served in <5ms (no FFmpeg)
 - [ ] Frame retrieval: old video-chunk frames still served correctly via FFmpeg
 - [ ] Disk cleanup deletes oldest snapshots when retention limit hit

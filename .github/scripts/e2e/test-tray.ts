@@ -11,7 +11,7 @@
 
 import {
   suite, test, summary, screenshot, bb, fetchJson, sleep,
-  sel, HEALTH_URL, IS_WINDOWS, IS_MACOS, isScreenpipeRunning,
+  sel, HEALTH_URL, IS_WINDOWS, IS_MACOS, isScreenSentinelRunning,
 } from "./lib";
 
 suite("tray & system menu");
@@ -20,7 +20,7 @@ if (IS_MACOS) {
   // ── macOS tray tests ────────────────────────────────────────────────────────
 
   await test("tray icon visible", async () => {
-    const result = await bb("find", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+    const result = await bb("find", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
     const items = result?.data ?? [];
     if (items.length === 0) throw new Error("tray icon not found");
   });
@@ -44,10 +44,10 @@ if (IS_MACOS) {
   await test("tray menu opens", async () => {
     // Click the tray icon to open the menu
     try {
-      await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+      await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
       await sleep(1000);
       // Verify menu items appeared
-      const items = await bb("find", "role:AXMenuItem", "--app", "screenpipe-app");
+      const items = await bb("find", "role:AXMenuItem", "--app", "screen-sentinel-app");
       const count = items?.data?.length ?? 0;
       if (count === 0) throw new Error("no menu items after clicking tray");
       console.log(`  tray menu has ${count} items`);
@@ -60,10 +60,10 @@ if (IS_MACOS) {
 
   await test("tray has all expected items", async () => {
     // Open menu
-    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
     await sleep(500);
 
-    const expectedItems = ["show screenpipe", "settings", "quit screenpipe"];
+    const expectedItems = ["show Screen Sentinel", "settings", "quit Screen Sentinel"];
     for (const item of expectedItems) {
       try {
         const result = await bb("find", `role:AXMenuItem AND title~:${item}`);
@@ -78,31 +78,31 @@ if (IS_MACOS) {
     await bb("press", "escape");
   });
 
-  await test("tray 'show screenpipe' opens window", async () => {
+  await test("tray 'show Screen Sentinel' opens window", async () => {
     // Open tray menu
-    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
     await sleep(500);
 
-    // Click "show screenpipe"
+    // Click "show Screen Sentinel"
     try {
-      await bb("click", "role:AXMenuItem AND title~:show screenpipe", "--app", "screenpipe-app");
+      await bb("click", "role:AXMenuItem AND title~:show Screen Sentinel", "--app", "screen-sentinel-app");
       await sleep(2000);
 
       // Verify window appeared
-      const result = await bb("find", "role:AXWebArea", "--app", "screenpipe-app");
+      const result = await bb("find", "role:AXWebArea", "--app", "screen-sentinel-app");
       const windows = result?.data ?? [];
       if (windows.length === 0) {
         console.log("  warning: window may not have appeared");
       }
     } catch (e: any) {
-      console.log(`  (show screenpipe interaction failed: ${e.message})`);
+      console.log(`  (show screen-sentinel interaction failed: ${e.message})`);
     }
   });
 
   await test("tray menu does not fire twice (S2.6)", async () => {
-    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
     await sleep(500);
-    const result = await bb("find", "role:AXMenuItem AND title:settings", "--app", "screenpipe-app");
+    const result = await bb("find", "role:AXMenuItem AND title:settings", "--app", "screen-sentinel-app");
     const settingsCount = result?.data?.length ?? 0;
     if (settingsCount > 1) {
       throw new Error(`${settingsCount} "settings" items in tray (possible double-fire bug)`);
@@ -111,7 +111,7 @@ if (IS_MACOS) {
   });
 
   await test("tray has stop/start recording items (S2.5)", async () => {
-    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+    await bb("click", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
     await sleep(500);
     let found = { stop: false, start: false, changelog: false, feedback: false };
     for (const item of ["stop recording", "start recording", "changelog", "send feedback"]) {
@@ -131,7 +131,7 @@ if (IS_MACOS) {
       await sleep(500);
     }
     // Tray should still be there
-    const result = await bb("find", "role:AXMenuBarItem AND name~:status", "--app", "screenpipe-app");
+    const result = await bb("find", "role:AXMenuBarItem AND name~:status", "--app", "screen-sentinel-app");
     if ((result?.data?.length ?? 0) === 0) {
       throw new Error("tray icon disappeared after overlay toggle");
     }
@@ -142,9 +142,9 @@ if (IS_MACOS) {
     const proc = Bun.spawnSync(["bash", "-c",
       "osascript -e 'tell application \"System Events\" to get name of every process whose visible is true'"]);
     const apps = proc.stdout.toString().toLowerCase();
-    // Screenpipe should appear in visible processes (dock icon = not accessory mode)
-    if (!apps.includes("screenpipe")) {
-      console.log("  warning: screenpipe not in visible processes (may be in accessory mode)");
+    // Screen Sentinel should appear in visible processes (dock icon = not accessory mode)
+    if (!apps.includes("screen-sentinel")) {
+      console.log("  warning: Screen Sentinel not in visible processes (may be in accessory mode)");
     } else {
       console.log("  dock icon: visible");
     }
@@ -158,7 +158,7 @@ if (IS_MACOS) {
     const proc = Bun.spawnSync(["bash", "-c",
       "osascript -e 'tell application \"System Events\" to get name of every process whose visible is true'"]);
     const apps = proc.stdout.toString().toLowerCase();
-    if (!apps.includes("screenpipe")) {
+    if (!apps.includes("screen-sentinel")) {
       throw new Error("dock icon disappeared after 5 overlay toggles (activation policy may have changed)");
     }
   });
@@ -167,18 +167,18 @@ if (IS_MACOS) {
 if (IS_WINDOWS) {
   // ── Windows tray tests ──────────────────────────────────────────────────────
 
-  await test("screenpipe process running", async () => {
-    if (!isScreenpipeRunning()) throw new Error("screenpipe not running");
+  await test("Screen Sentinel process running", async () => {
+    if (!isScreenSentinelRunning()) throw new Error("Screen Sentinel not running");
   });
 
   await test("system tray area accessible", async () => {
     // Windows system tray is tricky — items may be in overflow
-    // Try to find screenpipe in notification area
+    // Try to find Screen Sentinel in notification area
     try {
       const result = await bb("find", "name~:screenpi");
       const items = result?.data ?? [];
       if (items.length > 0) {
-        console.log(`  found ${items.length} screenpipe element(s) in tray area`);
+        console.log(`  found ${items.length} screen-sentinel element(s) in tray area`);
         return;
       }
     } catch {}
@@ -207,7 +207,7 @@ if (IS_WINDOWS) {
     }
   });
 
-  await test("screenpipe window focusable via shortcut", async () => {
+  await test("Screen Sentinel window focusable via shortcut", async () => {
     // Alt+S should show/focus the window
     await bb("shortcut", "s", "--modifiers", "alt");
     await sleep(2000);
@@ -245,8 +245,8 @@ if (IS_WINDOWS) {
       await sleep(300);
     }
     // Verify app still running
-    if (!isScreenpipeRunning()) {
-      throw new Error("screenpipe crashed after rapid shortcut toggles");
+    if (!isScreenSentinelRunning()) {
+      throw new Error("Screen Sentinel crashed after rapid shortcut toggles");
     }
     console.log("  5 rapid toggles: app still running");
   });

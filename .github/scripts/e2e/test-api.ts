@@ -3,7 +3,7 @@ import {
   assertSearchResults, httpStatus, HEALTH_URL, SEARCH_URL,
 } from "./lib";
 
-const BASE = "http://localhost:3030";
+const BASE = "http://localhost:3130";
 
 suite("REST API");
 

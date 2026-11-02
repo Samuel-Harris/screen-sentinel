@@ -1,0 +1,25 @@
+[package]
+name = "screen-sentinel-capture"
+version = "0.1.0"
+edition = "2021"
+description = "Paired screenshot + accessibility-tree capture, persisted to the Screen Sentinel DB. Shared by the engine binary and the SDK."
+license = "MIT"
+
+[dependencies]
+screen-sentinel-a11y = { path = "../screen-sentinel-a11y" }
+screen-sentinel-core = { path = "../screen-sentinel-core", default-features = false, features = ["security"] }
+screen-sentinel-db = { path = "../screen-sentinel-db" }
+screen-sentinel-screen = { path = "../screen-sentinel-screen" }
+
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+image = { workspace = true }
+once_cell = { workspace = true }
+regex = "1"
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

@@ -1,6 +1,6 @@
 # npm e2e
 
-End-to-end tests for the screenpipe npm package surface. Runs any CLI command via a local Verdaccio registry — no real publish needed.
+End-to-end tests for the Screen Sentinel npm package surface. Runs any CLI command via a local Verdaccio registry — no real publish needed.
 
 ## Manual dev flow
 
@@ -11,7 +11,7 @@ cd packages/cli
 bun run build
 ```
 
-Prints the binary path, e.g. `target/aarch64-apple-darwin/release/screenpipe`.
+Prints the binary path, e.g. `target/aarch64-apple-darwin/release/screen-sentinel`.
 
 ### 2) Stage npm packages
 
@@ -19,7 +19,7 @@ Prints the binary path, e.g. `target/aarch64-apple-darwin/release/screenpipe`.
 bun run stage
 ```
 
-Auto-detects the binary from `target/<host-target>/release/screenpipe`. Pass `--binary <path>` to override. Copies wrapper + platform packages into `.work/stage`, injects the real binary, writes placeholder payloads for other platforms, validates the result.
+Auto-detects the binary from `target/<host-target>/release/screen-sentinel`. Pass `--binary <path>` to override. Copies wrapper + platform packages into `.work/stage`, injects the real binary, writes placeholder payloads for other platforms, validates the result.
 
 ### 3) Serve the local registry
 
@@ -32,13 +32,13 @@ Starts Verdaccio, publishes staged packages, prints the registry URL and the exa
 ### 4) Run any command yourself
 
 ```bash
-bun run screenpipe <command> [flags]
+bun run screen-sentinel <command> [flags]
 ```
 
 Example (CI-safe, no screen permissions needed):
 
 ```bash
-bun run screenpipe record \
+bun run screen-sentinel record \
   --disable-vision
 ```
 

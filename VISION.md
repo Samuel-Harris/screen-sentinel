@@ -2,11 +2,11 @@
 
 > "Civilization advances by extending the number of important operations which we can perform without thinking about them." — Alfred North Whitehead
 
-## What screenpipe is
+## What Screen Sentinel is
 
 Context infrastructure for AI agents. The ambient layer between humans and their digital work.
 
-Screen is the universal interface — 10M bits/second, the highest-fidelity signal of human intent. During work, the screen contains all the millions of software that ate the world and are being eaten by AI right now. Screenpipe captures that context locally and makes it available to AI.
+Screen is the universal interface — 10M bits/second, the highest-fidelity signal of human intent. During work, the screen contains all the millions of software that ate the world and are being eaten by AI right now. Screen Sentinel captures that context locally and makes it available to AI.
 
 Not a memory tool. Not an assistant you prompt. An ambient automation layer that works in the background with zero prompting.
 
@@ -26,7 +26,7 @@ We build the layer that gives AI full context of human work so it can act autono
 
 - **Stability over features.** Users who stay are obsessed. Users who leave hit bugs. Fix what's broken before building what's new.
 - **No feature creep.** Every feature must serve Record, Rewind, or Ask. If it doesn't, it doesn't ship.
-- **Respect the user's machine.** CPU, memory, disk — screenpipe runs 24/7 in the background. Performance is not optional. Target: <20% CPU, <3GB RAM on release builds.
+- **Respect the user's machine.** CPU, memory, disk — Screen Sentinel runs 24/7 in the background. Performance is not optional. Target: <20% CPU, <3GB RAM on release builds.
 
 ## Engineering principles
 

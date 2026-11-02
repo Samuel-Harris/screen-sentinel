@@ -1,15 +1,15 @@
 ---
-title: "screenpipe vs Limitless - self-hosted alternative"
+title: "Screen Sentinel vs Limitless - self-hosted alternative"
 sidebarTitle: "vs limitless"
-description: "Compare screenpipe and Limitless.ai: a self-hosted, open source desktop screen recorder vs the Limitless AI pendant. Data ownership and privacy compared."
+description: "Compare Screen Sentinel and Limitless.ai: a self-hosted, open source desktop screen recorder vs the Limitless AI pendant. Data ownership and privacy compared."
 icon: "scale-balanced"
 ---
 
-Limitless.ai offers an AI-powered pendant and app for recording meetings and conversations. screenpipe provides similar AI memory capabilities but entirely self-hosted and open source.
+Limitless.ai offers an AI-powered pendant and app for recording meetings and conversations. Screen Sentinel provides similar AI memory capabilities but entirely self-hosted and open source.
 
 ## comparison
 
-| feature | screenpipe | limitless |
+| feature | Screen Sentinel | limitless |
 |---------|-----------|-----------|
 | **hardware** | uses your existing devices | requires pendant |
 | **open source** | yes (MIT) | no |
@@ -19,7 +19,7 @@ Limitless.ai offers an AI-powered pendant and app for recording meetings and con
 | **audio capture** | yes | yes |
 | **self-hosted** | yes | no |
 
-## why choose screenpipe?
+## why choose Screen Sentinel?
 
 ### no hardware purchase
 
@@ -27,7 +27,7 @@ use your existing computer, microphone, and webcam. no additional hardware requi
 
 ### screen + audio
 
-limitless only captures audio. screenpipe captures:
+limitless only captures audio. Screen Sentinel captures:
 - screen content through accessibility APIs, with OCR fallback
 - audio transcription
 - UI elements (experimental)
@@ -41,7 +41,7 @@ limitless only captures audio. screenpipe captures:
 
 ### no cloud dependency
 
-screenpipe runs entirely on your device. no cloud account required.
+Screen Sentinel runs entirely on your device. no cloud account required.
 
 ### extensible
 
@@ -49,16 +49,16 @@ build custom integrations with the REST API or pipes:
 
 ```bash
 # query your screen data
-curl "http://localhost:3030/search?content_type=all&limit=50"
+curl "http://localhost:3130/search?content_type=all&limit=50"
 ```
 
 ## for meeting transcription
 
-screenpipe handles meetings just as well — configure audio devices in the desktop app settings to capture system audio (meeting apps) and your microphone simultaneously.
+Screen Sentinel handles meetings just as well — configure audio devices in the desktop app settings to capture system audio (meeting apps) and your microphone simultaneously.
 
 ## self-hosting benefits
 
-| limitless cloud | screenpipe local |
+| limitless cloud | Screen Sentinel local |
 |----------------|------------------|
 | data on their servers | data on your device |
 | internet required | works offline |
@@ -84,18 +84,18 @@ screenpipe handles meetings just as well — configure audio devices in the desk
 
 - [AI meeting notes guide](https://screenpi.pe/resources/use-cases/ai-meeting-notes) - automatic transcription setup
 - [local AI assistant setup](https://screenpi.pe/resources/use-cases/local-ai-assistant) - run AI 100% locally
-- [screenpipe blog](https://screenpi.pe/blog) - latest updates and tutorials
+- [Screen Sentinel blog](https://screenpi.pe/blog) - latest updates and tutorials
 
 ## frequently asked questions
 
-### how does screenpipe compare to Limitless?
+### how does Screen Sentinel compare to Limitless?
 
-screenpipe captures both screen and audio on your existing devices, while Limitless requires purchasing a pendant and only captures audio. screenpipe is open source, runs entirely locally, and stores all data on your device. Limitless is cloud-based and closed source. screenpipe also offers extensibility through pipes (AI agents) and a full REST API.
+Screen Sentinel captures both screen and audio on your existing devices, while Limitless requires purchasing a pendant and only captures audio. Screen Sentinel is open source, runs entirely locally, and stores all data on your device. Limitless is cloud-based and closed source. Screen Sentinel also offers extensibility through pipes (AI agents) and a full REST API.
 
-### do I need to buy hardware to use screenpipe?
+### do I need to buy hardware to use Screen Sentinel?
 
-no. screenpipe uses your existing computer, microphone, and webcam. no pendant, wearable, or special hardware required. just [download the desktop app](https://screenpi.pe/onboarding) and start recording.
+no. Screen Sentinel uses your existing computer, microphone, and webcam. no pendant, wearable, or special hardware required. just [download the desktop app](https://screenpi.pe/onboarding) and start recording.
 
-### can screenpipe replace Limitless for meeting transcription?
+### can Screen Sentinel replace Limitless for meeting transcription?
 
-yes. screenpipe captures system audio (Zoom, Meet, Teams) and your microphone simultaneously, with automatic transcription and speaker identification. configure audio devices in the desktop app settings. unlike Limitless, all transcriptions stay on your device.
+yes. Screen Sentinel captures system audio (Zoom, Meet, Teams) and your microphone simultaneously, with automatic transcription and speaker identification. configure audio devices in the desktop app settings. unlike Limitless, all transcriptions stay on your device.
