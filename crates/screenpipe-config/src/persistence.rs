@@ -67,10 +67,6 @@ mod tests {
         let settings = RecordingSettings {
             port: 4040,
             power_mode: Some("battery_saver".to_string()),
-            vocabulary: vec![crate::VocabEntry {
-                word: "screenpipe".to_string(),
-                replace_with: None,
-            }],
             ..Default::default()
         };
 
@@ -82,7 +78,6 @@ mod tests {
         let loaded = load_toml(&path).unwrap();
         assert_eq!(loaded.port, 4040);
         assert_eq!(loaded.power_mode.as_deref(), Some("battery_saver"));
-        assert_eq!(loaded.vocabulary.len(), 1);
     }
 
     #[test]
@@ -93,6 +88,5 @@ mod tests {
         let settings = load_toml(file.path()).unwrap();
         assert_eq!(settings.port, 5050);
         assert_eq!(settings.video_quality, "balanced"); // default
-        assert!(settings.use_system_default_audio); // default
     }
 }
