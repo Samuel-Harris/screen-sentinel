@@ -12,6 +12,10 @@ on:
       - '**/Cargo.lock'
       - '.github/workflows/ci.yml'
       - '.github/scripts/**'
+      - 'scripts/check-strip-unused.sh'
+      - '**/Info.plist'
+      - '**/*.entitlements'
+      - '**/entitlements*.plist'
   pull_request:
     paths:
       - '**.rs'
@@ -19,6 +23,10 @@ on:
       - '**/Cargo.lock'
       - '.github/workflows/ci.yml'
       - '.github/scripts/**'
+      - 'scripts/check-strip-unused.sh'
+      - '**/Info.plist'
+      - '**/*.entitlements'
+      - '**/entitlements*.plist'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.ref }}
@@ -31,6 +39,17 @@ env:
   GIT_LFS_SKIP_SMUDGE: 1
 
 jobs:
+  strip-unused:
+    # feature-map/01-strip-unused.md "Done when": no audio, meeting, sync,
+    # team, connect, Apple Intelligence, PostHog or Sentry crate in the
+    # engine or app tree, no removed modules or routes, no microphone
+    # usage description and no audio-input entitlement.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check stripped areas stay removed
+        run: scripts/check-strip-unused.sh
+
   test-ubuntu:
     runs-on: ubuntu-latest
     env:
