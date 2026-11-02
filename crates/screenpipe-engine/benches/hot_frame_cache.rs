@@ -9,15 +9,14 @@
 //!   1. HotFrame clone (happens on push_frame + broadcast send)
 //!   2. BTreeMap insert via push_frame
 //!   3. BTreeMap range query via get_frames_in_range
-//!   4. find_audio_for_frame string clone overhead
-//!   5. hot_frame_to_timeseries conversion (multiple string clones per call)
+//!   4. hot_frame_to_timeseries conversion (multiple string clones per call)
 //!
 //! Run with:
 //!   cargo bench -p screenpipe-engine --bench hot_frame_cache
 
 use chrono::{Duration, Utc};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use screenpipe_engine::hot_frame_cache::{HotAudio, HotFrame, HotFrameCache};
+use screenpipe_engine::hot_frame_cache::{HotFrame, HotFrameCache};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,22 +42,6 @@ fn make_frame(id: i64) -> HotFrame {
         offset_index: id * 30,
         fps: 0.033,
         machine_id: Some("abc123def456".into()),
-    }
-}
-
-fn make_audio(id: i64, frame_ts: chrono::DateTime<Utc>) -> HotAudio {
-    HotAudio {
-        audio_chunk_id: id,
-        timestamp: frame_ts + Duration::seconds(2),
-        transcription: "Hello, this is a sample transcription for benchmarking purposes. It represents real-world audio captured by screenpipe.".into(),
-        device_name: "MacBook Pro Microphone".into(),
-        is_input: true,
-        audio_file_path: format!("/Users/user/Library/Application Support/screenpipe/data/input_{}.mp4", id).into(),
-        duration_secs: 30.0,
-        start_time: Some(0.0),
-        end_time: Some(30.0),
-        speaker_id: Some(1),
-        speaker_name: Some("Speaker 1".into()),
     }
 }
 
@@ -130,49 +113,7 @@ fn bench_get_frames_in_range(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. push_audio — measures string clone cost on every transcription insert.
-// ---------------------------------------------------------------------------
-
-fn bench_push_audio(c: &mut Criterion) {
-    let rt = rt();
-    let cache = HotFrameCache::new();
-    let base_ts = Utc::now();
-
-    c.bench_function("HotFrameCache::push_audio", |b| {
-        let mut id = 0i64;
-        b.iter(|| {
-            id += 1;
-            let audio = make_audio(id, base_ts + Duration::seconds(id));
-            rt.block_on(cache.push_audio(audio));
-        });
-    });
-}
-
-// ---------------------------------------------------------------------------
-// 5. find_audio_near — string clone cost of the ±60s audio lookup that
-//    runs for every frame returned by get_frames_in_range.
-// ---------------------------------------------------------------------------
-
-fn bench_find_audio_near(c: &mut Criterion) {
-    let rt = rt();
-    let cache = HotFrameCache::new();
-    let base_ts = Utc::now();
-
-    // Seed with 200 audio entries around the query timestamp
-    rt.block_on(async {
-        for i in -100i64..100 {
-            let audio = make_audio(i + 1000, base_ts + Duration::seconds(i));
-            cache.push_audio(audio).await;
-        }
-    });
-
-    c.bench_function("HotFrameCache::find_audio_near", |b| {
-        b.iter(|| rt.block_on(cache.find_audio_near(black_box(base_ts))));
-    });
-}
-
-// ---------------------------------------------------------------------------
-// 6. evict_range — retention / delete path.
+// 4. evict_range — retention / delete path.
 // ---------------------------------------------------------------------------
 
 fn bench_evict_range(c: &mut Criterion) {
@@ -208,8 +149,6 @@ criterion_group!(
     bench_hotframe_clone,
     bench_push_frame,
     bench_get_frames_in_range,
-    bench_push_audio,
-    bench_find_audio_near,
     bench_evict_range,
 );
 criterion_main!(benches);

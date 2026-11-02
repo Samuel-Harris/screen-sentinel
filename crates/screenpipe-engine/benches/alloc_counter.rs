@@ -8,14 +8,13 @@
 //! Reports allocations-per-call for:
 //!   - HotFrame::clone
 //!   - HotFrame construction from raw strings (as happens in warm_from_db)
-//!   - HotAudio construction + clone
 //!
 //! Run with:
 //!   cargo bench -p screenpipe-engine --bench alloc_counter
 
 use chrono::Utc;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use screenpipe_engine::hot_frame_cache::{HotAudio, HotFrame};
+use screenpipe_engine::hot_frame_cache::HotFrame;
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -146,47 +145,9 @@ fn bench_hotframe_construct_allocs(c: &mut Criterion) {
     });
 }
 
-fn bench_hotaudio_clone_allocs(c: &mut Criterion) {
-    let audio = HotAudio {
-        audio_chunk_id: 1,
-        timestamp: Utc::now(),
-        transcription: "Hello, this is a sample transcription for benchmarking purposes. It represents real-world audio captured by screenpipe.".into(),
-        device_name: "MacBook Pro Microphone".into(),
-        is_input: true,
-        audio_file_path: "/Users/user/Library/Application Support/screenpipe/data/input_1.mp4".into(),
-        duration_secs: 30.0,
-        start_time: Some(0.0),
-        end_time: Some(30.0),
-        speaker_id: Some(1),
-        speaker_name: Some("Speaker 1".into()),
-    };
-
-    c.bench_function("alloc_count/HotAudio::clone", |b| {
-        b.iter_custom(|iters| {
-            reset_counters();
-            let start = std::time::Instant::now();
-            for _ in 0..iters {
-                let _ = black_box(audio.clone());
-            }
-            let elapsed = start.elapsed();
-            let (count, bytes) = read_counters();
-            eprintln!(
-                "\n  HotAudio::clone × {} → {} allocs, {} bytes ({} allocs/call, {} bytes/call)",
-                iters,
-                count,
-                bytes,
-                count / iters as usize,
-                bytes / iters as usize
-            );
-            elapsed
-        });
-    });
-}
-
 criterion_group!(
     benches,
     bench_hotframe_clone_allocs,
     bench_hotframe_construct_allocs,
-    bench_hotaudio_clone_allocs,
 );
 criterion_main!(benches);

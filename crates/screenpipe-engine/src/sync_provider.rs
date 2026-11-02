@@ -255,63 +255,6 @@ impl ScreenpipeSyncProvider {
         Ok(Some((chunk, time_start, time_end)))
     }
 
-    /// Get unsynced audio transcriptions.
-    async fn get_unsynced_transcriptions_chunk(
-        &self,
-        limit: usize,
-    ) -> SyncResult<Option<(SyncChunk, String, String)>> {
-        let pool = &self.db.pool;
-
-        let transcriptions: Vec<(i64, String, String, String, bool, Option<i64>)> = sqlx::query_as(
-            r#"
-            SELECT at.id, at.timestamp, at.transcription, at.device, at.is_input_device, at.speaker_id
-            FROM audio_transcriptions at
-            WHERE at.synced_at IS NULL
-            ORDER BY at.timestamp ASC
-            LIMIT ?
-            "#,
-        )
-        .bind(limit as i64)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| SyncError::Database(format!("failed to query transcriptions: {}", e)))?;
-
-        if transcriptions.is_empty() {
-            return Ok(None);
-        }
-
-        let time_start = transcriptions.first().map(|t| t.1.clone()).unwrap();
-        let time_end = transcriptions.last().map(|t| t.1.clone()).unwrap();
-
-        let records: Vec<TranscriptionRecord> = transcriptions
-            .into_iter()
-            .map(
-                |(_, timestamp, transcription, device, is_input, speaker_id)| TranscriptionRecord {
-                    sync_id: Uuid::new_v4().to_string(),
-                    timestamp,
-                    transcription,
-                    device,
-                    is_input_device: is_input,
-                    speaker_id,
-                },
-            )
-            .collect();
-
-        let chunk = SyncChunk {
-            schema_version: SCHEMA_VERSION,
-            machine_id: self.machine_id.clone(),
-            time_start: time_start.clone(),
-            time_end: time_end.clone(),
-            frames: Vec::new(),
-            ocr_records: Vec::new(),
-            transcriptions: records,
-            accessibility_records: Vec::new(),
-            ui_events: Vec::new(),
-        };
-
-        Ok(Some((chunk, time_start, time_end)))
-    }
-
     /// Get unsynced accessibility records from frames with text_source='accessibility'.
     /// (The old accessibility table was dropped; data now lives in frames.full_text.)
     async fn get_unsynced_accessibility_chunk(
@@ -462,7 +405,6 @@ impl ScreenpipeSyncProvider {
         let pool = &self.db.pool;
         let mut imported_frames = 0;
         let mut imported_ocr = 0;
-        let mut imported_transcriptions = 0;
         let mut skipped = 0;
 
         // Skip if this is our own machine
@@ -471,7 +413,6 @@ impl ScreenpipeSyncProvider {
             return Ok(ImportResult {
                 imported_frames: 0,
                 imported_ocr: 0,
-                imported_transcriptions: 0,
                 imported_accessibility: 0,
                 imported_ui_events: 0,
                 skipped: chunk.frames.len()
@@ -591,42 +532,6 @@ impl ScreenpipeSyncProvider {
             }
         }
 
-        // Import transcriptions
-        for trans in &chunk.transcriptions {
-            // Check if already exists (read-only, uses read pool)
-            let exists: Option<(i64,)> =
-                sqlx::query_as("SELECT 1 FROM audio_transcriptions WHERE sync_id = ?")
-                    .bind(&trans.sync_id)
-                    .fetch_optional(pool)
-                    .await
-                    .map_err(|e| {
-                        SyncError::Database(format!("failed to check transcription: {}", e))
-                    })?;
-
-            if exists.is_some() {
-                skipped += 1;
-                continue;
-            }
-
-            self.db
-                .sync_insert_transcription(
-                    &trans.sync_id,
-                    &chunk.machine_id,
-                    &trans.timestamp,
-                    &trans.transcription,
-                    &trans.device,
-                    trans.is_input_device,
-                    trans.speaker_id,
-                )
-                .await
-                .map_err(|e| {
-                    SyncError::Database(format!("failed to insert transcription: {}", e))
-                })?;
-
-            imported_transcriptions += 1;
-            tokio::task::yield_now().await;
-        }
-
         // Import accessibility records — insert as frames with full_text
         // (accessibility table was dropped; text now lives in frames.full_text)
         let mut imported_accessibility = 0;
@@ -720,7 +625,6 @@ impl ScreenpipeSyncProvider {
         Ok(ImportResult {
             imported_frames,
             imported_ocr,
-            imported_transcriptions,
             imported_accessibility,
             imported_ui_events,
             skipped,
@@ -742,7 +646,6 @@ impl ScreenpipeSyncProvider {
 
         let table = match blob_type {
             BlobType::Ocr => SyncTable::Frames,
-            BlobType::Transcripts => SyncTable::AudioTranscriptions,
             BlobType::Accessibility => SyncTable::FramesAccessibility,
             BlobType::Input => SyncTable::UiEvents,
             _ => return Ok(()),
@@ -756,7 +659,6 @@ impl ScreenpipeSyncProvider {
                     "failed to mark {} synced: {}",
                     match blob_type {
                         BlobType::Ocr => "frames",
-                        BlobType::Transcripts => "transcriptions",
                         BlobType::Accessibility => "accessibility",
                         BlobType::Input => "ui_events",
                         _ => "unknown",
@@ -806,7 +708,6 @@ impl SyncDataProvider for ScreenpipeSyncProvider {
     ) -> SyncResult<Vec<PendingBlob>> {
         let chunk_result = match blob_type {
             BlobType::Ocr => self.get_unsynced_ocr_chunk(limit).await?,
-            BlobType::Transcripts => self.get_unsynced_transcriptions_chunk(limit).await?,
             BlobType::Accessibility => self.get_unsynced_accessibility_chunk(limit).await?,
             BlobType::Input => self.get_unsynced_input_chunk(limit).await?,
             _ => return Ok(Vec::new()),
@@ -851,7 +752,6 @@ impl SyncDataProvider for ScreenpipeSyncProvider {
 pub struct ImportResult {
     pub imported_frames: usize,
     pub imported_ocr: usize,
-    pub imported_transcriptions: usize,
     pub imported_accessibility: usize,
     pub imported_ui_events: usize,
     pub skipped: usize,

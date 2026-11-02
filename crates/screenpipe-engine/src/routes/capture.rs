@@ -4,20 +4,14 @@
 
 //! HD-recording control endpoints.
 //!
-//! Every HD session is bound to a natural end condition — there is no
-//! indefinite mode. Two start variants:
+//! Every HD session is bound to a timer — there is no indefinite mode.
 //!
-//! - `POST /capture/hd/start { boundTo: "meeting", meetingId: i64 }`
-//!   ties the session to a specific meeting. The engine subscribes to
-//!   `meeting_ended` and stops the session when the call ends. A 4-hour
-//!   hard cap protects against a missed event.
-//! - `POST /capture/hd/start { boundTo: "timer", durationSecs: u64 }`
-//!   fires for the chosen duration. Clamped to `[60, 7200]` seconds.
-//!
+//! `POST /capture/hd/start { durationSecs: u64 }` fires for the chosen
+//!   duration. Clamped to `[60, 7200]` seconds.
 //! `POST /capture/hd/stop` clears any active session.
 //! `GET  /capture/hd` returns the snapshot for UI/tray polling.
-//! `POST /capture/hd/settings { defaultMode?, intervalMs? }` updates the
-//!   runtime preferences. Persistent storage is the Settings UI's job —
+//! `POST /capture/hd/settings { intervalMs? }` updates the runtime
+//!   capture interval. Persistent storage is the Settings UI's job —
 //!   this endpoint only flips the engine's in-memory copy so changes
 //!   apply immediately without a restart.
 
@@ -29,7 +23,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::high_fps_controller::{DefaultMode, HighFpsController, HighFpsSnapshot, SessionKind};
+use crate::high_fps_controller::{HighFpsController, HighFpsSnapshot, SessionKind};
 use crate::server::AppState;
 
 #[derive(Debug, Serialize)]
@@ -44,14 +38,9 @@ pub struct HighFpsState {
     /// Seconds since the session started.
     #[serde(rename = "elapsedSecs")]
     pub elapsed_secs: Option<u64>,
-    /// Seconds until auto-expiry (timer deadline or meeting cap).
+    /// Seconds until the timer deadline.
     #[serde(rename = "remainingSecs")]
     pub remaining_secs: Option<u64>,
-    /// Current user preference for what happens when a meeting starts.
-    #[serde(rename = "defaultMode")]
-    pub default_mode: DefaultMode,
-    /// In-meeting flag from the v2 detector. `None` when no detector.
-    pub meeting: Option<bool>,
 }
 
 impl From<HighFpsSnapshot> for HighFpsState {
@@ -62,8 +51,6 @@ impl From<HighFpsSnapshot> for HighFpsState {
             session: s.kind,
             elapsed_secs: s.elapsed_secs,
             remaining_secs: s.remaining_secs,
-            default_mode: s.default_mode,
-            meeting: s.meeting,
         }
     }
 }
@@ -71,12 +58,7 @@ impl From<HighFpsSnapshot> for HighFpsState {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StartSessionRequest {
-    /// `"meeting"` requires `meeting_id`; `"timer"` requires `duration_secs`.
-    /// `"prewarm_pending"` takes no args — the next `meeting_started` event
-    /// will upgrade it to a meeting-bound session.
-    pub bound_to: String,
-    pub meeting_id: Option<i64>,
-    pub duration_secs: Option<u64>,
+    pub duration_secs: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -89,8 +71,6 @@ pub struct ExtendSessionRequest {
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsRequest {
-    /// `"ask"` | `"always"` | `"never"`.
-    pub default_mode: Option<DefaultMode>,
     pub interval_ms: Option<u64>,
 }
 
@@ -100,13 +80,6 @@ fn unavailable() -> (StatusCode, JsonResponse<Value>) {
         JsonResponse(json!({
             "error": "HD controller unavailable (vision disabled)"
         })),
-    )
-}
-
-fn bad_request(msg: &str) -> (StatusCode, JsonResponse<Value>) {
-    (
-        StatusCode::BAD_REQUEST,
-        JsonResponse(json!({ "error": msg })),
     )
 }
 
@@ -128,27 +101,7 @@ pub async fn start_hd(
     JsonResponse(body): JsonResponse<StartSessionRequest>,
 ) -> Result<JsonResponse<HighFpsState>, (StatusCode, JsonResponse<Value>)> {
     let controller = require_controller(&state)?;
-    let snap = match body.bound_to.as_str() {
-        "meeting" => {
-            let id = body
-                .meeting_id
-                .ok_or_else(|| bad_request("meetingId required when boundTo=meeting"))?;
-            controller.start_meeting_session(id)
-        }
-        "timer" => {
-            let secs = body
-                .duration_secs
-                .ok_or_else(|| bad_request("durationSecs required when boundTo=timer"))?;
-            controller.start_timer_session(Duration::from_secs(secs))
-        }
-        "prewarm_pending" => controller.start_prewarm_pending_session(),
-        other => {
-            return Err(bad_request(&format!(
-                "unknown boundTo value: {:?} (expected \"meeting\" | \"timer\" | \"prewarm_pending\")",
-                other
-            )));
-        }
-    };
+    let snap = controller.start_timer_session(Duration::from_secs(body.duration_secs));
     Ok(JsonResponse(snap.into()))
 }
 
@@ -176,9 +129,6 @@ pub async fn update_hd_settings(
     JsonResponse(body): JsonResponse<SettingsRequest>,
 ) -> Result<JsonResponse<HighFpsState>, (StatusCode, JsonResponse<Value>)> {
     let controller = require_controller(&state)?;
-    if let Some(mode) = body.default_mode {
-        controller.set_default_mode(mode);
-    }
     if let Some(ms) = body.interval_ms {
         controller.set_interval_ms(ms);
     }

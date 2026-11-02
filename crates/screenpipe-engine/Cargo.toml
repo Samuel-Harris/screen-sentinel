@@ -17,7 +17,6 @@ oasgen = { workspace = true }
 
 screenpipe-events = { path = "../screenpipe-events" }
 screenpipe-screen = { path = "../screenpipe-screen" }
-screenpipe-audio = { path = "../screenpipe-audio" }
 screenpipe-core = { path = "../screenpipe-core", features = ["security", "cloud-sync", "secrets"] }
 screenpipe-db = { path = "../screenpipe-db" }
 screenpipe-redact = { path = "../screenpipe-redact", features = ["opf-text"] }
@@ -153,18 +152,10 @@ criterion = { workspace = true }
 # imports `screenpipe_redact::adapters::onnx` for the async PII worker. Without
 # it, `cargo {check,clippy,build} -p screenpipe-engine` (no --features) fails
 # to compile. Mac/Win release builds layer redact-onnx-{coreml,directml} on top.
-default = ["qwen3-asr", "parakeet", "redact-onnx-cpu"]
-metal = ["screenpipe-audio/metal"]
+default = ["redact-onnx-cpu"]
 heap-prof = ["dhat"]
-cuda = ["screenpipe-audio/cuda"]
-directml = ["screenpipe-audio/directml"]
-vulkan = ["screenpipe-audio/vulkan"]
 debug-console = ["console-subscriber"]
-pulseaudio = ["screenpipe-audio/pulseaudio"]
 apple-intelligence = ["dep:screenpipe-apple-intelligence"]
-qwen3-asr = ["screenpipe-audio/qwen3-asr"]
-parakeet = ["screenpipe-audio/parakeet"]
-parakeet-mlx = ["screenpipe-audio/parakeet-mlx"]
 # Image-PII detector via MLX (Apple Silicon-only). Compiled into macOS
 # release builds for experiments, but the CLI runtime keeps ONNX as the
 # default stable path unless SCREENPIPE_ENABLE_EXPERIMENTAL_RFDETR_MLX=1
@@ -180,8 +171,7 @@ redact-onnx-cpu = ["screenpipe-redact/onnx-cpu"]
 redact-onnx-coreml = ["screenpipe-redact/onnx-coreml"]
 # Windows: DirectML EP on top of CPU baseline. Any DX12-capable GPU
 # (NVIDIA, AMD, Intel iGPU). Stock-OS dependency — DirectML.dll ships
-# in Windows 10+ since 2019. Distinct from the existing `directml`
-# feature, which forwards to screenpipe-audio's whisper.cpp.
+# in Windows 10+ since 2019.
 redact-onnx-directml = ["screenpipe-redact/onnx-directml"]
 
 jemalloc = ["tikv-jemallocator"]
@@ -215,7 +205,7 @@ windows = { version = "0.58", features = [
 socket2 = "0.5"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-cidre = { git = "https://github.com/yury/cidre.git", rev = "8481f3f0dc7dd39bb5be80d9424bfac0cad3801a", features = ["ax", "ns", "av", "blocks"] }
+cidre = { git = "https://github.com/yury/cidre.git", rev = "8481f3f0dc7dd39bb5be80d9424bfac0cad3801a", features = ["ax", "ns", "blocks"] }
 tracing-oslog = { workspace = true }
 
 [package.metadata.cargo-machete]

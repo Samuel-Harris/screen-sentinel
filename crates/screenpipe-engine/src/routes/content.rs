@@ -10,8 +10,7 @@ use axum::{
 use oasgen::{oasgen, OaSchema};
 
 use chrono::{DateTime, Utc};
-use screenpipe_audio::core::device::DeviceType;
-use screenpipe_db::{Speaker, TagContentType};
+use screenpipe_db::TagContentType;
 
 use image::ImageFormat;
 use serde::{Deserialize, Serialize};
@@ -33,7 +32,6 @@ use screenpipe_screen::OcrEngine;
 #[serde(tag = "type", content = "content")]
 pub enum ContentItem {
     OCR(OCRContent),
-    Audio(AudioContent),
     /// @deprecated Use Vision for text, Input for events
     UI(UiContent),
     /// User input actions (clicks, keystrokes, clipboard)
@@ -75,36 +73,6 @@ pub struct OCRContent {
     /// historically called OCR but most captures are accessibility-derived
     /// — read this field to know which path produced the text.
     pub text_source: Option<String>,
-}
-
-#[derive(OaSchema, Serialize, Deserialize, Debug, Clone)]
-pub struct AudioContent {
-    pub chunk_id: i64,
-    pub transcription: String,
-    /// Convenience alias for generic clients and agents that read `text` on
-    /// every content row. Same value as `transcription`.
-    pub text: String,
-    pub timestamp: DateTime<Utc>,
-    pub file_path: String,
-    pub offset_index: i64,
-    pub tags: Vec<String>,
-    pub device_name: String,
-    pub device_type: DeviceType,
-    pub speaker: Option<Speaker>,
-    pub speaker_label: Option<String>,
-    pub speaker_source: Option<String>,
-    pub speaker_confidence: Option<f64>,
-    pub speaker_provisional: bool,
-    pub start_time: Option<f64>,
-    pub end_time: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub meeting_id: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub model: Option<String>,
 }
 
 #[derive(OaSchema, Serialize, Deserialize, Debug, Clone)]
@@ -189,7 +157,6 @@ pub(crate) async fn add_tags(
 ) -> Result<Json<AddTagsResponse>, (StatusCode, JsonResponse<Value>)> {
     let content_type = match content_type.as_str() {
         "vision" => TagContentType::Vision,
-        "audio" => TagContentType::Audio,
         _ => {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -218,7 +185,6 @@ pub(crate) async fn remove_tags(
 ) -> Result<Json<RemoveTagsResponse>, (StatusCode, JsonResponse<Value>)> {
     let content_type = match content_type.as_str() {
         "vision" => TagContentType::Vision,
-        "audio" => TagContentType::Audio,
         _ => {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -291,7 +257,6 @@ pub struct AddContentData {
 #[serde(untagged)]
 pub enum ContentData {
     Frames(Vec<FrameContent>),
-    Transcription(AudioTranscription),
 }
 
 #[derive(OaSchema, Deserialize)]
@@ -310,12 +275,6 @@ pub struct OCRResult {
     pub text_json: Option<String>,
     pub ocr_engine: Option<String>,
     pub focused: Option<bool>,
-}
-
-#[derive(OaSchema, Deserialize)]
-pub struct AudioTranscription {
-    pub transcription: String,
-    pub transcription_engine: String,
 }
 
 #[derive(OaSchema, Serialize)]
@@ -393,43 +352,6 @@ pub(crate) async fn write_frames_to_video(
     Ok(())
 }
 
-pub(crate) async fn add_transcription_to_db(
-    state: &AppState,
-    transcription: &AudioTranscription,
-    device_name: &str,
-) -> Result<(), anyhow::Error> {
-    use screenpipe_core::pii_removal::remove_pii;
-
-    let db = &state.db;
-
-    // Apply PII removal if enabled
-    let sanitized_transcription = if state.use_pii_removal {
-        remove_pii(&transcription.transcription)
-    } else {
-        transcription.transcription.clone()
-    };
-
-    let dummy_audio_chunk_id = db.insert_audio_chunk("", None).await?;
-
-    db.insert_audio_transcription(
-        dummy_audio_chunk_id, // No associated audio chunk
-        &sanitized_transcription,
-        -1,
-        &transcription.transcription_engine,
-        &screenpipe_db::AudioDevice {
-            name: device_name.to_string(),
-            device_type: DeviceType::Input.into(),
-        },
-        None,
-        None,
-        None,
-        None,
-    )
-    .await?;
-
-    Ok(())
-}
-
 #[oasgen]
 pub(crate) async fn add_to_database(
     State(state): State<Arc<AppState>>,
@@ -440,76 +362,57 @@ pub(crate) async fn add_to_database(
 
     match payload.content.content_type.as_str() {
         "frames" => {
-            if let ContentData::Frames(frames) = &payload.content.data {
-                if !frames.is_empty() {
-                    let output_dir = state.screenpipe_dir.join("data");
-                    let time = Utc::now();
-                    let formatted_time = time.format("%Y-%m-%d_%H-%M-%S").to_string();
-                    let video_file_path = output_dir
-                        .join(format!("{}_{}.mp4", device_name, formatted_time))
-                        .to_str()
-                        .expect("Failed to create valid path")
-                        .to_string();
+            let ContentData::Frames(frames) = &payload.content.data;
+            if !frames.is_empty() {
+                let output_dir = state.screenpipe_dir.join("data");
+                let time = Utc::now();
+                let formatted_time = time.format("%Y-%m-%d_%H-%M-%S").to_string();
+                let video_file_path = output_dir
+                    .join(format!("{}_{}.mp4", device_name, formatted_time))
+                    .to_str()
+                    .expect("Failed to create valid path")
+                    .to_string();
 
-                    if let Err(e) = state
-                        .db
-                        .insert_video_chunk(&video_file_path, &device_name)
-                        .await
-                    {
-                        error!(
-                            "Failed to insert video chunk for device {}: {}",
-                            device_name, e
-                        );
-                        return Err((
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            JsonResponse(
-                                json!({"error": format!("Failed to insert video chunk: {}", e)}),
-                            ),
-                        ));
-                    }
-
-                    if let Err(e) = write_frames_to_video(frames, &video_file_path, MAX_FPS).await {
-                        error!(
-                            "Failed to write frames to video file {}: {}",
-                            video_file_path, e
-                        );
-                        return Err((
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            JsonResponse(
-                                json!({"error": format!("Failed to write frames to video: {}", e)}),
-                            ),
-                        ));
-                    }
-
-                    for frame in frames {
-                        if let Err(e) = add_frame_to_db(&state, frame, &device_name).await {
-                            error!(
-                                "Failed to add frame content for device {}: {}",
-                                device_name, e
-                            );
-                        }
-                    }
-
-                    success_messages.push("Frames added successfully".to_string());
-                }
-            }
-        }
-        "transcription" => {
-            if let ContentData::Transcription(transcription) = &payload.content.data {
-                if let Err(e) = add_transcription_to_db(&state, transcription, &device_name).await {
+                if let Err(e) = state
+                    .db
+                    .insert_video_chunk(&video_file_path, &device_name)
+                    .await
+                {
                     error!(
-                        "Failed to add transcription for device {}: {}",
+                        "Failed to insert video chunk for device {}: {}",
                         device_name, e
                     );
                     return Err((
                         StatusCode::INTERNAL_SERVER_ERROR,
                         JsonResponse(
-                            json!({"error": format!("Failed to add transcription: {}", e)}),
+                            json!({"error": format!("Failed to insert video chunk: {}", e)}),
                         ),
                     ));
                 }
 
-                success_messages.push("Transcription added successfully".to_string());
+                if let Err(e) = write_frames_to_video(frames, &video_file_path, MAX_FPS).await {
+                    error!(
+                        "Failed to write frames to video file {}: {}",
+                        video_file_path, e
+                    );
+                    return Err((
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        JsonResponse(
+                            json!({"error": format!("Failed to write frames to video: {}", e)}),
+                        ),
+                    ));
+                }
+
+                for frame in frames {
+                    if let Err(e) = add_frame_to_db(&state, frame, &device_name).await {
+                        error!(
+                            "Failed to add frame content for device {}: {}",
+                            device_name, e
+                        );
+                    }
+                }
+
+                success_messages.push("Frames added successfully".to_string());
             }
         }
         _ => {
