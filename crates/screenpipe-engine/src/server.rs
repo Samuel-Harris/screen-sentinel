@@ -8,7 +8,6 @@ use oasgen::Server;
 use chrono::{DateTime, Utc};
 use screenpipe_db::DatabaseManager;
 
-use screenpipe_core::sync::SyncServiceHandle;
 use tracing::{debug, error, info};
 
 use crate::{
@@ -21,8 +20,7 @@ use crate::{
             remove_tags, validate_media_handler,
         },
         data::{
-            backup_handler, checkpoint_handler, delete_device_data_handler,
-            delete_time_range_handler, device_storage_handler, evict_media_handler,
+            backup_handler, checkpoint_handler, delete_time_range_handler, evict_media_handler,
             storage_preview_handler,
         },
         elements::{get_frame_elements, search_elements},
@@ -41,7 +39,6 @@ use crate::{
         streaming::stream_frames_handler,
         websocket::{ws_events_handler, ws_health_handler, ws_metrics_handler},
     },
-    sync_api::{self, SyncState},
     video_cache::FrameCache,
 };
 use dashmap::DashMap;
@@ -116,12 +113,6 @@ pub struct AppState {
     pub pipe_query_semaphore: Arc<tokio::sync::Semaphore>,
     /// Enable PII removal from text content
     pub use_pii_removal: bool,
-    /// Cloud search client for hybrid local + cloud queries
-    pub cloud_search: Arc<crate::cloud_search::CloudSearchClient>,
-    /// Cloud sync service handle (if enabled via CLI)
-    pub sync_handle: Option<Arc<SyncServiceHandle>>,
-    /// Runtime sync state (initialized via /sync/init endpoint)
-    pub sync_state: SyncState,
     /// Video quality preset for frame extraction (JPEG quality).
     pub video_quality: String,
     /// Pipe manager for scheduled agent execution
@@ -137,8 +128,6 @@ pub struct AppState {
     /// Hot frame cache — in-memory cache for today's frames.
     /// Timeline WS reads from here instead of polling the DB.
     pub hot_frame_cache: Arc<HotFrameCache>,
-    /// Cloud archive state (initialized via /archive/init endpoint)
-    pub archive_state: crate::archive::ArchiveState,
     /// Local data retention state (auto-delete old data)
     pub retention_state: crate::retention::RetentionState,
     /// Vault lock manager — encrypts data at rest when locked
@@ -173,7 +162,6 @@ pub struct SCServer {
     screenpipe_dir: PathBuf,
     vision_disabled: bool,
     use_pii_removal: bool,
-    sync_handle: Option<Arc<SyncServiceHandle>>,
     video_quality: String,
     pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
@@ -238,7 +226,6 @@ impl SCServer {
             screenpipe_dir,
             vision_disabled,
             use_pii_removal,
-            sync_handle: None,
             video_quality,
             pipe_manager: None,
             vision_metrics: Arc::new(screenpipe_screen::PipelineMetrics::new()),
@@ -270,18 +257,6 @@ impl SCServer {
     /// Set the pipe manager
     pub fn with_pipe_manager(mut self, pm: crate::pipes_api::SharedPipeManager) -> Self {
         self.pipe_manager = Some(pm);
-        self
-    }
-
-    /// Set the sync service handle
-    pub fn with_sync_handle(mut self, handle: SyncServiceHandle) -> Self {
-        self.sync_handle = Some(Arc::new(handle));
-        self
-    }
-
-    /// Set the sync service handle from an Arc
-    pub fn with_sync_handle_arc(mut self, handle: Arc<SyncServiceHandle>) -> Self {
-        self.sync_handle = Some(handle);
         self
     }
 
@@ -379,12 +354,6 @@ impl SCServer {
                 .time_to_live(Duration::from_secs(60))
                 .build(),
             use_pii_removal: self.use_pii_removal,
-            // Cloud search client (disabled by default, can be enabled via API)
-            cloud_search: Arc::new(crate::cloud_search::CloudSearchClient::new()),
-            // Cloud sync service handle (from CLI)
-            sync_handle: self.sync_handle.clone(),
-            // Runtime sync state (initialized via /sync/init)
-            sync_state: sync_api::new_sync_state(),
             video_quality: self.video_quality.clone(),
             pipe_manager: self.pipe_manager.clone(),
             vision_metrics: self.vision_metrics.clone(),
@@ -396,7 +365,6 @@ impl SCServer {
             // Pipes get 503 when all permits are taken; recording writes are unaffected.
             pipe_query_semaphore: Arc::new(tokio::sync::Semaphore::new(3)),
             hot_frame_cache,
-            archive_state: crate::archive::ArchiveState::new(),
             retention_state: crate::retention::RetentionState::new(),
             pipe_permissions: self.pipe_permissions.clone(),
             vault: screenpipe_vault::VaultManager::new(self.screenpipe_dir.clone()),
@@ -484,23 +452,6 @@ impl SCServer {
             .post("/vault/lock", crate::routes::vault::vault_lock)
             .post("/vault/unlock", crate::routes::vault::vault_unlock)
             .post("/vault/setup", crate::routes::vault::vault_setup)
-            // Cloud Sync API routes
-            .post("/sync/init", sync_api::sync_init)
-            .get("/sync/status", sync_api::sync_status)
-            .post("/sync/trigger", sync_api::sync_trigger)
-            .post("/sync/lock", sync_api::sync_lock)
-            .post("/sync/download", sync_api::sync_download)
-            .post("/sync/pipes/push", sync_api::sync_pipes_push)
-            .post("/sync/pipes/pull", sync_api::sync_pipes_pull)
-            .post("/sync/connections/push", sync_api::sync_connections_push)
-            .post("/sync/connections/pull", sync_api::sync_connections_pull)
-            .post("/sync/memories/push", sync_api::sync_memories_push)
-            .post("/sync/memories/pull", sync_api::sync_memories_pull)
-            // Cloud Archive API routes
-            .post("/archive/init", crate::archive::archive_init)
-            .post("/archive/configure", crate::archive::archive_configure)
-            .get("/archive/status", crate::archive::archive_status)
-            .post("/archive/run", crate::archive::archive_run)
             // Local data retention (auto-delete old data)
             .post(
                 "/retention/configure",
@@ -512,8 +463,6 @@ impl SCServer {
             .post("/data/delete-range", delete_time_range_handler)
             .post("/data/evict-media", evict_media_handler)
             .get("/data/storage-preview", storage_preview_handler)
-            .post("/data/delete-device", delete_device_data_handler)
-            .get("/data/device-storage", device_storage_handler)
             // Database backup & checkpoint
             .post("/data/checkpoint", checkpoint_handler)
             .get("/data/backup", backup_handler)
