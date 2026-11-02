@@ -50,6 +50,78 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn fresh_db_memories_have_no_sync_columns_and_crud_works() {
+        let db = setup_test_db().await;
+        let sync_columns: Vec<(String,)> = sqlx::query_as(
+            "SELECT name FROM pragma_table_info('memories') WHERE name LIKE 'sync%'",
+        )
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+        assert!(sync_columns.is_empty(), "left behind: {sync_columns:?}");
+        let sync_indexes: Vec<(String,)> = sqlx::query_as(
+            "SELECT name FROM sqlite_master WHERE tbl_name = 'memories' AND name LIKE '%sync%'",
+        )
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+        assert!(sync_indexes.is_empty(), "left behind: {sync_indexes:?}");
+
+        let id = db
+            .insert_memory(
+                "prefers dark mode",
+                "agent",
+                Some(r#"{"pipe":"x"}"#),
+                Some(r#"["ui"]"#),
+                0.7,
+                None,
+            )
+            .await
+            .unwrap();
+        let created = db.get_memory_by_id(id).await.unwrap();
+        assert_eq!(created.content, "prefers dark mode");
+        assert_eq!(created.source_context.as_deref(), Some(r#"{"pipe":"x"}"#));
+
+        db.update_memory(
+            id,
+            Some("prefers light mode"),
+            Some(r#"["ui","theme"]"#),
+            None,
+            None,
+        )
+        .await
+        .unwrap();
+        let updated = db.get_memory_by_id(id).await.unwrap();
+        assert_eq!(updated.content, "prefers light mode");
+        assert_eq!(updated.tags.as_deref(), Some(r#"["ui","theme"]"#));
+
+        let tagged = db
+            .list_memories(
+                Some("light"),
+                None,
+                None,
+                None,
+                None,
+                None,
+                10,
+                0,
+                None,
+                None,
+                &["theme".to_string()],
+            )
+            .await
+            .unwrap();
+        assert_eq!(tagged.iter().map(|m| m.id).collect::<Vec<_>>(), vec![id]);
+        assert_eq!(
+            db.list_memory_tags().await.unwrap(),
+            vec!["theme".to_string(), "ui".to_string()]
+        );
+
+        db.delete_memory(id).await.unwrap();
+        assert!(db.get_memory_by_id(id).await.is_err());
+    }
+
+    #[tokio::test]
     async fn test_insert_and_search_ocr() {
         let db = setup_test_db().await;
         let _ = db

@@ -32,8 +32,7 @@ use crate::{
         health::{api_list_monitors, api_vision_status, health_check, vision_metrics_handler},
         memories::{
             create_memory_handler, delete_memory_handler, get_memory_handler,
-            list_memories_handler, list_memory_tags_handler, sync_external_memories_handler,
-            update_memory_handler,
+            list_memories_handler, list_memory_tags_handler, update_memory_handler,
         },
         search::{keyword_search_handler, search},
         streaming::stream_frames_handler,
@@ -188,11 +187,6 @@ pub struct SCServer {
     /// observability endpoints can call `.snapshot()` to inspect metrics.
     pub oauth_refresher:
         Option<Arc<screenpipe_connect::oauth_refresh_scheduler::OAuthRefreshScheduler>>,
-    /// Background scheduler that mirrors `memories` out to Claude Code's
-    /// CLAUDE.md and Codex's AGENTS.md every few minutes. Owned for the
-    /// same reasons as `oauth_refresher` — keeps the JoinHandle alive
-    /// and exposes `.snapshot()` for health reporting later.
-    pub external_memory_sync: Option<Arc<crate::external_memory_sync::ExternalMemorySyncScheduler>>,
     /// Shared high-FPS controller. Set before `start()` so AppState and
     /// the per-monitor capture loops point at the same instance.
     pub high_fps_controller: Option<Arc<crate::high_fps_controller::HighFpsController>>,
@@ -237,7 +231,6 @@ impl SCServer {
             api_auth_key: None,
             secret_store: None,
             oauth_refresher: None,
-            external_memory_sync: None,
             high_fps_controller: None,
             timeline_disabled: false,
             advertise_mdns: should_advertise_mdns(addr),
@@ -437,7 +430,6 @@ impl SCServer {
             .post("/memories", create_memory_handler)
             .get("/memories", list_memories_handler)
             .get("/memories/tags", list_memory_tags_handler)
-            .post("/memories/sync-external", sync_external_memories_handler)
             .get("/memories/:id", get_memory_handler)
             .put("/memories/:id", update_memory_handler)
             .delete("/memories/:id", delete_memory_handler)
