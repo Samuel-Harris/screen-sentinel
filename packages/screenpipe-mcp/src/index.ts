@@ -193,49 +193,6 @@ function discoverApiKey(): string {
 
 const API_KEY = discoverApiKey();
 
-// Enterprise team token — when present, this MCP additionally registers
-// `team-*` tools that query the org-wide telemetry control plane
-// (https://screenpi.pe/api/enterprise/v1/*) instead of just the local
-// recordings. Same audience: an enterprise admin running screenpipe-mcp
-// inside Claude Desktop / Cursor / Windsurf wants to ask "what did MY
-// machine do" AND "what did MY TEAM do" without juggling two MCPs.
-//
-// Resolution order matches discoverApiKey() in spirit:
-//   1. SCREENPIPE_ENTERPRISE_TOKEN env var (Claude config, terminal)
-//   2. team_api_token field in ~/.screenpipe/enterprise.json (written by
-//      the desktop app's Settings → Privacy → Admin Team API Token)
-//
-// Token format is `sk_ent_…`. Empty / missing → team tools are not
-// registered; non-admin users of screenpipe-mcp see exactly what they
-// see today.
-function discoverTeamToken(): string {
-  const envTok = process.env.SCREENPIPE_ENTERPRISE_TOKEN;
-  if (envTok && envTok.startsWith("sk_ent_")) return envTok;
-  try {
-    const entPath = path.join(os.homedir(), ".screenpipe", "enterprise.json");
-    if (fs.existsSync(entPath)) {
-      const raw = fs.readFileSync(entPath, "utf-8");
-      const parsed = JSON.parse(raw);
-      const tok = typeof parsed?.team_api_token === "string" ? parsed.team_api_token : "";
-      if (tok && tok.startsWith("sk_ent_")) return tok;
-    }
-  } catch {}
-  return "";
-}
-
-const TEAM_TOKEN = discoverTeamToken();
-const TEAM_API = "https://screenpi.pe/api/enterprise/v1";
-
-async function fetchTeam(p: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(`${TEAM_API}${p}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${TEAM_TOKEN}`,
-      ...(init.headers || {}),
-    },
-  });
-}
-
 // Read version from package.json (single source of truth)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const PKG_VERSION: string = require("../package.json").version;
@@ -261,9 +218,9 @@ const TOOLS: Tool[] = [
   {
     name: "search-content",
     description:
-      "Search screen text, audio transcriptions, input events, and memories. Returns timestamped results with app context. " +
-      "USE WHEN: you need the actual text/content of a moment — quotes, OCR snippets, transcript lines — or want to filter by speaker/window. " +
-      "DO NOT USE for: broad questions like 'what was I doing?' (use activity-summary, it pre-summarizes apps + windows + transcripts). " +
+      "Search screen text, input events, and memories. Returns timestamped results with app context. " +
+      "USE WHEN: you need the actual text/content of a moment — quotes or OCR snippets — or want to filter by app/window. " +
+      "DO NOT USE for: broad questions like 'what was I doing?' (use activity-summary, it pre-summarizes apps + windows). " +
       "Also DO NOT USE for: targeted UI controls (use search-elements). " +
       "Start with limit=5, increase only if needed. Per-result text is auto-truncated to 1000 chars; pass max_content_length=0 to opt out, or a custom integer to override.",
     annotations: { title: "Search Content", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
@@ -272,13 +229,13 @@ const TOOLS: Tool[] = [
       properties: {
         q: {
           type: "string",
-          description: "Full-text search query. Omit to return all content in time range. Avoid for audio — transcriptions are noisy, q filters too aggressively.",
+          description: "Full-text search query. Omit to return all content in time range.",
         },
         content_type: {
           type: "string",
-          enum: ["all", "ocr", "audio", "input", "accessibility", "memory"],
+          enum: ["all", "ocr", "input", "accessibility", "memory"],
           description:
-            "Filter by content type. NOTE on screen text: 'ocr' is a legacy label — it returns ALL screen-text rows, which are accessibility-derived for most apps (the result tag [Screen·a11y] vs [Screen·ocr] tells you which). Use 'ocr' for screen text (covers both paths), 'audio' for transcriptions, 'input' for keyboard/mouse events, 'memory' for stored facts. Default: 'all'.",
+            "Filter by content type. NOTE on screen text: 'ocr' is a legacy label — it returns ALL screen-text rows, which are accessibility-derived for most apps (the result tag [Screen·a11y] vs [Screen·ocr] tells you which). Use 'ocr' for screen text (covers both paths), 'input' for keyboard/mouse events, 'memory' for stored facts. Default: 'all'.",
           default: "all",
         },
         limit: { type: "integer", description: "Max results (default 10, max 20). Start with 5 for exploration.", default: 10 },
@@ -291,7 +248,7 @@ const TOOLS: Tool[] = [
           type: "string",
           description: "ISO 8601 UTC or relative (e.g. 'now'). Defaults to now.",
         },
-        app_name: { type: "string", description: "Filter by app name (e.g. 'Google Chrome', 'Slack', 'zoom.us'). Case-sensitive." },
+        app_name: { type: "string", description: "Filter by app name (e.g. 'Google Chrome', 'Slack', 'Safari'). Case-sensitive." },
         window_name: { type: "string", description: "Filter by window title substring" },
         min_length: { type: "integer", description: "Min content length in characters" },
         max_length: { type: "integer", description: "Max content length in characters" },
@@ -300,12 +257,10 @@ const TOOLS: Tool[] = [
           description: "Include base64 screenshots (OCR only). Warning: large response.",
           default: false,
         },
-        speaker_ids: { type: "string", description: "Comma-separated speaker IDs to filter audio" },
-        speaker_name: { type: "string", description: "Filter audio by speaker name (case-insensitive partial match)" },
         tags: {
           type: "string",
           description:
-            "Comma-separated tags; returns only items carrying ALL of them (e.g. 'person:ada,project:atlas'). Works for screen + audio (content_type 'ocr'/'audio'/'all', tags written by add-tags) AND memories (content_type 'memory', tags written by update-memory). Same tag string links across all three, so two items sharing a tag are connected. Use namespaced tags (person:, project:, topic:) to link people/projects/topics. content_type 'input' and 'accessibility' have no tags and return nothing when this is set.",
+            "Comma-separated tags; returns only items carrying ALL of them (e.g. 'person:ada,project:atlas'). Works for screen frames (content_type 'ocr'/'all', tags written by add-tags) AND memories (content_type 'memory', tags written by update-memory). Same tag string links across both, so two items sharing a tag are connected. Use namespaced tags (person:, project:, topic:) to link people/projects/topics. content_type 'input' and 'accessibility' have no tags and return nothing when this is set.",
         },
         max_content_length: {
           type: "integer",
@@ -315,27 +270,9 @@ const TOOLS: Tool[] = [
     },
   },
   {
-    name: "list-meetings",
-    description:
-      "List detected meetings (Zoom, Teams, Meet, etc.) with duration, app, and attendees. " +
-      "Only available when screenpipe runs in smart transcription mode. " +
-      "Pass `q` to filter by substring match against title, attendees, and notes (e.g. an email or name).",
-    annotations: { title: "List Meetings", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        start_time: { type: "string", description: "ISO 8601 UTC or relative (e.g. '1d ago')" },
-        end_time: { type: "string", description: "ISO 8601 UTC or relative" },
-        q: { type: "string", description: "Case-insensitive substring filter on title, attendees, and note" },
-        limit: { type: "integer", description: "Max results (default 20)", default: 20 },
-        offset: { type: "integer", description: "Pagination offset", default: 0 },
-      },
-    },
-  },
-  {
     name: "activity-summary",
     description:
-      "Rich activity overview: app usage, window/tab titles with URLs and time spent, key text per context, audio transcriptions. " +
+      "Rich activity overview: app usage, window/tab titles with URLs and time spent, key text per context. " +
       "USE WHEN: any broad question about what the user did — 'what was I doing?', 'how long on X?', 'which apps?', 'recap my morning'. " +
       "This is almost always the right first call for time-range questions — usually sufficient without follow-up searches. " +
       "DO NOT USE for: finding a specific keyword (use keyword-search) or a specific UI control (use search-elements).",
@@ -393,7 +330,7 @@ const TOOLS: Tool[] = [
   {
     name: "export-video",
     description:
-      "Export an MP4 of screen recordings for a time range, with synced microphone audio. " +
+      "Export an MP4 of screen recordings for a time range, as a real-time video. " +
       "Frames are placed at their real timestamps, so the clip's duration matches the " +
       "wall-clock span you requested (not a sped-up timelapse). Returns the file path. " +
       "Can take a few minutes for long ranges.",
@@ -425,7 +362,7 @@ const TOOLS: Tool[] = [
       properties: {
         id: { type: "integer", description: "Memory ID — omit to create new, provide to update/delete" },
         content: { type: "string", description: "Memory text (required for creation)" },
-        tags: { type: "array", items: { type: "string" }, description: "Tags. Prefer namespaced (person:ada, project:atlas, topic:pricing) so this memory links to the same people/projects you tag on frames/audio. Retrieve with search-content content_type='memory' tags='person:ada'." },
+        tags: { type: "array", items: { type: "string" }, description: "Tags. Prefer namespaced (person:ada, project:atlas, topic:pricing) so this memory links to the same people/projects you tag on frames. Retrieve with search-content content_type='memory' tags='person:ada'." },
         importance: { type: "number", description: "0.0 (trivial) to 1.0 (critical). Default 0.5." },
         source_context: { type: "object", description: "Optional metadata linking to source (app, timestamp, etc.)" },
         delete: { type: "boolean", description: "Set true to delete the memory identified by id" },
@@ -433,50 +370,10 @@ const TOOLS: Tool[] = [
     },
   },
   {
-    name: "send-notification",
-    description:
-      "Send a notification to the screenpipe desktop UI. " +
-      "Use to alert the user about findings, completed tasks, or actions needing attention.",
-    annotations: { title: "Send Notification", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    inputSchema: {
-      type: "object",
-      properties: {
-        title: { type: "string", description: "Notification title (short, descriptive)" },
-        body: { type: "string", description: "Notification body (markdown supported)" },
-        pipe_name: { type: "string", description: "Name of the pipe/tool sending this notification" },
-        timeout_secs: { type: "integer", description: "Auto-dismiss after N seconds (default 20). Use 0 for persistent.", default: 20 },
-        actions: {
-          type: "array",
-          description: "Up to 5 action buttons. Each needs id, label, type ('pipe'|'api'|'deeplink'|'dismiss').",
-          items: {
-            type: "object",
-            properties: {
-              id: { type: "string", description: "Unique action ID" },
-              label: { type: "string", description: "Button label" },
-              type: { type: "string", enum: ["pipe", "api", "deeplink", "dismiss"], description: "Action type" },
-              pipe: { type: "string", description: "Pipe name to run (type=pipe)" },
-              context: { type: "object", description: "Context passed to pipe (type=pipe)" },
-              open_in_chat: { type: "boolean", description: "Open pipe run in chat UI instead of background (type=pipe)" },
-              url: { type: "string", description: "URL for api/deeplink actions" },
-            },
-            required: ["id", "label", "type"],
-          },
-        },
-      },
-      required: ["title", "pipe_name"],
-    },
-  },
-  {
     name: "health-check",
     description:
-      "Check if screenpipe is running and healthy. Returns recording status, frame/audio stats, timestamps.",
+      "Check if screenpipe is running and healthy. Returns recording status, frame stats, timestamps.",
     annotations: { title: "Health Check", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "list-audio-devices",
-    description: "List available audio input/output devices for recording.",
-    annotations: { title: "List Audio Devices", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -488,135 +385,27 @@ const TOOLS: Tool[] = [
   {
     name: "add-tags",
     description:
-      "Tag a screen frame (vision) or audio chunk (audio) so it can be retrieved later. " +
+      "Tag a screen frame so it can be retrieved later. " +
       "Tags are a shared linking layer: use namespaced tags (person:ada, project:atlas, topic:pricing) to connect a capture to a person, project, or topic. " +
       "The SAME tag string also works on memories (via update-memory), so tagging a frame and a memory with person:ada links them. " +
       "Retrieve later with search-content tags='person:ada' (add content_type+start_time/end_time to scope to a timeframe). " +
-      "Note: frames are pruned by retention, so for durable links prefer tagging a memory; tag frames/audio for shorter-term recall.",
+      "Note: frames are pruned by retention, so for durable links prefer tagging a memory; tag frames for shorter-term recall.",
     annotations: { title: "Add Tags", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     inputSchema: {
       type: "object",
       properties: {
-        content_type: { type: "string", enum: ["vision", "audio"], description: "vision = screen frame, audio = audio chunk. Get the id from search-content results (frame_id / chunk_id)." },
-        id: { type: "integer", description: "Content item ID (OCR result frame_id, or audio result chunk_id)" },
+        id: { type: "integer", description: "Frame ID from search-content results (frame_id)." },
         tags: { type: "array", items: { type: "string" }, description: "Tags to add. Prefer namespaced: person:<name>, project:<name>, topic:<name>." },
       },
-      required: ["content_type", "id", "tags"],
-    },
-  },
-  {
-    name: "search-speakers",
-    description: "Search for speakers by name prefix. Returns speaker ID, name, and metadata.",
-    annotations: { title: "Search Speakers", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Speaker name prefix to search for (case-insensitive)" },
-      },
-    },
-  },
-  {
-    name: "list-unnamed-speakers",
-    description: "List speakers that haven't been named yet. Useful for speaker identification workflow.",
-    annotations: { title: "List Unnamed Speakers", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        limit: { type: "integer", description: "Max results (default 10)", default: 10 },
-        offset: { type: "integer", description: "Pagination offset", default: 0 },
-      },
-    },
-  },
-  {
-    name: "update-speaker",
-    description: "Rename a speaker or update their metadata.",
-    annotations: { title: "Update Speaker", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: { type: "integer", description: "Speaker ID" },
-        name: { type: "string", description: "New speaker name" },
-        metadata: { type: "string", description: "JSON metadata string" },
-      },
-      required: ["id"],
-    },
-  },
-  {
-    name: "merge-speakers",
-    description: "Merge two speakers into one (e.g. when the same person was detected as different speakers).",
-    annotations: { title: "Merge Speakers", readOnlyHint: false, destructiveHint: true, openWorldHint: false },
-    inputSchema: {
-      type: "object",
-      properties: {
-        speaker_to_keep_id: { type: "integer", description: "Speaker ID to keep" },
-        speaker_to_merge_id: { type: "integer", description: "Speaker ID to merge into the kept one" },
-      },
-      required: ["speaker_to_keep_id", "speaker_to_merge_id"],
-    },
-  },
-  {
-    name: "start-meeting",
-    description: "Manually start a meeting recording session.",
-    annotations: { title: "Start Meeting", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    inputSchema: {
-      type: "object",
-      properties: {
-        app: { type: "string", description: "App name (default 'manual')", default: "manual" },
-        title: { type: "string", description: "Meeting title" },
-        attendees: { type: "string", description: "Comma-separated attendee names" },
-      },
-    },
-  },
-  {
-    name: "stop-meeting",
-    description: "Stop the current manual meeting recording session.",
-    annotations: { title: "Stop Meeting", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "get-meeting",
-    description: "Get details of a specific meeting by ID, including transcription and attendees.",
-    annotations: { title: "Get Meeting", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: { type: "integer", description: "Meeting ID" },
-      },
-      required: ["id"],
-    },
-  },
-  {
-    name: "update-meeting",
-    description:
-      "Update a meeting's mutable fields (title, attendees, note, app, start/end). Partial: only the fields you pass are written, " +
-      "others stay as-is. Use this to save an AI-generated summary into the meeting note — read the current note first via get-meeting " +
-      "and pass the existing notes plus your additions so you don't overwrite the user's writing. " +
-      "Convention: append AI-generated summary text under a `## Summary` heading at the bottom of the existing note.",
-    annotations: { title: "Update Meeting", readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: { type: "integer", description: "Meeting ID" },
-        title: { type: "string", description: "Meeting title" },
-        attendees: { type: "string", description: "Comma-separated attendee names" },
-        note: {
-          type: "string",
-          description:
-            "Full new note body. To preserve existing notes, fetch them first via get-meeting and concatenate before passing.",
-        },
-        meeting_app: { type: "string", description: "App / source name (e.g. 'meet.google.com', 'manual')" },
-        meeting_start: { type: "string", description: "ISO 8601 start time (rarely needed)" },
-        meeting_end: { type: "string", description: "ISO 8601 end time (rarely needed)" },
-      },
-      required: ["id"],
+      required: ["id", "tags"],
     },
   },
   {
     name: "keyword-search",
     description:
-      "Fast FTS5 keyword search across OCR + audio combined. Returns matches with frame_id, app, timestamp, and text positions. " +
+      "Fast FTS5 keyword search across screen text. Returns matches with frame_id, app, timestamp, and text positions. " +
       "USE WHEN: you have a specific keyword/phrase and want the fastest hit-list (e.g. 'find every screen where I typed \"stripe\"'). " +
-      "DO NOT USE for: structured filters by content_type / speaker / window — this endpoint ignores those (use search-content instead). " +
+      "DO NOT USE for: structured filters by content_type / window — this endpoint ignores those (use search-content instead). " +
       "DO NOT USE for: broad questions like 'what was I doing' (use activity-summary).",
     annotations: { title: "Keyword Search", readOnlyHint: true, openWorldHint: false, idempotentHint: true },
     inputSchema: {
@@ -646,114 +435,10 @@ const TOOLS: Tool[] = [
       required: ["frame_id"],
     },
   },
-  {
-    name: "control-recording",
-    description:
-      "Start or stop audio/screen recording. Use to pause/resume capture.",
-    annotations: { title: "Control Recording", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    inputSchema: {
-      type: "object",
-      properties: {
-        action: { type: "string", enum: ["start-audio", "stop-audio"], description: "Recording action" },
-      },
-      required: ["action"],
-    },
-  },
 ];
-
-// ---------------------------------------------------------------------------
-// Enterprise team tools — registered only when a team API token is present.
-// Same endpoint surface as the desktop `screenpipe-team` pi-agent skill:
-// proxy GETs to https://screenpi.pe/api/enterprise/v1/* with Bearer auth.
-//
-// Naming convention: every team tool is `team-*` so it's obvious at a glance
-// which scope (just-me vs the-whole-org) any given call is hitting.
-// ---------------------------------------------------------------------------
-const TEAM_TOOLS: Tool[] = [
-  {
-    name: "team-search",
-    description:
-      "Substring-search across the ENTIRE ORG's telemetry (every enrolled " +
-      "device). Use when the question is about the team or another teammate " +
-      "(\"what did engineering work on yesterday\", \"did alice touch the auth code\"). " +
-      "For your own machine only, use search-content. " +
-      "Auth: enterprise admin token (sk_ent_…). " +
-      "Defaults: since=now-24h, limit=50. Returns matched records with device + timestamp.",
-    annotations: { title: "Team Search", readOnlyHint: true, openWorldHint: true, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        q: { type: "string", description: "Substring to match (case-insensitive). Empty = all records in window." },
-        device_id: { type: "string", description: "Restrict to one device. Get the ID from team-devices." },
-        app_name: { type: "string", description: "Restrict to records whose app_name equals this (case-insensitive)." },
-        since: { type: "string", description: "ISO 8601 lower bound. Default = now - 24h." },
-        until: { type: "string", description: "ISO 8601 upper bound. Default = now." },
-        since_hours_ago: { type: "integer", description: "Convenience: equivalent to since=now-N*h." },
-        limit: { type: "integer", description: "Max records (default 50, max 200).", default: 50 },
-      },
-    },
-  },
-  {
-    name: "team-devices",
-    description:
-      "List all devices enrolled under this org's license — hostname, OS, " +
-      "app version, last-seen timestamp. Use to discover device IDs to pass " +
-      "to team-search or team-records, or to spot stale machines.",
-    annotations: { title: "Team Devices", readOnlyHint: true, openWorldHint: true, idempotentHint: true },
-    inputSchema: { type: "object", properties: {} },
-  },
-  {
-    name: "team-records",
-    description:
-      "Chronological dump of the org's data for a time window — both raw " +
-      "telemetry (frame/audio) and the structured outputs of the enterprise-" +
-      "worker pipes (sop/skill/trajectory/memory/workflow). " +
-      "Raw kinds return oldest → newest (vs team-search which is recency-ranked). " +
-      "Synthesized kinds return one record per device's latest run by default " +
-      "(set latest_only=false to walk run history). " +
-      "Use raw for ETL / \"walk me through X from Y to Z\". " +
-      "Use synthesized for \"what SOPs / skills / trajectories / memories did " +
-      "we extract from my team's work\" — each item carries evidence-cited " +
-      "event_ids/frame_ids that team-search can resolve back to raw records. " +
-      "Auth: enterprise admin token.",
-    annotations: { title: "Team Records", readOnlyHint: true, openWorldHint: true, idempotentHint: true },
-    inputSchema: {
-      type: "object",
-      properties: {
-        device_id: { type: "string", description: "Restrict to one device (optional). Raw kinds only." },
-        kind: {
-          type: "string",
-          enum: ["frame", "audio", "all", "sop", "skill", "trajectory", "memory", "workflow"],
-          description:
-            "What to return. Raw: frame|audio|all (telemetry). " +
-            "Synthesized: sop|skill|trajectory|memory|workflow (pipe outputs). " +
-            "Default: all.",
-          default: "all",
-        },
-        since: { type: "string", description: "ISO 8601 lower bound. Raw kinds only." },
-        until: { type: "string", description: "ISO 8601 upper bound. Raw kinds only." },
-        since_hours_ago: { type: "integer", description: "Convenience: equivalent to since=now-N*h. Raw kinds only." },
-        limit: { type: "integer", description: "Max records (default 50, max 200). Raw kinds only.", default: 50 },
-        latest_only: {
-          type: "boolean",
-          description:
-            "Synthesized kinds only: if true (default), collapse to the newest " +
-            "run per device. Set false to walk run history.",
-          default: true,
-        },
-      },
-    },
-  },
-];
-
-// Pipe-output kinds map to /workflows/generated, raw kinds map to /records.
-const SYNTHESIZED_KINDS = new Set(["sop", "skill", "trajectory", "memory", "workflow"]);
 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  // Team tools only surface when an enterprise token was discovered at boot.
-  // No token = consumer / non-admin user; their MCP looks identical to today.
-  const tools = TEAM_TOKEN ? [...TOOLS, ...TEAM_TOOLS] : TOOLS;
-  return { tools };
+  return { tools: TOOLS };
 });
 
 // ---------------------------------------------------------------------------
@@ -829,7 +514,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 | Step | Tool | When to use |
 |------|------|-------------|
 | 1 | activity-summary | Broad questions: "what was I doing?", "which apps?", "how long on X?" |
-| 2 | search-content | Need specific text, transcriptions, or content |
+| 2 | search-content | Need specific text or content |
 | 3 | search-elements | Need UI structure — buttons, links, form fields |
 | 4 | frame-context | Need full detail for a specific moment (use frame_id from step 2) |
 
@@ -838,14 +523,12 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 - **Always provide start_time** — without it, search scans the entire history
 - **Start with limit=5** — increase only if you need more results
 - **Use max_content_length=500** to keep responses compact
-- **Don't use q for audio** — transcriptions are noisy, q filters too aggressively. Search audio by time range and speaker instead
 - **app_name is case-sensitive** — use exact names: "Google Chrome" not "chrome"
 - **Screen text is mostly accessibility-derived, not OCR.** Screenpipe walks the OS accessibility tree first; OCR is only a fallback (terminals, canvas-rendered apps, games). \`content_type=ocr\` returns both paths — the result label \`[Screen·a11y]\` vs \`[Screen·ocr]\` tells you which produced the row. Don't pre-filter to a11y/ocr unless you specifically need one or the other
 
 ## Common Patterns
 
 - "What was I doing for the last 2 hours?" → activity-summary with start_time='2h ago'
-- "What did I discuss in my meeting?" → list-meetings to find it, then search-content with audio + that time range
 - "Find when I was on Twitter" → search-content with app_name='Arc' (or the browser name), q='twitter'
 - "Remember that I prefer X" → update-memory with content describing the preference
 - "What do you remember about X?" → search-content with content_type='memory', q='X'
@@ -854,7 +537,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
 
 When referencing specific moments in results, create clickable links:
 - Frame: [10:30 AM — Chrome](screenpipe://frame/{frame_id}) — use frame_id from search results
-- Timeline: [meeting at 3pm](screenpipe://timeline?timestamp=2024-01-15T15:00:00Z) — use exact timestamp from results
+- Timeline: [3pm](screenpipe://timeline?timestamp=2024-01-15T15:00:00Z) — use exact timestamp from results
 Never fabricate IDs or timestamps — only use values from actual results.
 `,
         },
@@ -983,7 +666,7 @@ function normalizeTimeFields(
 }
 
 // Middle-truncate long strings: keep head + tail, mark the gap with how much
-// was cut. Used to cap OCR/transcription text in search-content responses
+// was cut. Used to cap screen text in search-content responses
 // so a single call doesn't blow past Claude Code's per-tool output limit
 // (one logged call returned 131k chars from a limit:10 search).
 function truncateMiddle(text: string | null | undefined, max: number): string {
@@ -1093,14 +776,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 context: `${content.app_name} at ${content.timestamp}`,
               });
             }
-          } else if (result.type === "Audio") {
-            const tagsStr = content.tags?.length ? `\nTags: ${content.tags.join(", ")}` : "";
-            formattedResults.push(
-              `[Audio] ${content.device_name || "?"}\n` +
-                `${content.timestamp || ""}\n` +
-                `${truncateMiddle(content.transcription || "", effectiveCap)}` +
-                tagsStr
-            );
           } else if (result.type === "UI" || result.type === "Accessibility") {
             formattedResults.push(
               `[Accessibility] ${content.app_name || "?"} | ${content.window_name || "?"}\n` +
@@ -1136,41 +811,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         return { content: contentItems };
-      }
-
-      case "list-meetings": {
-        const normalized = normalizeTimeFields(args);
-        const params = new URLSearchParams();
-        for (const [key, value] of Object.entries(normalized)) {
-          if (value !== null && value !== undefined) {
-            params.append(key, String(value));
-          }
-        }
-
-        const response = await callAPI(`/meetings?${params.toString()}`);
-
-        const meetings = await response.json();
-
-        if (!Array.isArray(meetings) || meetings.length === 0) {
-          return {
-            content: [{ type: "text", text: "No meetings found in the given time range." }],
-          };
-        }
-
-        const formatted = meetings.map((m: Record<string, unknown>) => {
-          const start = m.meeting_start as string;
-          const end = (m.meeting_end as string) || "ongoing";
-          const app = m.meeting_app as string;
-          const title = m.title ? ` — ${m.title}` : "";
-          const attendees = m.attendees ? `\nAttendees: ${m.attendees}` : "";
-          return `[${m.detection_source}] ${app}${title}\n  ${start} → ${end}${attendees}`;
-        });
-
-        return {
-          content: [
-            { type: "text", text: `Meetings: ${meetings.length}\n\n${formatted.join("\n---\n")}` },
-          ],
-        };
       }
 
       case "activity-summary": {
@@ -1216,17 +856,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         );
 
-        const speakerLines = (data.audio_summary?.speakers || []).map(
-          (s: { name: string; segment_count: number }) =>
-            `  ${s.name}: ${s.segment_count} segments`
-        );
-
-        // Actual audio transcriptions (not just counts)
-        const transcriptLines = (data.audio_summary?.top_transcriptions || []).map(
-          (t: { transcription: string; speaker: string; device: string; timestamp: string }) =>
-            `  [${t.speaker}, ${t.timestamp.slice(11, 19)}] ${t.transcription}`
-        );
-
         // Key text content sampled across the time range
         const textLines = (data.key_texts || data.recent_texts || []).map(
           (t: { text: string; app_name: string; window_name?: string; timestamp: string }) => {
@@ -1244,10 +873,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           "",
           "Windows & Tabs:",
           ...(windowLines.length ? windowLines.slice(0, 20) : ["  (none)"]),
-          "",
-          `Audio: ${data.audio_summary?.segment_count || 0} segments`,
-          ...(speakerLines.length ? speakerLines : []),
-          ...(transcriptLines.length ? ["", "Audio transcriptions:", ...transcriptLines.slice(0, 15)] : []),
           "",
           "Key content (sampled across time range):",
           ...(textLines.length ? textLines.slice(0, 20) : ["  (none)"]),
@@ -1355,7 +980,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           };
         }
 
-        // A real-time MP4 with synced microphone audio, rendered server-side by the
+        // A real-time MP4, rendered server-side by the
         // engine export core (the `screenpipe export` CLI's HTTP twin). MCP runs on the
         // same host as the backend, so the returned path is a local file. Frames sit at
         // their real timestamps, so the clip duration matches the wall-clock span.
@@ -1371,7 +996,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const data = (await response.json()) as {
             output_path: string;
             frame_count: number;
-            audio_chunk_count: number;
             duration_secs: number;
             file_size_bytes: number;
           };
@@ -1383,8 +1007,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               {
                 type: "text",
                 text:
-                  `Video exported (with audio): ${data.output_path}\n` +
-                  `${data.frame_count ?? 0} frames | ${data.audio_chunk_count ?? 0} audio chunks` +
+                  `Video exported: ${data.output_path}\n` +
+                  `${data.frame_count ?? 0} frames` +
                   (sizeMb ? ` | ${sizeMb} MB` : "") +
                   (data.duration_secs ? ` | ${data.duration_secs}s` : "") +
                   ` | ${startTime} → ${endTime}`,
@@ -1447,60 +1071,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case "send-notification": {
-        const notifBody: Record<string, unknown> = {
-          title: args.title,
-          body: args.body || "",
-          type: "pipe",
-        };
-        if (args.timeout_secs) notifBody.timeout = Number(args.timeout_secs) * 1000;
-        if (args.actions) notifBody.actions = args.actions;
-        // send-notification hits the desktop notify daemon on a separate port
-        // (11435), not the screenpipe API. Keep direct fetch with friendlier
-        // error so the model sees an actionable message if the daemon's down.
-        let notifResponse: Response;
-        try {
-          notifResponse = await fetch("http://localhost:11435/notify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(notifBody),
-          });
-        } catch (e) {
-          throw new Error(
-            "notification daemon not reachable on localhost:11435 — is the screenpipe desktop app running?",
-          );
-        }
-        if (!notifResponse.ok) {
-          let body = "";
-          try { body = await notifResponse.text(); } catch {}
-          throw new Error(`notify daemon HTTP ${notifResponse.status}${body ? `: ${body.slice(0, 200)}` : ""}`);
-        }
-        const notifResult = await notifResponse.json();
-        return {
-          content: [{ type: "text", text: `Notification sent: ${notifResult.message}` }],
-        };
-      }
-
       case "health-check": {
         const response = await callAPI("/health");
         const data = await response.json();
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
-        };
-      }
-
-      case "list-audio-devices": {
-        const response = await callAPI("/audio/list");
-        const devices = await response.json();
-        if (!Array.isArray(devices) || devices.length === 0) {
-          return { content: [{ type: "text", text: "No audio devices found." }] };
-        }
-        const formatted = devices.map(
-          (d: { name: string; is_default: boolean; device_type?: string }) =>
-            `${d.is_default ? "* " : "  "}${d.name}${d.device_type ? ` (${d.device_type})` : ""}`
-        );
-        return {
-          content: [{ type: "text", text: `Audio devices:\n${formatted.join("\n")}` }],
         };
       }
 
@@ -1520,150 +1095,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "add-tags": {
-        const contentType = args.content_type as string;
         const id = args.id as number;
         const tags = args.tags as string[];
-        if (!contentType || !id || !tags) {
-          return { content: [{ type: "text", text: "Error: content_type, id, and tags are required" }] };
+        if (!id || !tags) {
+          return { content: [{ type: "text", text: "Error: id and tags are required" }] };
         }
-        const response = await callAPI(`/tags/${contentType}/${id}`, {
+        const response = await callAPI(`/tags/vision/${id}`, {
           method: "POST",
           body: JSON.stringify({ tags }),
         });
         return {
-          content: [{ type: "text", text: `Tags added to ${contentType}/${id}: ${tags.join(", ")}` }],
-        };
-      }
-
-      case "search-speakers": {
-        const nameQuery = args.name as string;
-        if (!nameQuery) {
-          return { content: [{ type: "text", text: "Error: name is required" }] };
-        }
-        const response = await callAPI(`/speakers/search?name=${encodeURIComponent(nameQuery)}`);
-        const speakers = await response.json();
-        if (!Array.isArray(speakers) || speakers.length === 0) {
-          return { content: [{ type: "text", text: "No speakers found." }] };
-        }
-        const formatted = speakers.map(
-          (s: { id: number; name: string; metadata?: string }) =>
-            `#${s.id} ${s.name}${s.metadata ? ` — ${s.metadata}` : ""}`
-        );
-        return {
-          content: [{ type: "text", text: `Speakers:\n${formatted.join("\n")}` }],
-        };
-      }
-
-      case "list-unnamed-speakers": {
-        const limit = (args.limit as number) || 10;
-        const offset = (args.offset as number) || 0;
-        const response = await callAPI(`/speakers/unnamed?limit=${limit}&offset=${offset}`);
-        const speakers = await response.json();
-        if (!Array.isArray(speakers) || speakers.length === 0) {
-          return { content: [{ type: "text", text: "No unnamed speakers found." }] };
-        }
-        const formatted = speakers.map(
-          (s: { id: number; name: string }) => `#${s.id} ${s.name}`
-        );
-        return {
-          content: [{ type: "text", text: `Unnamed speakers:\n${formatted.join("\n")}` }],
-        };
-      }
-
-      case "update-speaker": {
-        const speakerId = args.id as number;
-        if (!speakerId) {
-          return { content: [{ type: "text", text: "Error: id is required" }] };
-        }
-        const body: Record<string, unknown> = { id: speakerId };
-        if (args.name !== undefined) body.name = args.name;
-        if (args.metadata !== undefined) body.metadata = args.metadata;
-        const response = await callAPI("/speakers/update", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        return {
-          content: [{ type: "text", text: `Speaker ${speakerId} updated.` }],
-        };
-      }
-
-      case "merge-speakers": {
-        const keepId = args.speaker_to_keep_id as number;
-        const mergeId = args.speaker_to_merge_id as number;
-        if (!keepId || !mergeId) {
-          return { content: [{ type: "text", text: "Error: speaker_to_keep_id and speaker_to_merge_id are required" }] };
-        }
-        const response = await callAPI("/speakers/merge", {
-          method: "POST",
-          body: JSON.stringify({ speaker_to_keep_id: keepId, speaker_to_merge_id: mergeId }),
-        });
-        return {
-          content: [{ type: "text", text: `Merged speaker ${mergeId} into ${keepId}.` }],
-        };
-      }
-
-      case "start-meeting": {
-        const body: Record<string, unknown> = {};
-        if (args.app) body.app = args.app;
-        if (args.title) body.title = args.title;
-        if (args.attendees) body.attendees = args.attendees;
-        const response = await callAPI("/meetings/start", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        const meeting = await response.json();
-        return {
-          content: [{ type: "text", text: `Meeting started (id: ${meeting.id || "ok"}).` }],
-        };
-      }
-
-      case "stop-meeting": {
-        const response = await callAPI("/meetings/stop", { method: "POST" });
-        return {
-          content: [{ type: "text", text: "Meeting stopped." }],
-        };
-      }
-
-      case "get-meeting": {
-        const meetingId = args.id as number;
-        if (!meetingId) {
-          return { content: [{ type: "text", text: "Error: id is required" }] };
-        }
-        const response = await callAPI(`/meetings/${meetingId}`);
-        const meeting = await response.json();
-        return {
-          content: [{ type: "text", text: JSON.stringify(meeting, null, 2) }],
-        };
-      }
-
-      case "update-meeting": {
-        const meetingId = args.id as number;
-        if (!meetingId) {
-          return { content: [{ type: "text", text: "Error: id is required" }] };
-        }
-        // Build partial body — only forward fields the caller provided.
-        const body: Record<string, unknown> = {};
-        for (const k of ["title", "attendees", "note", "meeting_app", "meeting_start", "meeting_end"] as const) {
-          if (args[k] !== undefined && args[k] !== null) body[k] = args[k];
-        }
-        if (Object.keys(body).length === 0) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "Error: pass at least one field to update (title, attendees, note, meeting_app, meeting_start, meeting_end).",
-              },
-            ],
-          };
-        }
-        const response = await callAPI(`/meetings/${meetingId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const updated = await response.json();
-        return {
-          content: [{ type: "text", text: JSON.stringify(updated, null, 2) }],
+          content: [{ type: "text", text: `Tags added to vision/${id}: ${tags.join(", ")}` }],
         };
       }
 
@@ -1673,7 +1115,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         //   q          -> query    (mandatory; the field is literally named `query`)
         //   app_name   -> app_names (comma-separated; serde splits it)
         //   content_type: dropped — the keyword endpoint doesn't filter by type.
-        //                  It searches OCR + audio together via the FTS index.
         // Without these mappings every keyword-search request 400s (and used
         // to: in logs, 25/25 calls failed before this fix).
         const queryStr = (args.query as string) ?? (args.q as string);
@@ -1708,7 +1149,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // timestamp, text, text_source, ... }. Truncate to keep responses
           // under tool-output limits. text_source is "accessibility" (primary)
           // or "ocr" (fallback) — show it so the model knows which path hit.
-          const text = (r.text as string) || (r.transcription as string) || "";
+          const text = (r.text as string) || "";
           const tag = screenTag(r.text_source);
           return (
             `${tag} [frame:${r.frame_id ?? "?"}] ${r.app_name ?? "?"} | ${r.timestamp ?? ""}\n` +
@@ -1739,76 +1180,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return {
           content: [{ type: "text", text: `Frame ${frameId} elements (${elements.length}):\n${formatted.join("\n")}` }],
         };
-      }
-
-      case "control-recording": {
-        const action = args.action as string;
-        if (!action) {
-          return { content: [{ type: "text", text: "Error: action is required" }] };
-        }
-        let endpoint: string;
-        if (action === "start-audio") endpoint = "/audio/start";
-        else if (action === "stop-audio") endpoint = "/audio/stop";
-        else {
-          return { content: [{ type: "text", text: `Error: unknown action '${action}'` }] };
-        }
-        await callAPI(endpoint, { method: "POST" });
-        return {
-          content: [{ type: "text", text: `Recording action '${action}' executed.` }],
-        };
-      }
-
-      // ---------------------------------------------------------------------
-      // Enterprise team tools — only callable when TEAM_TOKEN is set at boot.
-      // If we got this far without one, the tool wasn't in the listed set the
-      // host saw, but a misbehaving client could still try to call it. Fail
-      // loudly so the host surfaces the misconfiguration.
-      // ---------------------------------------------------------------------
-      case "team-search":
-      case "team-devices":
-      case "team-records": {
-        if (!TEAM_TOKEN) {
-          return {
-            content: [
-              {
-                type: "text",
-                text:
-                  `team-* tools require an enterprise admin token. Set ` +
-                  `SCREENPIPE_ENTERPRISE_TOKEN in your MCP env, or mint one ` +
-                  `at https://screenpi.pe/enterprise → API Tokens and paste ` +
-                  `it into Settings → Privacy → Admin Team API Token in the ` +
-                  `screenpipe desktop app.`,
-              },
-            ],
-          };
-        }
-        // Map MCP tool name → /api/enterprise/v1 path. team-records also
-        // routes synthesized pipe outputs (kind=sop|skill|...) to the
-        // workflows endpoint so callers see one tool surface for "give me
-        // the org's data."
-        const kindArg = typeof args.kind === "string" ? args.kind : "";
-        const subpath =
-          name === "team-search" ? "/search"
-          : name === "team-devices" ? "/devices"
-          : name === "team-records" && SYNTHESIZED_KINDS.has(kindArg) ? "/workflows/generated"
-          : "/records";
-        // Forward every primitive arg as a query param. The server validates;
-        // unknown params are ignored, so we don't need to gatekeep here.
-        const params = new URLSearchParams();
-        for (const [k, v] of Object.entries(args)) {
-          if (v !== null && v !== undefined && v !== "") {
-            params.append(k, String(v));
-          }
-        }
-        const query = params.toString();
-        const response = await fetchTeam(`${subpath}${query ? `?${query}` : ""}`);
-        const body = await response.text();
-        if (!response.ok) {
-          throw new Error(
-            `${name} failed: HTTP ${response.status} ${response.statusText} — ${body.slice(0, 300)}`
-          );
-        }
-        return { content: [{ type: "text", text: body }] };
       }
 
       default:

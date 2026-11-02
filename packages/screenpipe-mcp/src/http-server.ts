@@ -145,7 +145,7 @@ const TOOLS = [
   {
     name: "search_content",
     description:
-      "Search screenpipe's recorded content: screen text (OCR), audio transcriptions, and UI elements. " +
+      "Search screenpipe's recorded content: screen text (OCR) and UI elements. " +
       "Returns timestamped results with app context. " +
       "Call with no parameters to get recent activity.",
     inputSchema: {
@@ -157,9 +157,9 @@ const TOOLS = [
         },
         content_type: {
           type: "string",
-          enum: ["all", "ocr", "audio", "input", "accessibility"],
+          enum: ["all", "ocr", "input", "accessibility"],
           description:
-            "Content type filter: 'ocr' (screen text), 'audio' (transcriptions), 'input' (clicks, keystrokes, clipboard, app switches), 'accessibility' (accessibility tree text), 'all'. Default: 'all'",
+            "Content type filter: 'ocr' (screen text), 'input' (clicks, keystrokes, clipboard, app switches), 'accessibility' (accessibility tree text), 'all'. Default: 'all'",
           default: "all",
         },
         limit: { type: "integer", description: "Max results. Default: 10" },
@@ -234,12 +234,6 @@ async function handleSearchContent(
         `[OCR] ${content.app_name || "?"} | ${content.window_name || "?"}\n` +
           `${content.timestamp || ""}\n` +
           `${content.text || ""}`
-      );
-    } else if (result.type === "Audio") {
-      formattedResults.push(
-        `[Audio] ${content.device_name || "?"}\n` +
-          `${content.timestamp || ""}\n` +
-          `${content.transcription || ""}`
       );
     } else if (result.type === "UI" || result.type === "Accessibility") {
       formattedResults.push(

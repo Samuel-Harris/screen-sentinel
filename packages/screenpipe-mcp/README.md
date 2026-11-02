@@ -6,7 +6,7 @@
 
 https://github.com/user-attachments/assets/7466a689-7703-4f0b-b3e1-b1cb9ed70cff
 
-MCP server for screenpipe - search your screen recordings, audio transcriptions, and control your computer with AI.
+MCP server for screenpipe - search your screen recordings and control your computer with AI.
 
 ## Installation
 
@@ -81,7 +81,7 @@ Point any MCP client that supports HTTP transport at the `/mcp` endpoint:
 
 If your machines are on different networks, expose port 3031 via Tailscale, SSH tunnel, or similar — see the [OpenClaw integration guide](https://docs.screenpi.pe/openclaw) for detailed examples.
 
-> **Note:** The HTTP server currently exposes `search_content` only. The stdio server has the full tool set (export-video, list-meetings, activity-summary, search-elements, frame-context). We're working on bringing HTTP to full parity.
+> **Note:** The HTTP server currently exposes `search_content` only. The stdio server has the full tool set (export-video, activity-summary, search-elements, frame-context). We're working on bringing HTTP to full parity.
 
 ### Option 3: From Source
 
@@ -128,27 +128,22 @@ npx @modelcontextprotocol/inspector npx screenpipe-mcp
 
 ### search-content
 Search through recorded content with content type filtering:
-- `all` — OCR + Audio + Accessibility (default)
+- `all` — OCR + Accessibility (default)
 - `ocr` — Screen text from screenshots
-- `audio` — Audio transcriptions
 - `input` — User actions (clicks, keystrokes, clipboard, app switches)
 - `accessibility` — Accessibility tree text
-- Time range, app/window, and speaker filtering
+- Time range and app/window filtering
 - Pagination support
 
 ### export-video
 Export screen recordings as video files:
 - Specify time range with start/end times
-- Configurable FPS for output video
+- Renders a real-time MP4 and returns the file path
 
 ### activity-summary
 Get a lightweight compressed activity overview for a time range:
 - App usage with active minutes and frame counts
 - Recent accessibility texts
-- Audio speaker summary
-
-### list-meetings
-List detected meetings with duration, app, and attendees. Pass `q` to filter by substring (title, attendees, notes).
 
 ### search-elements
 Search structured UI elements (accessibility tree nodes and OCR text blocks):
@@ -161,10 +156,8 @@ Get accessibility text, parsed tree nodes, and extracted URLs for a specific fra
 ## Example Queries in Claude
 
 - "Search for any mentions of 'rust' in my screen recordings"
-- "Find audio transcriptions from the last hour"
 - "Show me what was on my screen in VSCode yesterday"
 - "Export a video of my screen from 2-3pm today"
-- "Find what John said in our meeting about the database"
 - "What did I type in Slack today?" (uses content_type=input)
 - "What did I copy to clipboard recently?" (uses content_type=input)
 - "Show me accessibility text from Chrome" (uses content_type=accessibility)
@@ -202,7 +195,7 @@ anything.
 
 ### Data storage
 Nothing is stored by the MCP server itself. Recordings, OCR text,
-audio transcripts, and UI events are stored by the Screenpipe app in a
+and UI events are stored by the Screenpipe app in a
 SQLite database under `~/.screenpipe/` on your device. Retention is
 whatever you configure inside the Screenpipe app — typically you
 control it via the storage settings panel.
@@ -210,9 +203,6 @@ control it via the storage settings panel.
 ### Third-party sharing
 None. The MCP server only talks to `localhost:3030`. It does not
 contact Anthropic, Screenpipe's servers, or any other external service.
-If you choose to enable optional cloud features inside the Screenpipe
-app itself (e.g. cloud sync, cloud AI), those are governed by the
-Screenpipe app's privacy policy, not this MCP server's data flow.
 
 ### Retention
 The MCP server has no persistent state. The data your Screenpipe app
