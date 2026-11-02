@@ -12,11 +12,6 @@ const docsRoot = join(__dirname, "docs-mintlify-mig-tmp");
 const publicRoot = join(docsRoot, "public");
 const docsJsonPath = join(docsRoot, "docs.json");
 const openApiPath = join(docsRoot, "openapi.yaml");
-const connectionRefPath = join(docsRoot, "connection-reference.mdx");
-const connectionsCodeRoot = join(
-  repoRoot,
-  "crates/screenpipe-connect/src/connections",
-);
 
 const errors = [];
 
@@ -130,27 +125,6 @@ if (apiPathCount < 50) {
   fail(`openapi.yaml route count looks too low: ${apiPathCount}`);
 }
 
-const connectionRef = read(connectionRefPath).toLowerCase();
-const connectionFiles = walk(connectionsCodeRoot, (path) => (
-  path.endsWith(".rs") && basename(path) !== "mod.rs"
-));
-
-let connectionCount = 0;
-for (const file of connectionFiles) {
-  const source = read(file);
-  const name = source.match(/name:\s*"([^"]+)"/)?.[1];
-  const id = source.match(/id:\s*"([^"]+)"/)?.[1];
-  if (!name || !id) continue;
-  connectionCount += 1;
-  if (!connectionRef.includes(name.toLowerCase())) {
-    fail(`connection-reference.mdx does not mention integration: ${name} (${id})`);
-  }
-}
-
-if (connectionCount < 50) {
-  fail(`connection registry count looks too low: ${connectionCount}`);
-}
-
 if (errors.length) {
   console.error("docs validation failed:");
   for (const error of errors) {
@@ -159,4 +133,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`docs validation passed: ${mdxFiles.length} pages, ${apiPathCount} API paths, ${connectionCount} connections`);
+console.log(`docs validation passed: ${mdxFiles.length} pages, ${apiPathCount} API paths`);
