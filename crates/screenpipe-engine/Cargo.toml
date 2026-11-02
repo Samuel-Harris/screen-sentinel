@@ -23,7 +23,6 @@ screenpipe-redact = { path = "../screenpipe-redact", features = ["opf-text"] }
 screenpipe-a11y = { path = "../screenpipe-a11y", features = ["db"] }
 screenpipe-capture = { path = "../screenpipe-capture" }
 screenpipe-config = { path = "../screenpipe-config" }
-screenpipe-connect = { path = "../screenpipe-connect" }
 screenpipe-vault = { path = "../screenpipe-vault" }
 screenpipe-secrets = { path = "../screenpipe-secrets" }
 
@@ -94,11 +93,6 @@ crossbeam = { workspace = true }
 base64 = "0.22.1"
 
 uuid = { version = "1.5.0", features = ["v4"] }
-
-# Used by /connections/browsers/:id/navigate to validate URLs up-front so
-# clients get 400 (client error) on malformed input rather than 502 from
-# the upstream eval transport.
-url = "2"
 
 hostname = "0.4"
 

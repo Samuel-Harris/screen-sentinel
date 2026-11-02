@@ -264,10 +264,6 @@ async fn main() -> anyhow::Result<()> {
             handle_mcp_command(subcommand, &local_data_dir).await?;
             return Ok(());
         }
-        Command::Connection { ref subcommand } => {
-            screenpipe_engine::cli::connection::handle_connection_command(subcommand).await?;
-            return Ok(());
-        }
         Command::Vault { ref subcommand } => {
             screenpipe_engine::cli::vault::handle_vault_command(subcommand).await?;
             return Ok(());
@@ -346,10 +342,6 @@ async fn main() -> anyhow::Result<()> {
         .clone()
         .into_recording_config(local_data_dir.clone(), &record_arg_sources)
         .await?;
-
-    // mDNS LAN discovery is opt-in (off by default) so we don't trigger the
-    // macOS "Local Network" permission prompt unless the user wants it.
-    screenpipe_connect::mdns::set_enabled(record_args.enable_mdns);
 
     // Store the guard in a variable that lives for the entire main function
     let _log_guard = Some(setup_logging(&local_data_dir, record_args.debug)?);
@@ -784,8 +776,6 @@ async fn main() -> anyhow::Result<()> {
                     }
                     Err(e) => warn!("legacy secret migration failed: {}", e),
                 }
-
-                server.secret_store = Some(Arc::new(store));
             }
             Err(e) => {
                 warn!("failed to initialize secret store: {}", e);

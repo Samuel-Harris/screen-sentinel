@@ -122,22 +122,10 @@ pub struct AppState {
     pub retention_state: crate::retention::RetentionState,
     /// Vault lock manager — encrypts data at rest when locked
     pub vault: screenpipe_vault::VaultManager,
-    /// Browser extension bridge — relays JS eval requests to the connected extension
-    pub browser_bridge: Arc<crate::routes::browser::BrowserBridge>,
-    /// Registry of every browser the agent can drive — user's real browser via
-    /// the extension, the app-managed owned webview, future remote-CDP backends.
-    /// `GET /connections/browsers` lists what's here.
-    pub browser_registry: Arc<screenpipe_connect::connections::browser::BrowserRegistry>,
-    /// The owned-browser instance (Tauri-managed webview) registered into
-    /// `browser_registry`. Held separately so the desktop shell can attach a
-    /// transport handle after the engine has started.
-    pub owned_browser: Arc<screenpipe_connect::connections::browser::OwnedBrowser>,
     /// When true, non-localhost requests require Authorization: Bearer <api_key>
     pub api_auth: bool,
     /// The API key to validate against (from SCREENPIPE_API_KEY or auth.json)
     pub api_auth_key: Option<String>,
-    /// Unified credential store for OAuth tokens, API keys, etc.
-    pub secret_store: Option<Arc<screenpipe_secrets::SecretStore>>,
     /// Runtime control for the high-FPS screen-capture override. Shared
     /// with each per-monitor capture loop so HTTP toggles propagate
     /// without a restart. `None` only when the engine was started in a
@@ -158,22 +146,10 @@ pub struct SCServer {
     pub hot_frame_cache: Option<Arc<HotFrameCache>>,
     /// Power manager handle — set this before starting to enable /power endpoints.
     pub power_manager: Option<Arc<crate::power::PowerManagerHandle>>,
-    /// Owned browser instance — set by the desktop shell so it can attach an
-    /// OwnedWebviewHandle once the Tauri WebviewWindow is created. If unset,
-    /// the engine creates a default unattached instance and owned-browser
-    /// requests return 503 until a handle is wired up.
-    pub owned_browser: Option<Arc<screenpipe_connect::connections::browser::OwnedBrowser>>,
     /// Require auth for remote API access
     pub api_auth: bool,
     /// API key for remote auth validation
     pub api_auth_key: Option<String>,
-    /// Unified credential store for OAuth tokens, API keys, etc.
-    pub secret_store: Option<Arc<screenpipe_secrets::SecretStore>>,
-    /// Background OAuth refresh scheduler. Owned here so its JoinHandle
-    /// isn't dropped (which would cancel the task) and so future
-    /// observability endpoints can call `.snapshot()` to inspect metrics.
-    pub oauth_refresher:
-        Option<Arc<screenpipe_connect::oauth_refresh_scheduler::OAuthRefreshScheduler>>,
     /// Shared high-FPS controller. Set before `start()` so AppState and
     /// the per-monitor capture loops point at the same instance.
     pub high_fps_controller: Option<Arc<crate::high_fps_controller::HighFpsController>>,
@@ -181,14 +157,6 @@ pub struct SCServer {
     /// warming the hot frame cache from the DB at startup (the cache is only
     /// read by the timeline streaming endpoint). Set before `start()`.
     pub timeline_disabled: bool,
-    /// Advertise this instance over mDNS. Disabled for loopback-only binds
-    /// because LAN clients cannot reach those addresses and Windows may show a
-    /// firewall prompt for an otherwise local-only CLI run.
-    pub advertise_mdns: bool,
-}
-
-fn should_advertise_mdns(addr: SocketAddr) -> bool {
-    !addr.ip().is_loopback()
 }
 
 impl SCServer {
@@ -211,14 +179,10 @@ impl SCServer {
             vision_metrics: Arc::new(screenpipe_screen::PipelineMetrics::new()),
             hot_frame_cache: None,
             power_manager: None,
-            owned_browser: None,
             api_auth: false,
             api_auth_key: None,
-            secret_store: None,
-            oauth_refresher: None,
             high_fps_controller: None,
             timeline_disabled: false,
-            advertise_mdns: should_advertise_mdns(addr),
         }
     }
 
@@ -239,15 +203,6 @@ impl SCServer {
         // Create the listener (SO_REUSEADDR on Windows to avoid TIME_WAIT conflicts)
         let listener = bind_listener(self.addr).await?;
         info!("Server listening on {}", self.addr);
-
-        // Advertise via mDNS only when this server is reachable off-machine.
-        if self.advertise_mdns {
-            if let Err(e) = screenpipe_connect::mdns::advertise(self.addr.port()) {
-                tracing::warn!("mdns advertisement failed (non-fatal): {}", e);
-            }
-        } else {
-            debug!("mdns advertisement skipped for loopback-only server");
-        }
 
         // Start serving
         serve(
@@ -335,34 +290,10 @@ impl SCServer {
             hot_frame_cache,
             retention_state: crate::retention::RetentionState::new(),
             vault: screenpipe_vault::VaultManager::new(self.screenpipe_dir.clone()),
-            browser_bridge: crate::routes::browser::BrowserBridge::new(),
-            browser_registry: screenpipe_connect::connections::browser::BrowserRegistry::new(),
-            // Reuse the desktop-shell-supplied owned browser if present so its
-            // already-attached OwnedWebviewHandle survives. Otherwise fall back
-            // to a default unattached instance — useful for CLI / tests /
-            // headless deployments.
-            owned_browser: self.owned_browser.clone().unwrap_or_else(
-                screenpipe_connect::connections::browser::OwnedBrowser::default_instance,
-            ),
             api_auth: self.api_auth,
             api_auth_key: self.api_auth_key.clone(),
-            secret_store: self.secret_store.clone(),
             high_fps_controller: self.high_fps_controller.clone(),
         });
-
-        // Populate the registry so /connections/browsers shows both kinds
-        // immediately. The user-browser is wired to the existing bridge;
-        // the owned-browser is a stub until the desktop shell attaches its
-        // OwnedWebviewHandle.
-        {
-            use screenpipe_connect::connections::browser::UserBrowser;
-            let user = UserBrowser::default_instance(app_state.browser_bridge.clone());
-            app_state.browser_registry.register(user).await;
-            app_state
-                .browser_registry
-                .register(app_state.owned_browser.clone())
-                .await;
-        }
 
         // Restrict CORS to localhost origins (Tauri webview + local development).
         // Remote origins are blocked to prevent malicious websites from making
@@ -467,53 +398,6 @@ impl SCServer {
                 axum::routing::post(crate::routes::capture::update_hd_settings),
             );
 
-        // Connections routes (pipe-facing integrations: Telegram, Slack, etc.)
-        let cm: crate::connections_api::SharedConnectionManager = Arc::new(Mutex::new(
-            screenpipe_connect::connections::ConnectionManager::new(
-                self.screenpipe_dir.clone(),
-                self.secret_store.clone(),
-            ),
-        ));
-        let wa: crate::connections_api::SharedWhatsAppGateway = Arc::new(Mutex::new(
-            screenpipe_connect::whatsapp::WhatsAppGateway::new(self.screenpipe_dir.clone()),
-        ));
-
-        // Auto-reconnect WhatsApp if a previous session exists on disk.
-        // We pass an empty hint so `start_pairing` runs its full resolver
-        // (bundled sidecar → install dirs → PATH).
-        {
-            let wa_lock = wa.lock().await;
-            if wa_lock.has_session() {
-                tracing::info!("whatsapp: found existing session, auto-reconnecting...");
-                if let Err(e) = wa_lock.start_pairing("").await {
-                    tracing::warn!("whatsapp: auto-reconnect failed: {:?}", e);
-                }
-            }
-        }
-
-        let router = router.nest(
-            "/connections",
-            crate::connections_api::router(
-                cm,
-                wa,
-                self.screenpipe_dir.clone(),
-                self.secret_store.clone(),
-                app_state.browser_bridge.clone(),
-                app_state.browser_registry.clone(),
-                self.api_auth_key.clone(),
-            ),
-        );
-
-        // User-supplied MCP servers (issue #3282).
-        // Mounted at the top level so /mcp-servers/:id doesn't shadow
-        // /connections/:id and vice versa.
-        let mcp_store: crate::mcp_servers_api::SharedMcpServerStore =
-            Arc::new(screenpipe_connect::mcp_servers::McpServerStore::new(
-                self.screenpipe_dir.clone(),
-                self.secret_store.clone(),
-            ));
-        let router = router.nest("/mcp-servers", crate::mcp_servers_api::router(mcp_store));
-
         // Power management routes (if power manager is available)
         let router = if let Some(ref pm) = self.power_manager {
             let power_routes = Router::new()
@@ -534,41 +418,6 @@ impl SCServer {
             .route("/ws/events", get(ws_events_handler))
             .route("/ws/health", get(ws_health_handler))
             .route("/ws/metrics", get(ws_metrics_handler))
-            // Browser extension bridge — DEPRECATED top-level paths.
-            // Canonical paths now live under /connections/browser/* (see connections_api.rs).
-            // These aliases stay in place because deployed Chrome extensions hardcode
-            // /browser/ws (packages/browser-extension/src/config.ts). Remove only after
-            // a coordinated extension update has shipped to all users.
-            .route(
-                "/browser/ws",
-                get({
-                    let bridge = app_state.browser_bridge.clone();
-                    move |ws| {
-                        crate::routes::browser::browser_ws_handler(ws, axum::extract::State(bridge))
-                    }
-                }),
-            )
-            .route(
-                "/browser/eval",
-                axum::routing::post({
-                    let bridge = app_state.browser_bridge.clone();
-                    move |body| {
-                        crate::routes::browser::browser_eval_handler(
-                            axum::extract::State(bridge),
-                            body,
-                        )
-                    }
-                }),
-            )
-            .route(
-                "/browser/status",
-                get({
-                    let bridge = app_state.browser_bridge.clone();
-                    move || {
-                        crate::routes::browser::browser_status_handler(axum::extract::State(bridge))
-                    }
-                }),
-            )
             .with_state(app_state.clone())
             .layer(axum::middleware::from_fn_with_state(
                 app_state.clone(),
@@ -597,17 +446,9 @@ impl SCServer {
                             // Allow specific endpoints without auth:
                             // - /health: device monitor, tray status, startup polling
                             //   (called before frontend loads API key via IPC)
-                            // - /connections/oauth/callback and
-                            //   /mcp-servers/:id/oauth/callback: browser redirect from
-                            //   OAuth providers (no bearer token in redirect)
                             let path = req.uri().path();
                             if path == "/health"
                                 || path == "/ws/health"
-                                || path == "/connections/oauth/callback"
-                                || (path.starts_with("/mcp-servers/")
-                                    && path.ends_with("/oauth/callback"))
-                                || path == "/connections/browser/pair/start"
-                                || path == "/connections/browser/pair/status"
                                 || path.starts_with("/frames/")
                             {
                                 return next.run(req).await;
@@ -689,35 +530,5 @@ impl SCServer {
             })
             .layer(cors)
             .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::should_advertise_mdns;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-
-    #[test]
-    fn mdns_advertising_skips_loopback_binds() {
-        assert!(!should_advertise_mdns(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::LOCALHOST),
-            3030,
-        )));
-        assert!(!should_advertise_mdns(SocketAddr::new(
-            IpAddr::V6(Ipv6Addr::LOCALHOST),
-            3030,
-        )));
-    }
-
-    #[test]
-    fn mdns_advertising_runs_for_lan_binds() {
-        assert!(should_advertise_mdns(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            3030,
-        )));
-        assert!(should_advertise_mdns(SocketAddr::new(
-            IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-            3030,
-        )));
     }
 }
