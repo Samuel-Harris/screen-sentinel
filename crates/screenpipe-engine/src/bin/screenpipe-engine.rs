@@ -774,15 +774,6 @@ async fn main() -> anyhow::Result<()> {
     server.power_manager = Some(power_manager);
     server.api_auth = config.api_auth;
     server.api_auth_key = config.api_auth_key.clone();
-    // Cloud JWT for the /v1/chat/completions proxy. CLI/binary path reads
-    // SCREENPIPE_API_KEY directly; desktop path overrides via
-    // SCServer::cloud_token_handle after spawn.
-    if let Ok(t) = std::env::var("SCREENPIPE_API_KEY") {
-        if !t.is_empty() {
-            server.cloud_token.store(std::sync::Arc::new(Some(t)));
-        }
-    }
-
     // Initialize secret store for unified credential management
     let encryption_requested =
         config.encrypt_secrets || screenpipe_secrets::is_encryption_requested(&local_data_dir);
