@@ -15,7 +15,7 @@ use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
 use tracing::{error, info};
 
 use crate::commands::{hide_main_window, show_main_window};
-use crate::store::{get_store, SettingsStore};
+use crate::store::SettingsStore;
 use crate::window::ShowRewindWindow;
 
 #[derive(Debug, Default)]
@@ -23,8 +23,6 @@ struct ShortcutConfig {
     show: String,
     start: String,
     stop: String,
-    start_audio: String,
-    stop_audio: String,
     show_chat: String,
     search: String,
     lock_vault: String,
@@ -37,31 +35,10 @@ impl ShortcutConfig {
             .unwrap_or_default()
             .unwrap_or_default();
 
-        let default_start_audio = if cfg!(target_os = "windows") {
-            "Alt+Shift+A"
-        } else {
-            "Super+Ctrl+A"
-        };
-        let default_stop_audio = if cfg!(target_os = "windows") {
-            "Alt+Shift+Z"
-        } else {
-            "Super+Ctrl+Z"
-        };
-
         Ok(Self {
             show: store.show_screenpipe_shortcut,
             start: store.start_recording_shortcut,
             stop: store.stop_recording_shortcut,
-            start_audio: if store.start_audio_shortcut.trim().is_empty() {
-                default_start_audio.to_string()
-            } else {
-                store.start_audio_shortcut
-            },
-            stop_audio: if store.stop_audio_shortcut.trim().is_empty() {
-                default_stop_audio.to_string()
-            } else {
-                store.stop_audio_shortcut
-            },
             show_chat: store.show_chat_shortcut,
             search: store.search_shortcut,
             lock_vault: store.lock_vault_shortcut,
@@ -74,8 +51,6 @@ impl ShortcutConfig {
             "show" => "showScreenpipeShortcut",
             "start_recording" => "startRecordingShortcut",
             "stop_recording" => "stopRecordingShortcut",
-            "start_audio" => "startAudioShortcut",
-            "stop_audio" => "stopAudioShortcut",
             "show_chat" => "showChatShortcut",
             "search" => "searchShortcut",
             "lock_vault" => "lockVaultShortcut",
@@ -120,8 +95,6 @@ pub async fn update_global_shortcuts(
     show_shortcut: String,
     start_shortcut: String,
     stop_shortcut: String,
-    start_audio_shortcut: String,
-    stop_audio_shortcut: String,
     _profile_shortcuts: HashMap<String, String>,
 ) -> Result<(), String> {
     let store_config = ShortcutConfig::from_store(&app).await?;
@@ -129,8 +102,6 @@ pub async fn update_global_shortcuts(
         show: show_shortcut,
         start: start_shortcut,
         stop: stop_shortcut,
-        start_audio: start_audio_shortcut,
-        stop_audio: stop_audio_shortcut,
         show_chat: store_config.show_chat,
         search: store_config.search,
         lock_vault: store_config.lock_vault,
@@ -217,36 +188,6 @@ async fn apply_shortcuts(app: &AppHandle, config: &ShortcutConfig) -> Result<(),
         config.is_disabled("stop_recording"),
         |app| {
             let _ = app.emit("shortcut-stop-recording", ());
-        },
-    )
-    .await?;
-
-    register_shortcut(
-        app,
-        &config.start_audio,
-        config.is_disabled("start_audio"),
-        |app| {
-            if let Ok(store) = get_store(app, None) {
-                store.set("disableAudio", false);
-                let _ = store.save();
-            }
-            let _ = app.emit("shortcut-start-audio", ());
-            info!("start audio shortcut triggered");
-        },
-    )
-    .await?;
-
-    register_shortcut(
-        app,
-        &config.stop_audio,
-        config.is_disabled("stop_audio"),
-        |app| {
-            if let Ok(store) = get_store(app, None) {
-                store.set("disableAudio", true);
-                let _ = store.save();
-            }
-            let _ = app.emit("shortcut-stop-audio", ());
-            info!("stop audio shortcut triggered");
         },
     )
     .await?;

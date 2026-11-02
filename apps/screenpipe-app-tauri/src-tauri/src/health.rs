@@ -14,7 +14,7 @@ use tokio::time::{interval, Duration};
 use tracing::{debug, error, info, warn};
 
 /// How long after startup to treat connection errors as "starting up" instead of "error".
-/// The recording server needs time to load whisper models, FFmpeg, etc.
+/// The recording server needs time to migrate the DB, load FFmpeg, etc.
 const STARTUP_GRACE_PERIOD: Duration = Duration::from_secs(30);
 
 /// Consecutive connection failures (refused/timeout) before showing Stopped.
@@ -25,7 +25,7 @@ const CONSECUTIVE_FAILURES_THRESHOLD: u32 = 30;
 /// Consecutive explicit "unhealthy"/"error" responses from a *responding* server
 /// before showing Error. Set high (2 min sustained at 1Hz polling) because the
 /// /health endpoint is a soft signal that flaps on transient backend issues
-/// (DB pool pressure, OCR queue backpressure, slow audio chunk) while recording
+/// (DB pool pressure, OCR queue backpressure) while recording
 /// itself continues normally. Genuine recording failures surface through the
 /// dedicated `permission_monitor` + capture-module events, not through this debounce.
 const CONSECUTIVE_UNHEALTHY_THRESHOLD: u32 = 120;
@@ -33,8 +33,7 @@ const CONSECUTIVE_UNHEALTHY_THRESHOLD: u32 = 120;
 // ─────────────────────────────────────────────────────────────────────────
 // Boot phase — tracks where we are inside ServerCore::start.
 //
-// The HTTP server only binds near the *end* of startup (after DB migration
-// and audio-manager build). That means /health is unreachable for the entire
+// The HTTP server only binds near the *end* of startup (after DB migration). That means /health is unreachable for the entire
 // window we care most about (e.g. 13.2s for Mike's 31.5GB DB migration). The
 // frontend and the spawn watchdog can't distinguish "server is migrating" from
 // "server is dead" via HTTP alone — so they both time out and retry, and the
@@ -50,8 +49,7 @@ const CONSECUTIVE_UNHEALTHY_THRESHOLD: u32 = 120;
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct BootPhaseSnapshot {
-    /// One of: idle | starting | migrating_database | building_audio |
-    /// starting_pipes | ready | error
+    /// One of: idle | starting | migrating_database | ready | error
     pub phase: String,
     /// Human-readable detail to show the user (may be long-running hint)
     pub message: Option<String>,
@@ -115,11 +113,11 @@ pub fn get_boot_phase_snapshot() -> BootPhaseSnapshot {
 ///
 /// Used as a gate before actions that race process teardown against
 /// still-initializing native sessions — see #3622 (onnxruntime SIGSEGV during
-/// auto-updater restart while `AudioManager::new` is mid-`create_session`).
+/// auto-updater restart while a native session is mid-`create_session`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BootReadiness {
-    /// Phase is still pre-ready (`starting`, `migrating_database`,
-    /// `building_audio`, `starting_pipes`). Process teardown is unsafe.
+    /// Phase is still pre-ready (`starting`, `migrating_database`).
+    /// Process teardown is unsafe.
     Pending,
     /// Phase is `ready`. Safe to restart.
     Ready,
@@ -171,7 +169,7 @@ pub async fn wait_for_boot_ready(timeout: Duration) -> BootReadiness {
 pub enum RecordingStatus {
     Starting,
     Recording,
-    /// Capture paused but server (HTTP/pipes/search) still alive.
+    /// Capture paused but server (HTTP/search) still alive.
     Paused,
     Stopped,
     Error,
@@ -181,8 +179,6 @@ pub enum RecordingStatus {
 #[derive(Clone, PartialEq, Debug)]
 pub enum DeviceKind {
     Monitor,
-    AudioInput,
-    AudioOutput,
 }
 
 /// Per-device status info for tray display
@@ -222,31 +218,6 @@ pub fn get_recording_info() -> RecordingInfo {
         .clone()
 }
 
-/// Cached audio device status from /audio/device/status API.
-/// Updated by the health polling loop so the tray can read it without blocking.
-#[derive(Clone, Debug)]
-pub struct AudioDeviceEntry {
-    pub name: String,
-    pub is_running: bool,
-}
-
-static AUDIO_DEVICE_STATUS: Lazy<RwLock<Vec<AudioDeviceEntry>>> =
-    Lazy::new(|| RwLock::new(Vec::new()));
-
-pub fn get_audio_device_status() -> Vec<AudioDeviceEntry> {
-    AUDIO_DEVICE_STATUS
-        .read()
-        .unwrap_or_else(|e| e.into_inner())
-        .clone()
-}
-
-pub fn set_audio_device_status(devices: Vec<AudioDeviceEntry>) {
-    let mut guard = AUDIO_DEVICE_STATUS
-        .write()
-        .unwrap_or_else(|e| e.into_inner());
-    *guard = devices;
-}
-
 /// Mirror of `routes::capture::HighFpsState` — what the tray needs to
 /// render the "HD recording" menu item label and checked state.
 /// Updated by the health poll so the tray reads from a local cache
@@ -259,7 +230,7 @@ pub struct HighFpsCacheEntry {
     pub active: bool,
     /// Capture debounce (ms). Cached so the label can show "~10 fps".
     pub interval_ms: u64,
-    /// Session kind serialized as `"meeting"` | `"timer"` | empty.
+    /// Session kind serialized as `"timer"` | empty.
     pub session_kind: String,
     /// Seconds until the active session auto-expires. 0 when idle.
     pub remaining_secs: u64,
@@ -293,20 +264,6 @@ fn set_recording_info(status: RecordingStatus, devices: Vec<DeviceInfo>) {
     info.devices = devices;
 }
 
-/// Minimal audio pipeline info for stall detection (subset of server's full struct)
-#[derive(Debug, Deserialize, Default)]
-#[allow(dead_code)]
-struct AudioPipelineInfo {
-    #[serde(default)]
-    uptime_secs: f64,
-    #[serde(default)]
-    chunks_sent: u64,
-    #[serde(default)]
-    transcription_paused: Option<bool>,
-    #[serde(default)]
-    meeting_detected: Option<bool>,
-}
-
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
 struct HealthCheckResponse {
@@ -315,14 +272,10 @@ struct HealthCheckResponse {
     status_code: Option<i32>,
     #[serde(rename = "last_frame_timestamp")]
     last_frame_timestamp: Option<String>,
-    #[serde(rename = "last_audio_timestamp")]
-    last_audio_timestamp: Option<String>,
     #[serde(rename = "last_ui_timestamp", default)]
     last_ui_timestamp: Option<String>,
     #[serde(default)]
     frame_status: Option<String>,
-    #[serde(default)]
-    audio_status: Option<String>,
     #[serde(default)]
     ui_status: Option<String>,
     #[serde(default)]
@@ -334,15 +287,9 @@ struct HealthCheckResponse {
     /// Monitor names from the server
     #[serde(default)]
     monitors: Option<Vec<String>>,
-    /// Audio pipeline metrics for stall detection
-    #[serde(default)]
-    audio_pipeline: Option<AudioPipelineInfo>,
     /// Vision capture alive but DB writes stopped (pool exhaustion)
     #[serde(default)]
     vision_db_write_stalled: bool,
-    /// Audio devices active but DB writes stopped (pool exhaustion)
-    #[serde(default)]
-    audio_db_write_stalled: bool,
     /// DRM streaming content detected — capture should be fully stopped
     #[serde(default)]
     drm_content_paused: bool,
@@ -358,7 +305,7 @@ struct HealthCheckResponse {
 /// to meet or exceed `failure_threshold` to prevent flickering caused by
 /// transient timeouts or momentary server busyness.
 ///
-/// "stale" responses (server responding but frame/audio timestamps are old)
+/// "stale" responses (server responding but frame timestamps are old)
 /// are treated as Recording — the server IS running, it's just behind on
 /// DB writes (e.g. pool saturation). Showing the error icon for this causes
 /// false alarms and user panic when data is actually still being captured.
@@ -377,8 +324,8 @@ fn decide_status(
         Ok(health) if health.status == "unhealthy" || health.status == "error" => {
             // Server is responding but explicitly reporting a problem.
             // Debounce heavily: 2 min sustained before flipping to Error.
-            // /health is a soft signal — DB pool pressure, OCR queue backpressure,
-            // and slow audio chunks all flap "unhealthy" while recording continues.
+            // /health is a soft signal — DB pool pressure and OCR queue
+            // backpressure both flap "unhealthy" while recording continues.
             // Genuine failures (permission revoked, capture crashed) surface via
             // the permission_monitor + capture-module event paths, not here.
             if consecutive_unhealthy >= unhealthy_threshold {
@@ -476,51 +423,6 @@ fn parse_devices_from_health(health_result: &Result<HealthCheckResponse>) -> Vec
         }
     }
 
-    // Parse audio devices from device_status_details
-    // Format: "DeviceName (input): active (last activity: 2s ago), DeviceName (output): inactive (last activity: 30s ago)"
-    if let Some(details) = &health.device_status_details {
-        for part in details.split(", ") {
-            // e.g. "MacBook Pro Microphone (input): active (last activity: 2s ago)"
-            let (name_and_type, rest) = match part.split_once(": ") {
-                Some(pair) => pair,
-                None => continue,
-            };
-            let active = rest.starts_with("active");
-            let last_seen = rest
-                .split("last activity: ")
-                .nth(1)
-                .and_then(|s| {
-                    s.trim_end_matches(')')
-                        .trim_end_matches("s ago")
-                        .parse::<u64>()
-                        .ok()
-                })
-                .unwrap_or(0);
-
-            let kind = if name_and_type.contains("(input)") {
-                DeviceKind::AudioInput
-            } else if name_and_type.contains("(output)") {
-                DeviceKind::AudioOutput
-            } else {
-                // Guess from name
-                DeviceKind::AudioInput
-            };
-
-            let name = name_and_type
-                .replace("(input)", "")
-                .replace("(output)", "")
-                .trim()
-                .to_string();
-
-            devices.push(DeviceInfo {
-                name,
-                kind,
-                active,
-                last_seen_secs_ago: last_seen,
-            });
-        }
-    }
-
     devices
 }
 
@@ -544,9 +446,7 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
     let mut consecutive_unhealthy: u32 = 0;
 
     // Capture stall detection state
-    let mut consecutive_audio_stall: u32 = 0;
     let mut consecutive_vision_stall: u32 = 0;
-    let mut last_audio_notification: Option<Instant> = None;
     let mut last_vision_notification: Option<Instant> = None;
     let mut wake_reset_done = false;
     // Grace period after ANY restart (manual, notification-triggered, or
@@ -639,9 +539,6 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                     && store.recording.monitor_ids != vec!["default".to_string()]
                 {
                     devices.retain(|d| {
-                        if d.kind != DeviceKind::Monitor {
-                            return true;
-                        }
                         store.recording.monitor_ids.iter().any(|allowed| {
                             // Stable ID format: "Display 3_1920x1080_0,0"
                             // Extract name prefix before last '_' (position coords)
@@ -662,63 +559,7 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                 }
             }
 
-            // Fetch all audio devices (including user-disabled) for tray display
             let api = local_api_context_from_app(&app);
-            if let Ok(res) = api
-                .apply_auth(reqwest::Client::new().get(api.url("/audio/device/status")))
-                .send()
-                .await
-            {
-                if let Ok(devs) = res.json::<Vec<serde_json::Value>>().await {
-                    let mut entries = Vec::new();
-                    for d in &devs {
-                        let name = d["name"].as_str().unwrap_or("").to_string();
-                        let is_running = d["is_running"].as_bool().unwrap_or(false);
-                        let is_user_disabled = d["is_user_disabled"].as_bool().unwrap_or(false);
-                        entries.push(AudioDeviceEntry {
-                            name: name.clone(),
-                            is_running,
-                        });
-
-                        // Add user-paused devices to the tray list so they
-                        // stay visible with active=false (unchecked).
-                        if is_user_disabled {
-                            let already_listed = devices.iter().any(|dev| {
-                                let full = format!(
-                                    "{} ({})",
-                                    dev.name,
-                                    if dev.kind == DeviceKind::AudioInput {
-                                        "input"
-                                    } else {
-                                        "output"
-                                    }
-                                );
-                                full == name
-                            });
-                            if !already_listed {
-                                let kind = if name.contains("(input)") {
-                                    DeviceKind::AudioInput
-                                } else if name.contains("(output)") {
-                                    DeviceKind::AudioOutput
-                                } else {
-                                    continue;
-                                };
-                                let display_name =
-                                    name.replace(" (input)", "").replace(" (output)", "");
-                                devices.push(DeviceInfo {
-                                    name: display_name,
-                                    kind,
-                                    active: false,
-                                    last_seen_secs_ago: 0,
-                                });
-                            }
-                        }
-                    }
-
-                    set_audio_device_status(entries);
-                }
-            }
-
             // Poll the HD controller state for the tray's menu item.
             // 503 is normal (vision disabled / older engine) — keep last known.
             if let Ok(res) = api
@@ -814,7 +655,6 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                         info!("detected restart (spawn epoch {} → {}), activating {}s stall detection grace",
                             last_known_spawn_epoch, current_epoch, NOTIFICATION_COOLDOWN.as_secs());
                         last_restart_triggered = Some(Instant::now());
-                        consecutive_audio_stall = 0;
                         consecutive_vision_stall = 0;
                     }
                     last_known_spawn_epoch = current_epoch;
@@ -823,7 +663,7 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
 
             // ── DRM content pause / resume ──
             // DRM pause/resume is handled internally by the engine's monitor_watcher:
-            // it stops/restarts VisionManager + AudioManager without killing the server.
+            // it stops/restarts VisionManager without killing the server.
             // The health endpoint still reports drm_content_paused for UI purposes.
 
             // ── Capture stall detection ──
@@ -839,43 +679,10 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                 && !in_restart_grace
             {
                 if let Ok(ref health) = health_result {
-                    let audio_bad = matches!(
-                        health.audio_status.as_deref(),
-                        Some("stale") | Some("not_started")
-                    );
                     let vision_bad = matches!(
                         health.frame_status.as_deref(),
                         Some("stale") | Some("not_started")
                     );
-
-                    // Skip stall detection if transcription is intentionally paused or in a meeting
-                    let audio_excused = health
-                        .audio_pipeline
-                        .as_ref()
-                        .map(|ap| {
-                            ap.transcription_paused.unwrap_or(false)
-                                || ap.meeting_detected.unwrap_or(false)
-                        })
-                        .unwrap_or(false);
-
-                    // Audio stall tracking:
-                    // - audio_bad (capture stale/not_started): always counts
-                    // - audio_db_write_stalled: only counts as a stall signal.
-                    //   Change #1 (engine side) ensures this flag only fires after
-                    //   at least one successful DB write, so silent environments
-                    //   (last_db_write_ts == 0) won't trigger false positives.
-                    let audio_db_stalled = health.audio_db_write_stalled;
-                    if (audio_bad || audio_db_stalled) && !audio_excused {
-                        consecutive_audio_stall = consecutive_audio_stall.saturating_add(1);
-                    } else {
-                        if consecutive_audio_stall >= CAPTURE_STALL_THRESHOLD {
-                            info!(
-                                "audio capture recovered after {} stale checks",
-                                consecutive_audio_stall
-                            );
-                        }
-                        consecutive_audio_stall = 0;
-                    }
 
                     // Vision stall tracking — also trigger on DB write stalls
                     // (capture loop alive but pool exhaustion blocking writes)
@@ -899,9 +706,7 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                     let woke = screenpipe_engine::sleep_monitor::recently_woke_from_sleep();
                     if woke && !wake_reset_done {
                         wake_reset_done = true;
-                        consecutive_audio_stall = 0;
                         consecutive_vision_stall = 0;
-                        last_audio_notification = None;
                         last_vision_notification = None;
                     }
                     if !woke {
@@ -915,21 +720,6 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                         .map(|s| s.show_restart_notifications)
                         .unwrap_or(false);
                     let now_instant = Instant::now();
-
-                    if consecutive_audio_stall == CAPTURE_STALL_THRESHOLD && notifications_enabled {
-                        let cooldown_ok = last_audio_notification
-                            .map(|t| now_instant.duration_since(t) >= NOTIFICATION_COOLDOWN)
-                            .unwrap_or(true);
-                        if cooldown_ok {
-                            warn!(
-                                "audio capture stalled for {}s, showing restart notification",
-                                CAPTURE_STALL_THRESHOLD
-                            );
-                            last_audio_notification = Some(now_instant);
-                            last_restart_triggered = Some(now_instant);
-                            let _ = show_capture_stall_notification(&app, "audio").await;
-                        }
-                    }
 
                     if consecutive_vision_stall == CAPTURE_STALL_THRESHOLD && notifications_enabled
                     {
@@ -954,7 +744,6 @@ pub async fn start_health_check(app: tauri::AppHandle) -> Result<()> {
                 }
             } else {
                 // Reset stall counters when server is not in Recording state
-                consecutive_audio_stall = 0;
                 consecutive_vision_stall = 0;
             }
         }
@@ -1039,18 +828,14 @@ mod tests {
             status: "healthy".to_string(),
             status_code: Some(200),
             last_frame_timestamp: None,
-            last_audio_timestamp: None,
             last_ui_timestamp: None,
             frame_status: None,
-            audio_status: None,
             ui_status: None,
             message: None,
             verbose_instructions: None,
             device_status_details: None,
             monitors: None,
-            audio_pipeline: None,
             vision_db_write_stalled: false,
-            audio_db_write_stalled: false,
             drm_content_paused: false,
         })
     }
@@ -1060,18 +845,14 @@ mod tests {
             status: "unhealthy".to_string(),
             status_code: Some(500),
             last_frame_timestamp: None,
-            last_audio_timestamp: None,
             last_ui_timestamp: None,
             frame_status: None,
-            audio_status: None,
             ui_status: None,
             message: None,
             verbose_instructions: None,
             device_status_details: None,
             monitors: None,
-            audio_pipeline: None,
             vision_db_write_stalled: false,
-            audio_db_write_stalled: false,
             drm_content_paused: false,
         })
     }
@@ -1582,12 +1363,7 @@ mod tests {
 
     #[test]
     fn boot_readiness_pending_during_intermediate_phases() {
-        for phase in [
-            "starting",
-            "migrating_database",
-            "building_audio",
-            "starting_pipes",
-        ] {
+        for phase in ["starting", "migrating_database"] {
             with_boot_phase(phase, || {
                 assert_eq!(
                     boot_readiness(),
@@ -1646,7 +1422,7 @@ mod tests {
         let _guard = BOOT_PHASE_TEST_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        set_boot_phase("building_audio", None);
+        set_boot_phase("migrating_database", None);
         // 200 ms is long enough for the polling loop to make at least one
         // pass (poll interval is 500 ms, deadline check fires first), short
         // enough not to slow the suite.
@@ -1671,7 +1447,7 @@ mod tests {
         let _guard = BOOT_PHASE_TEST_LOCK
             .lock()
             .unwrap_or_else(|e| e.into_inner());
-        set_boot_phase("building_audio", None);
+        set_boot_phase("migrating_database", None);
 
         // Flip to ready after 100 ms. The waiter polls every 500 ms, so
         // worst case it observes the transition within ~500 ms of the flip.

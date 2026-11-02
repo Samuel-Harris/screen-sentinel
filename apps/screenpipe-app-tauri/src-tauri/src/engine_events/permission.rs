@@ -49,11 +49,10 @@ fn handle_lost(app: &AppHandle, data: &Value) {
 
     info!(event = %data, "permission-lost (from engine)");
     // Shape the payload to match what the Tauri webview already listens for.
-    // Existing recovery modal expects `screen_recording` / `microphone` /
-    // `accessibility` booleans.
+    // Existing recovery modal expects `screen_recording` / `accessibility`
+    // booleans.
     let payload = serde_json::json!({
         "screen_recording": kind == "screen_recording",
-        "microphone":       kind == "microphone",
         "accessibility":    kind == "accessibility",
         "browser_automation": false,
     });
