@@ -13,14 +13,13 @@
 //! this stays fast; if it falls back to a timestamp scan, it blows up. The
 //! EXPLAIN QUERY PLAN dumps confirm which.
 //!
-//! Measured (200k frames / 200k vision_tags / 60k audio / 50k memories,
+//! Measured (200k frames / 200k vision_tags / 50k memories,
 //! in-memory, M-series; tags rare + on the oldest rows = adversarial):
-//!   plan: screen/audio drives off the tag indexes (tags.name UNIQUE +
+//!   plan: screen drives off the tag indexes (tags.name UNIQUE +
 //!         idx_vision_tags_tag_id) then PK-looks-up frames — it does NOT scan
 //!         all frames, so the tag filter is *faster* than unfiltered search.
 //!   OCR  no-tags (baseline full scan+sort) ~127 ms
 //!   OCR  tags=person:ada                    ~7 ms   (17x faster than baseline)
-//!   Audio tags=person:ada                   ~1 ms
 //!   All  tags=person:ada                    ~8 ms
 //!   Memory tags=person:ada                  ~16 ms
 //!   counts (OCR/All/Memory)                 ~7-12 ms
@@ -36,8 +35,6 @@ use screenpipe_db::{ContentType, DatabaseManager};
 const N_FRAMES: i64 = 200_000;
 const N_VISION_TAG_ROWS: i64 = N_FRAMES; // every frame gets a noise tag too
 const K_TAGGED_FRAMES: i64 = 500; // rare + oldest
-const N_AUDIO: i64 = 60_000;
-const K_TAGGED_AUDIO: i64 = 500;
 const N_MEM: i64 = 50_000;
 const K_TAGGED_MEM: i64 = 500;
 
@@ -137,39 +134,6 @@ async fn bench_tag_filter_scaling() {
     )
     .await;
 
-    // Audio: chunks + transcriptions, oldest K tagged person:ada.
-    exec(
-        &db,
-        &format!(
-            "INSERT INTO audio_chunks (file_path) \
-             WITH RECURSIVE s(i) AS (SELECT 0 UNION ALL SELECT i+1 FROM s WHERE i<{n}-1) \
-             SELECT 'a'||i||'.mp4' FROM s",
-            n = N_AUDIO
-        ),
-    )
-    .await;
-    exec(
-        &db,
-        &format!(
-            "INSERT INTO audio_transcriptions (audio_chunk_id, offset_index, timestamp, transcription, transcription_engine, device, is_input_device) \
-             WITH RECURSIVE s(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM s WHERE i<{n}) \
-             SELECT i, 0, datetime('2026-01-01 00:00:00', '+'||i||' seconds'), 'audio '||i, 'eng', 'dev', 1 FROM s",
-            n = N_AUDIO
-        ),
-    )
-    .await;
-    exec(
-        &db,
-        &format!(
-            "INSERT INTO audio_tags (audio_chunk_id, tag_id) \
-             WITH RECURSIVE s(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM s WHERE i<{k}) \
-             SELECT i, {ada} FROM s",
-            k = K_TAGGED_AUDIO,
-            ada = ada_tag
-        ),
-    )
-    .await;
-
     // Memories: oldest K tagged person:ada + project:atlas, rest noise.
     exec(
         &db,
@@ -185,20 +149,19 @@ async fn bench_tag_filter_scaling() {
     )
     .await;
 
-    let counts: (i64, i64, i64, i64) = sqlx::query_as(
+    let counts: (i64, i64, i64) = sqlx::query_as(
         "SELECT (SELECT COUNT(*) FROM frames), (SELECT COUNT(*) FROM vision_tags), \
-         (SELECT COUNT(*) FROM audio_transcriptions), (SELECT COUNT(*) FROM memories)",
+         (SELECT COUNT(*) FROM memories)",
     )
     .fetch_one(&db.pool)
     .await
     .unwrap();
     println!(
-        "seeded in {:?}: frames={} vision_tags={} audio={} memories={}",
+        "seeded in {:?}: frames={} vision_tags={} memories={}",
         seed.elapsed(),
         counts.0,
         counts.1,
-        counts.2,
-        counts.3
+        counts.2
     );
 
     // ---- query plans (the decisive scaling signal) ----
@@ -246,8 +209,6 @@ async fn bench_tag_filter_scaling() {
                     None,
                     None,
                     None,
-                    None,
-                    None,
                     &tags,
                 )
                 .await
@@ -274,8 +235,6 @@ async fn bench_tag_filter_scaling() {
                         None,
                         None,
                         None,
-                        None,
-                        None,
                         &tags,
                     )
                     .await
@@ -290,7 +249,6 @@ async fn bench_tag_filter_scaling() {
     println!("\n--- timings ---");
     runs("OCR  no-tags (baseline)", ContentType::OCR, vec![]).await;
     runs("OCR  tags=person:ada", ContentType::OCR, ada.clone()).await;
-    runs("Audio tags=person:ada", ContentType::Audio, ada.clone()).await;
     runs("All  tags=person:ada", ContentType::All, ada.clone()).await;
     runs("Memory tags=person:ada", ContentType::Memory, ada.clone()).await;
 
@@ -303,8 +261,7 @@ async fn bench_tag_filter_scaling() {
         let t = Instant::now();
         let total = db
             .count_search_results_with_tags(
-                "", ct, None, None, None, None, None, None, None, None, None, None, None, None,
-                &ada,
+                "", ct, None, None, None, None, None, None, None, None, None, None, &ada,
             )
             .await
             .unwrap();
