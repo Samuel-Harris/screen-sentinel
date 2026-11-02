@@ -784,7 +784,6 @@ async fn execute_single_write(
             query.execute(&mut **conn).await?;
             Ok(WriteResult::Unit)
         }
-
     }
 }
 
