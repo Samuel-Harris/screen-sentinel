@@ -21,7 +21,8 @@ async fn main() {
     let payloads = [
         "hi".to_string(),
         "Email me at alice@example.com or call 415-555-0142.".to_string(),
-        "Marcus Chen pushed the prod creds to the screen-sentinel/widget repo on slack.".to_string(),
+        "Marcus Chen pushed the prod creds to the screen-sentinel/widget repo on slack."
+            .to_string(),
         realistic_long,
     ];
     for (i, text) in payloads.iter().enumerate() {

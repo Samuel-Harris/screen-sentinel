@@ -369,7 +369,9 @@ pub async fn paired_capture(
 /// Returns a `TreeWalkResult` distinguishing found/skipped/not-found states.
 ///
 /// This is a blocking operation that should be spawned on a blocking thread.
-pub fn walk_accessibility_tree(config: &TreeWalkerConfig) -> screen_sentinel_a11y::tree::TreeWalkResult {
+pub fn walk_accessibility_tree(
+    config: &TreeWalkerConfig,
+) -> screen_sentinel_a11y::tree::TreeWalkResult {
     use screen_sentinel_a11y::tree::TreeWalkResult;
     let walker = create_tree_walker(config.clone());
     match walker.walk_focused_window() {

@@ -137,12 +137,12 @@ fn test_production_scenario_multiple_apps() {
 
     // Simulates a typical capture cycle with multiple apps
     let windows = vec![
-        ("Arc", ""),                      // Arc internal (empty)
+        ("Arc", ""),                           // Arc internal (empty)
         ("Arc", "GitHub - Screen Sentinel"),   // Arc tab
-        ("WezTerm", ""),                  // Terminal internal? (empty)
+        ("WezTerm", ""),                       // Terminal internal? (empty)
         ("WezTerm", "~/code/screen-sentinel"), // Terminal window
-        ("Finder", "Documents"),          // Finder window
-        ("Dock", "Dock"),                 // Should be skipped (SKIP_APPS)
+        ("Finder", "Documents"),               // Finder window
+        ("Dock", "Dock"),                      // Should be skipped (SKIP_APPS)
     ];
 
     println!("\n=== Production Scenario: Multiple Apps ===\n");

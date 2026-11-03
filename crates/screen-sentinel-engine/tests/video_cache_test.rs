@@ -15,7 +15,10 @@ async fn setup_test_env() -> Result<(FrameCache, Arc<DatabaseManager>)> {
 
     let screen_sentinel_dir = paths::default_screen_sentinel_data_dir().join("data");
 
-    debug!("using real Screen Sentinel data dir: {:?}", screen_sentinel_dir);
+    debug!(
+        "using real Screen Sentinel data dir: {:?}",
+        screen_sentinel_dir
+    );
 
     let db = Arc::new(
         DatabaseManager::new(

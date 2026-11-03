@@ -21,7 +21,10 @@ async fn setup_test_env() -> Result<()> {
 async fn create_test_video() -> Result<PathBuf> {
     let screen_sentinel_dir = paths::default_screen_sentinel_data_dir().join("data");
 
-    info!("looking for monitor video in {}", screen_sentinel_dir.display());
+    info!(
+        "looking for monitor video in {}",
+        screen_sentinel_dir.display()
+    );
 
     // Read directory and find first video containing "monitor"
     let mut entries = tokio::fs::read_dir(&screen_sentinel_dir).await?;
@@ -165,7 +168,8 @@ async fn test_get_video_metadata() -> Result<()> {
     println!("testing metadata extraction from {}", video_path.display());
 
     let metadata =
-        screen_sentinel_engine::video_utils::get_video_metadata(video_path.to_str().unwrap()).await?;
+        screen_sentinel_engine::video_utils::get_video_metadata(video_path.to_str().unwrap())
+            .await?;
 
     println!(
         "extracted metadata: creation_time={}, fps={}, duration={}s",

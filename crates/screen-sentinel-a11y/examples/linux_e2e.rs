@@ -37,7 +37,10 @@ fn main() {
                     match etype {
                         "click" => {
                             if let screen_sentinel_a11y::events::EventData::Click {
-                                x, y, button, ..
+                                x,
+                                y,
+                                button,
+                                ..
                             } = &event.data
                             {
                                 println!(
@@ -71,8 +74,10 @@ fn main() {
                             }
                         }
                         "app_switch" => {
-                            if let screen_sentinel_a11y::events::EventData::AppSwitch { name, pid } =
-                                &event.data
+                            if let screen_sentinel_a11y::events::EventData::AppSwitch {
+                                name,
+                                pid,
+                            } = &event.data
                             {
                                 println!(
                                     "  [{:>5.1}s] APP_SWITCH: {:?} (pid={})",

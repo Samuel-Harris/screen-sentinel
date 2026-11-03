@@ -14,10 +14,14 @@ use anyhow::Result;
 use chrono::Utc;
 use screen_sentinel_a11y::tree::TreeWalkerConfig;
 use screen_sentinel_a11y::ActivityFeed;
-use screen_sentinel_capture::paired_capture::{paired_capture, CaptureContext, PairedCaptureResult};
+use screen_sentinel_capture::paired_capture::{
+    paired_capture, CaptureContext, PairedCaptureResult,
+};
 use screen_sentinel_core::window_pattern::{self, WindowPattern};
 use screen_sentinel_db::DatabaseManager;
-use screen_sentinel_screen::capture_screenshot_by_window::{get_excluded_sck_window_ids, WindowFilters};
+use screen_sentinel_screen::capture_screenshot_by_window::{
+    get_excluded_sck_window_ids, WindowFilters,
+};
 use screen_sentinel_screen::frame_comparison::{FrameComparer, FrameComparisonConfig};
 use screen_sentinel_screen::monitor::{list_monitors, SafeMonitor};
 use screen_sentinel_screen::snapshot_writer::SnapshotWriter;

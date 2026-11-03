@@ -21,6 +21,8 @@ async fn print_token() -> Result<()> {
         return Ok(());
     }
 
-    eprintln!("no API token found. start Screen Sentinel first, or set SCREEN_SENTINEL_API_KEY env var.");
+    eprintln!(
+        "no API token found. start Screen Sentinel first, or set SCREEN_SENTINEL_API_KEY env var."
+    );
     std::process::exit(1);
 }

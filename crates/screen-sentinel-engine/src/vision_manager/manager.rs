@@ -209,7 +209,10 @@ impl VisionManager {
     /// Check whether a monitor is allowed by the user's monitor filter settings.
     /// Uses prefix matching (name + resolution) so that position changes after
     /// reconnect don't break the filter.
-    pub fn is_monitor_allowed(&self, monitor: &screen_sentinel_screen::monitor::SafeMonitor) -> bool {
+    pub fn is_monitor_allowed(
+        &self,
+        monitor: &screen_sentinel_screen::monitor::SafeMonitor,
+    ) -> bool {
         if self
             .stale_allowlist_fallback
             .load(std::sync::atomic::Ordering::Relaxed)

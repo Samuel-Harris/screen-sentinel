@@ -29,7 +29,10 @@ impl MockBrowser {
         Self {
             tabs: vec![
                 ("Google", "https://google.com"),
-                ("GitHub - Screen Sentinel", "https://github.com/screen-sentinel"),
+                (
+                    "GitHub - Screen Sentinel",
+                    "https://github.com/screen-sentinel",
+                ),
                 ("WhatsApp", "https://web.whatsapp.com"),
             ],
             active_tab: AtomicUsize::new(0),

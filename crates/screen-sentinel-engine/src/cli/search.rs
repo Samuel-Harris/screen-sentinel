@@ -23,8 +23,8 @@ use std::path::PathBuf;
 use crate::cli::SearchArgs;
 use crate::routes::content::ContentItem;
 use crate::routes::search::search_result_to_content_item;
-use screen_sentinel_core::is_screen_sentinel_app;
 use crate::routes::time::parse_flexible_datetime;
+use screen_sentinel_core::is_screen_sentinel_app;
 
 pub async fn handle_search_command(args: &SearchArgs) -> anyhow::Result<()> {
     let base_dir = match &args.data_dir {

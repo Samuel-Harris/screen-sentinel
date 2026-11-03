@@ -644,7 +644,11 @@ mod tests {
             .filter(|(app_name, _)| !screen_sentinel_core::is_screen_sentinel_app(app_name))
             .collect();
 
-        assert_eq!(filtered.len(), 2, "Should have 2 non-screen-sentinel entries");
+        assert_eq!(
+            filtered.len(),
+            2,
+            "Should have 2 non-screen-sentinel entries"
+        );
         assert_eq!(filtered[0].0, "Chrome");
         assert_eq!(filtered[1].0, "Cursor");
     }

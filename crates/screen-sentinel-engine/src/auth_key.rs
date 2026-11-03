@@ -206,7 +206,10 @@ pub async fn find_api_auth_key() -> Option<String> {
     // app's env under different names. Honor those too — without this the
     // agent's `connection list` couldn't authenticate even though the key
     // was right there.
-    for var in ["SCREEN_SENTINEL_LOCAL_API_KEY", "SCREEN_SENTINEL_API_AUTH_KEY"] {
+    for var in [
+        "SCREEN_SENTINEL_LOCAL_API_KEY",
+        "SCREEN_SENTINEL_API_AUTH_KEY",
+    ] {
         if let Ok(k) = std::env::var(var) {
             if !k.is_empty() {
                 return Some(k);

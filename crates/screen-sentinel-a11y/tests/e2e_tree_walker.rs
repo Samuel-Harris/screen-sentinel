@@ -150,7 +150,8 @@ mod e2e {
 
             if snap.app_name == "TextEdit" {
                 assert!(
-                    snap.text_content.contains("Screen Sentinel accessibility test"),
+                    snap.text_content
+                        .contains("Screen Sentinel accessibility test"),
                     "should capture typed text, got: {}",
                     &snap.text_content[..snap.text_content.len().min(200)]
                 );

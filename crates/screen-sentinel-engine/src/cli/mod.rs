@@ -1133,7 +1133,8 @@ mod tests {
 
     #[test]
     fn test_pause_on_drm_content_flag_sets_true() {
-        let cli = Cli::try_parse_from(["screen-sentinel", "record", "--pause-on-drm-content"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["screen-sentinel", "record", "--pause-on-drm-content"]).unwrap();
         match cli.command {
             Command::Record(args) => {
                 assert!(args.pause_on_drm_content, "flag should set to true");
@@ -1144,7 +1145,8 @@ mod tests {
 
     #[test]
     fn test_pause_on_drm_content_flows_to_recording_settings() {
-        let cli = Cli::try_parse_from(["screen-sentinel", "record", "--pause-on-drm-content"]).unwrap();
+        let cli =
+            Cli::try_parse_from(["screen-sentinel", "record", "--pause-on-drm-content"]).unwrap();
         match cli.command {
             Command::Record(args) => {
                 let settings = args.to_recording_settings();
@@ -1239,8 +1241,13 @@ mod tests {
             "day out of range should fail to parse"
         );
         assert!(
-            Cli::try_parse_from(["screen-sentinel", "record", "--schedule-rule", "0,9am,18:00,all"])
-                .is_err(),
+            Cli::try_parse_from([
+                "screen-sentinel",
+                "record",
+                "--schedule-rule",
+                "0,9am,18:00,all"
+            ])
+            .is_err(),
             "non HH:MM time should fail to parse"
         );
     }
@@ -1349,11 +1356,21 @@ mod tests {
 
     #[test]
     fn test_explicit_cli_overrides_preserve_app_settings_for_absent_defaults() {
-        let cli =
-            Cli::try_parse_from(["screen-sentinel", "record", "--port", "4040", "--disable-vision"])
-                .unwrap();
-        let sources =
-            record_sources(["screen-sentinel", "record", "--port", "4040", "--disable-vision"]);
+        let cli = Cli::try_parse_from([
+            "screen-sentinel",
+            "record",
+            "--port",
+            "4040",
+            "--disable-vision",
+        ])
+        .unwrap();
+        let sources = record_sources([
+            "screen-sentinel",
+            "record",
+            "--port",
+            "4040",
+            "--disable-vision",
+        ]);
         let mut settings = screen_sentinel_config::RecordingSettings {
             port: 3130,
             disable_vision: false,

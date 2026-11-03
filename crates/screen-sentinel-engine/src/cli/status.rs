@@ -27,8 +27,11 @@ pub async fn handle_status_command(
 
     // Get DB stats
     let (frame_count, last_timestamp) = if db_path.exists() {
-        match screen_sentinel_db::DatabaseManager::new(&db_path.to_string_lossy(), Default::default())
-            .await
+        match screen_sentinel_db::DatabaseManager::new(
+            &db_path.to_string_lossy(),
+            Default::default(),
+        )
+        .await
         {
             Ok(db) => {
                 let frames: i64 = sqlx::query("SELECT COUNT(*) as cnt FROM frames")
@@ -74,7 +77,10 @@ pub async fn handle_status_command(
     } else {
         let status = if running { "running" } else { "not running" };
         let status_icon = if running { "●" } else { "○" };
-        println!("Screen Sentinel: {} {} (port {})", status_icon, status, port);
+        println!(
+            "Screen Sentinel: {} {} (port {})",
+            status_icon, status, port
+        );
         println!("frames:       {}", frame_count);
         println!("last capture: {}", last_timestamp);
         println!("data size:    {}", data_size_human);

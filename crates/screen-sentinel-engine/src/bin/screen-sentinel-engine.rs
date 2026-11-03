@@ -281,7 +281,8 @@ async fn main() -> anyhow::Result<()> {
             ref subcommand,
             ref data_dir,
         } => {
-            screen_sentinel_engine::cli::backup::handle_backup_command(subcommand, data_dir).await?;
+            screen_sentinel_engine::cli::backup::handle_backup_command(subcommand, data_dir)
+                .await?;
             return Ok(());
         }
         Command::Export(ref args) => {
@@ -323,7 +324,9 @@ async fn main() -> anyhow::Result<()> {
             if perms_ok && ffmpeg_ok && port_ok {
                 eprintln!("all checks passed — ready to record");
             } else {
-                eprintln!("some checks failed — fix the issues above before running Screen Sentinel");
+                eprintln!(
+                    "some checks failed — fix the issues above before running Screen Sentinel"
+                );
                 std::process::exit(1);
             }
             return Ok(());
@@ -716,7 +719,8 @@ async fn main() -> anyhow::Result<()> {
                 match screen_sentinel_secrets::keychain::get_or_create_key() {
                     Some(k) => {
                         info!("keychain: encryption key ready (--encrypt-secrets)");
-                        if let Err(e) = screen_sentinel_secrets::mark_encryption_enabled(&local_data_dir)
+                        if let Err(e) =
+                            screen_sentinel_secrets::mark_encryption_enabled(&local_data_dir)
                         {
                             warn!("keychain: failed to persist encryption opt-in flag: {}", e);
                         }
@@ -750,7 +754,8 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 // Run legacy migration
-                match screen_sentinel_secrets::migrate_legacy_secrets(&store, &local_data_dir).await {
+                match screen_sentinel_secrets::migrate_legacy_secrets(&store, &local_data_dir).await
+                {
                     Ok(report) => {
                         if !report.migrated.is_empty() {
                             info!(
@@ -854,7 +859,9 @@ async fn main() -> anyhow::Result<()> {
                 screen_sentinel_engine::retention::RetentionMode::Media => {
                     "media-only (keep text)".to_string()
                 }
-                screen_sentinel_engine::retention::RetentionMode::All => "all (full delete)".to_string(),
+                screen_sentinel_engine::retention::RetentionMode::All => {
+                    "all (full delete)".to_string()
+                }
             }
         }
     );
@@ -1187,7 +1194,9 @@ async fn main() -> anyhow::Result<()> {
         #[cfg(all(feature = "rfdetr-mlx", target_os = "macos", target_arch = "aarch64"))]
         {
             if std::env::var_os("SCREEN_SENTINEL_ENABLE_EXPERIMENTAL_RFDETR_MLX").is_some() {
-                use screen_sentinel_redact::adapters::rfdetr_mlx::{RfdetrMlxConfig, RfdetrMlxRedactor};
+                use screen_sentinel_redact::adapters::rfdetr_mlx::{
+                    RfdetrMlxConfig, RfdetrMlxRedactor,
+                };
                 let mlx_cfg = RfdetrMlxConfig::default();
                 // Mirrors the ONNX adapter: download once, verify SHA-256,
                 // cache at ~/.screen-sentinel/models/rfdetr_v9.safetensors.

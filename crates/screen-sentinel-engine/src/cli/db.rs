@@ -390,7 +390,9 @@ fn integrity_check(db_path: &Path) -> Result<()> {
         Ok(())
     } else {
         eprintln!("  ✗ corruption detected:\n{result}");
-        eprintln!("\n  next step: quit the Screen Sentinel app, then run `screen-sentinel db recover`");
+        eprintln!(
+            "\n  next step: quit the Screen Sentinel app, then run `screen-sentinel db recover`"
+        );
         std::process::exit(1)
     }
 }

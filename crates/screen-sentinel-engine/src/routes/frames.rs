@@ -796,7 +796,8 @@ pub async fn get_frame_text_data(
         if let Ok((_, Some(tree_json))) = state.db.get_frame_accessibility_data(frame_id).await {
             if let Some(query) = &params.query {
                 // Filtered: use the same matching logic as keyword search
-                text_positions = screen_sentinel_db::find_matching_a11y_positions(&tree_json, query);
+                text_positions =
+                    screen_sentinel_db::find_matching_a11y_positions(&tree_json, query);
             } else if let Ok(nodes) = serde_json::from_str::<Vec<serde_json::Value>>(&tree_json) {
                 // Unfiltered: return all nodes (existing behavior for text selection)
                 text_positions = nodes
@@ -947,7 +948,8 @@ pub async fn run_frame_ocr(
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let ocr_result = tokio::task::spawn_blocking(move || {
-        let (text, json, _confidence) = screen_sentinel_screen::perform_ocr_tesseract(&image, vec![]);
+        let (text, json, _confidence) =
+            screen_sentinel_screen::perform_ocr_tesseract(&image, vec![]);
         (text, json)
     })
     .await
