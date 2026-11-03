@@ -171,7 +171,7 @@ export function TimelineTagToolbar({ anchorRect }: TimelineTagToolbarProps) {
 			const data = await resp.json();
 			toast({
 				title: "deleted",
-				description: `removed ${data.frames_deleted} frames, ${data.audio_transcriptions_deleted} audio segments`,
+				description: `removed ${data.frames_deleted} frames`,
 			});
 			posthog.capture("timeline_range_deleted", {
 				duration_ms: selectionRange.end.getTime() - selectionRange.start.getTime(),
