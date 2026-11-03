@@ -5,19 +5,19 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: default-stack
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
-  version: 0.1.0
+  version: 0.1.2
   virtual_path: packages/default-stack
   is_virtual: true
   package_type: apm_package
-  content_hash: sha256:6b36234f9d2f412417d7eeb9aae885b101992f11542f63054555df5936544079
+  content_hash: sha256:2b7f9c3e806720056b16b322c895ed192d685b933a60163f08bf2e138ec0edcd
   declared_license: MIT
 - repo_url: samuel-harris/foundry
   materialization_repo_url: Samuel-Harris/foundry
   name: pstack
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/pstack
@@ -70,6 +70,27 @@ dependencies:
   - .agents/skills/make-bot-ui/SKILL.md
   - .agents/skills/no-comments
   - .agents/skills/no-comments/SKILL.md
+  - .agents/skills/poteto-help
+  - .agents/skills/poteto-help/SKILL.md
+  - .agents/skills/poteto-help/references/guide/01-setup.md
+  - .agents/skills/poteto-help/references/guide/02-poteto-mode.md
+  - .agents/skills/poteto-help/references/guide/03-understand.md
+  - .agents/skills/poteto-help/references/guide/04-design.md
+  - .agents/skills/poteto-help/references/guide/05-build-and-clean.md
+  - .agents/skills/poteto-help/references/guide/06-verify-and-ship.md
+  - .agents/skills/poteto-help/references/guide/07-overnight.md
+  - .agents/skills/poteto-help/references/guide/08-principles.md
+  - .agents/skills/poteto-help/references/guide/09-make-it-yours.md
+  - .agents/skills/poteto-help/references/guide/10-recipes-and-pitfalls.md
+  - .agents/skills/poteto-help/references/guide/README.md
+  - .agents/skills/poteto-help/references/guide/images/design.jpg
+  - .agents/skills/poteto-help/references/guide/images/overnight.jpg
+  - .agents/skills/poteto-help/references/guide/images/recipes.jpg
+  - .agents/skills/poteto-help/references/guide/images/router.jpg
+  - .agents/skills/poteto-help/references/guide/images/understanding.jpg
+  - .agents/skills/poteto-help/references/guide/images/verification.jpg
+  - .agents/skills/poteto-help/references/prompting.md
+  - .agents/skills/poteto-help/references/recipes.md
   - .agents/skills/poteto-mode
   - .agents/skills/poteto-mode/SKILL.md
   - .agents/skills/poteto-mode/playbooks/authoring-a-skill.md
@@ -155,6 +176,8 @@ dependencies:
   - .agents/skills/principle-test-behavior-not-implementation/SKILL.md
   - .agents/skills/principle-type-system-discipline
   - .agents/skills/principle-type-system-discipline/SKILL.md
+  - .agents/skills/recall
+  - .agents/skills/recall/SKILL.md
   - .agents/skills/reflect
   - .agents/skills/reflect/SKILL.md
   - .agents/skills/reflect/references/divergent-reviewer.md
@@ -258,6 +281,26 @@ dependencies:
     .agents/skills/maintain-verification-skill/SKILL.md: sha256:162ee05a19dd2ef51d83996f6c7c7bc075d8f2fc8be8c40783fd4a79cff4794d
     .agents/skills/make-bot-ui/SKILL.md: sha256:c90a39889bbd56524c020f614059df9c024bf51f3d7344df7574a6683ed55ba2
     .agents/skills/no-comments/SKILL.md: sha256:7ba544adef66019cb6f346d2486e4a59f22fec284012b9007eeeea37a9dc478b
+    .agents/skills/poteto-help/SKILL.md: sha256:d3880befc6abb949951d120899e3203c299ec4c27832870cd9190eda1fae865e
+    .agents/skills/poteto-help/references/guide/01-setup.md: sha256:55f1c388df64506d14dca0066ecfa07d543cdc729d9ecc16426ce022c15a64da
+    .agents/skills/poteto-help/references/guide/02-poteto-mode.md: sha256:199e499a096dcf575b75acc58f762a30c15a0f0bfc55dada9ae2f42599473561
+    .agents/skills/poteto-help/references/guide/03-understand.md: sha256:da49170a2d6f5e3e955a4a3d220a7917018467aa4efeab9fa91d8aaae534545d
+    .agents/skills/poteto-help/references/guide/04-design.md: sha256:1efe3a3378dc0b992634685b2efb41fd0ecaf9e312d060ce2f953bd90eed4eaf
+    .agents/skills/poteto-help/references/guide/05-build-and-clean.md: sha256:66dcc41e55c4708030c68fb62bfd1b6b2d3312cdb5cef7da7902fe6d95b6263f
+    .agents/skills/poteto-help/references/guide/06-verify-and-ship.md: sha256:e02786ef39e7edf26e8b3188a133772e9beec1d92baaaae1fbe1f2e036f92380
+    .agents/skills/poteto-help/references/guide/07-overnight.md: sha256:39fb3e8c46ea9dcd2fcb50f37a4585dad38f3e6d11c48034d79c0e34eb7b0c5e
+    .agents/skills/poteto-help/references/guide/08-principles.md: sha256:8f6f3688fba73d664c13415bc74b6b25ec2e4338270ee512bec367bba7f835c6
+    .agents/skills/poteto-help/references/guide/09-make-it-yours.md: sha256:87417513b1e1addbae94b3ec193eed42830e09dbe096f77d702db228bc888a31
+    .agents/skills/poteto-help/references/guide/10-recipes-and-pitfalls.md: sha256:8d056a95e0be34dfc577a97f8ced294ffdceb8163dc21bc78a6f89ee8d8cd95c
+    .agents/skills/poteto-help/references/guide/README.md: sha256:8029539535aa01727a63bbdba620e5bef463076f0c20db108c5c0840cbbb9d40
+    .agents/skills/poteto-help/references/guide/images/design.jpg: sha256:b8ed07427f6a0c37dd8ba97961fc0eb5071efeee6c4a230648bdb7547f6f2a8f
+    .agents/skills/poteto-help/references/guide/images/overnight.jpg: sha256:4b4405e4df8925c5b3abbe702f681af0f3b1f5f32271b599f95717f578f1a0c8
+    .agents/skills/poteto-help/references/guide/images/recipes.jpg: sha256:9fa2d51b476635712737795ddef81806efaa0086bb3bfa9f9f45695d9ab0f8e8
+    .agents/skills/poteto-help/references/guide/images/router.jpg: sha256:525843055a4efd2b10acc50a8652fd02b0834ea733a8a2f895c1eb89036017da
+    .agents/skills/poteto-help/references/guide/images/understanding.jpg: sha256:b60587e9a9bbe2550e93be9819cf0cd4acf77d90fac769a0c43d82bd8e34e279
+    .agents/skills/poteto-help/references/guide/images/verification.jpg: sha256:2a76b52007a1cd2866ba67fd47d7d9ef3e1118bb5a09c4665eee8c3f161bd09a
+    .agents/skills/poteto-help/references/prompting.md: sha256:da55d284628a3c84e8e38cb5331775583e517bbde93797fd264be49e523c738a
+    .agents/skills/poteto-help/references/recipes.md: sha256:5323aca73a39a3b607c2bb22cd33551fe893563dfd4b104df838da010e9fc702
     .agents/skills/poteto-mode/SKILL.md: sha256:a2c24f9e7dcf30e3b1c925f5d28d7645913e2dda8ad3d7b0ed0b4f84c0fa3c63
     .agents/skills/poteto-mode/playbooks/authoring-a-skill.md: sha256:91aa29e2724a667861a7ce8e458ee3cbbbcaa620d832c4d0ad99654e850fb284
     .agents/skills/poteto-mode/playbooks/autonomous-run.md: sha256:45a7ea91a9a760ff4656a09169d81e428de059b15ee6841a85a141e5012afa16
@@ -318,6 +361,7 @@ dependencies:
     .agents/skills/principle-subtract-before-you-add/SKILL.md: sha256:8c93bb9d1a7f38e2ef37655d93f0e790fa59903105af3d500cc8a663ebe45f3f
     .agents/skills/principle-test-behavior-not-implementation/SKILL.md: sha256:760e04a4e09049bb9eabe68c473f0b33fcedd3c64caefaa85c810a0a5fc308be
     .agents/skills/principle-type-system-discipline/SKILL.md: sha256:5cdaf79785e3c12b2592b9469ee8c272143eb86ab7a18d8382197cea5fd30106
+    .agents/skills/recall/SKILL.md: sha256:9cc9934c9e947bc9c7d74ae666abbcc9e54c5310327c4bd21935c4a88df21135
     .agents/skills/reflect/SKILL.md: sha256:997e11d45ea9037290ba443a96e05cd624f98b57e0f91d74a97b38862564d9ae
     .agents/skills/reflect/references/divergent-reviewer.md: sha256:b8e12572a40bc742abb2bec5f2c4af9ed46e55a2606afb118dd0a34bdf99dbc7
     .agents/skills/reflect/references/judgment-reviewer.md: sha256:59c217afa4121c9f04b2a887e3a9f1b612434d0c420cc70d25c638fd3261957a
@@ -381,15 +425,15 @@ dependencies:
     .agents/skills/why/references/synthesizer-prompt.md: sha256:2c8c7e325d16fa0354520df52620bd02f063d0d1ce65f7d6548f93e06c5e1d06
     .cursor/agents/comment-sicko.md: sha256:e0c586713d8cddf24331422a50364531af0a8f9374be75f68fd46924c9cfbbf2
     .cursor/agents/poteto-agent.md: sha256:7e97f95b20b7104d9a84716a70e84bbcf711e288cb0ec074c45ce80cd5f20ce8
-  content_hash: sha256:57213262a9c8cc2aec7e1f7031633c8b3d808be6ab181179a111d1788adf16d2
+  content_hash: sha256:3377317005e3bd70cc98f04e8c1dd651fa9d9b3ff5538cb18cd6d672770d4c0a
   declared_license: MIT
 - repo_url: samuel-harris/foundry
   materialization_repo_url: Samuel-Harris/foundry
   name: coding-style
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
-  version: 0.1.0
+  version: 0.1.2
   virtual_path: packages/coding-style
   is_virtual: true
   depth: 2
@@ -400,14 +444,14 @@ dependencies:
   - .cursor/rules/software-engineering-rules.mdc
   deployed_file_hashes:
     .cursor/rules/compatibility-surface-gate.mdc: sha256:d29b6879fa4e6bcaedf42e5b82b0107d9cc518277873b6f37274c6668c8d9b0f
-    .cursor/rules/software-engineering-rules.mdc: sha256:8c47c017c3745a999cd71ecc76bd0906959f60d8d34fefd74e0dc7498b9b05f5
-  content_hash: sha256:94a32fc5b6db4fe29a2a8610ea9439b36c26c2e2e98150fdbc7a114573f47f36
+    .cursor/rules/software-engineering-rules.mdc: sha256:586e46f0e3cd4d5782b131fbb5d91cbd7edbae3fbd3ab8f8da59a9058e602589
+  content_hash: sha256:09d5abf150e55d6de94ebec3b2246e65c2457e27ecc0292783c55ffef7a7ae06
   declared_license: MIT
 - repo_url: samuel-harris/foundry
   materialization_repo_url: Samuel-Harris/foundry
   name: execution
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/execution
@@ -426,7 +470,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: git-diff
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/git-diff
@@ -451,7 +495,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: planning
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/planning
@@ -474,7 +518,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: pr
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/pr
@@ -499,7 +543,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: repo-maintenance
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/repo-maintenance
@@ -534,7 +578,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: review
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/review
@@ -563,7 +607,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: skill-creation
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/skill-creation
@@ -582,7 +626,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: deep-interview
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/deep-interview
@@ -601,7 +645,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: explore
   host: github.com
-  resolved_commit: 843045781e03c6695343bf79a8c4bc6dbc293314
+  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/explore
@@ -1291,6 +1335,195 @@ deployments:
   - samuel-harris/foundry/packages/repo-maintenance
   active_owner: samuel-harris/foundry/packages/repo-maintenance
   content_hash: sha256:0eef0d85caf2f09391ff7a30b562eefdffe12d12f6eb6e9b9689d23c3292dc64
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: null
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:d3880befc6abb949951d120899e3203c299ec4c27832870cd9190eda1fae865e
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/01-setup.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:55f1c388df64506d14dca0066ecfa07d543cdc729d9ecc16426ce022c15a64da
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/02-poteto-mode.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:199e499a096dcf575b75acc58f762a30c15a0f0bfc55dada9ae2f42599473561
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/03-understand.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:da49170a2d6f5e3e955a4a3d220a7917018467aa4efeab9fa91d8aaae534545d
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/04-design.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:1efe3a3378dc0b992634685b2efb41fd0ecaf9e312d060ce2f953bd90eed4eaf
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/05-build-and-clean.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:66dcc41e55c4708030c68fb62bfd1b6b2d3312cdb5cef7da7902fe6d95b6263f
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/06-verify-and-ship.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:e02786ef39e7edf26e8b3188a133772e9beec1d92baaaae1fbe1f2e036f92380
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/07-overnight.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:39fb3e8c46ea9dcd2fcb50f37a4585dad38f3e6d11c48034d79c0e34eb7b0c5e
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/08-principles.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:8f6f3688fba73d664c13415bc74b6b25ec2e4338270ee512bec367bba7f835c6
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/09-make-it-yours.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:87417513b1e1addbae94b3ec193eed42830e09dbe096f77d702db228bc888a31
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/10-recipes-and-pitfalls.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:8d056a95e0be34dfc577a97f8ced294ffdceb8163dc21bc78a6f89ee8d8cd95c
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/README.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:8029539535aa01727a63bbdba620e5bef463076f0c20db108c5c0840cbbb9d40
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/images/design.jpg
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:b8ed07427f6a0c37dd8ba97961fc0eb5071efeee6c4a230648bdb7547f6f2a8f
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/images/overnight.jpg
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:4b4405e4df8925c5b3abbe702f681af0f3b1f5f32271b599f95717f578f1a0c8
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/images/recipes.jpg
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:9fa2d51b476635712737795ddef81806efaa0086bb3bfa9f9f45695d9ab0f8e8
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/images/router.jpg
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:525843055a4efd2b10acc50a8652fd02b0834ea733a8a2f895c1eb89036017da
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/images/understanding.jpg
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:b60587e9a9bbe2550e93be9819cf0cd4acf77d90fac769a0c43d82bd8e34e279
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/guide/images/verification.jpg
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:2a76b52007a1cd2866ba67fd47d7d9ef3e1118bb5a09c4665eee8c3f161bd09a
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/prompting.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:da55d284628a3c84e8e38cb5331775583e517bbde93797fd264be49e523c738a
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/poteto-help/references/recipes.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:5323aca73a39a3b607c2bb22cd33551fe893563dfd4b104df838da010e9fc702
 - kind: project-relative
   target: cursor
   value: .agents/skills/poteto-mode
@@ -2056,6 +2289,24 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:5cdaf79785e3c12b2592b9469ee8c272143eb86ab7a18d8382197cea5fd30106
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/recall
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: null
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/recall/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/pstack
+  active_owner: samuel-harris/foundry/packages/pstack
+  content_hash: sha256:9cc9934c9e947bc9c7d74ae666abbcc9e54c5310327c4bd21935c4a88df21135
 - kind: project-relative
   target: cursor
   value: .agents/skills/reflect
@@ -2865,4 +3116,4 @@ deployments:
   owners:
   - samuel-harris/foundry/packages/coding-style
   active_owner: samuel-harris/foundry/packages/coding-style
-  content_hash: sha256:8c47c017c3745a999cd71ecc76bd0906959f60d8d34fefd74e0dc7498b9b05f5
+  content_hash: sha256:586e46f0e3cd4d5782b131fbb5d91cbd7edbae3fbd3ab8f8da59a9058e602589
