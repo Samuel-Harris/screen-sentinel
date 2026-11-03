@@ -252,10 +252,8 @@ export function RetentionSettings() {
       }
       const r = await res.json();
       const total =
-        (r.frames_deleted || 0) +
-        (r.audio_transcriptions_deleted || 0) +
-        (r.ui_events_deleted || 0);
-      const files = (r.video_files_deleted || 0) + (r.audio_files_deleted || 0);
+        (r.frames_deleted || 0) + (r.ui_events_deleted || 0);
+      const files = r.video_files_deleted || 0;
       toast({
         title: `deleted last ${minutes} min`,
         description: `${total.toLocaleString()} records, ${files} files removed from disk`,
