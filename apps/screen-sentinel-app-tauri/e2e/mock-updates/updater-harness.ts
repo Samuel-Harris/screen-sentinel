@@ -18,6 +18,7 @@
 import { copyFile, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { appTargetDir } from '../helpers/app-launcher.js';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ const PUBLIC_KEY   = `${PRIVATE_KEY}.pub`;
 const PUBKEY_MERGE = path.join(SIGNING, 'pubkey-merge.json');
 
 function bundleRoot(): string {
-  return path.join(APP_ROOT, 'src-tauri', 'target', CARGO_PROFILE, 'bundle');
+  return path.join(appTargetDir(), CARGO_PROFILE, 'bundle');
 }
 
 // ── Signing helpers ────────────────────────────────────────────────────────────
