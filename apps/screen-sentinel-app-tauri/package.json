@@ -126,7 +126,9 @@
   "nx": {
     "implicitDependencies": ["screen-sentinel-app"],
     "targets": {
-      "build": { "outputs": ["{projectRoot}/out"] },
+      "build": { "outputs": ["{projectRoot}/out"], "inputs": ["default", "^default"] },
+      "test": { "inputs": ["default", "^default"] },
+      "typecheck": { "inputs": ["default", "^default"] },
       "lint": {
         "command": "bunx --bun @biomejs/biome check",
         "options": { "cwd": "{workspaceRoot}" },
