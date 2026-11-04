@@ -13,11 +13,6 @@ const CRATE_RULES = {
     hosts: ["darwin-arm64"],
     hostReason: "mlx-rs links Apple MLX, which builds only on Apple Silicon",
   },
-  "screen-sentinel-engine": {
-    // cargo test builds and links 13 integration tests and 3 binaries. With the 16 jobs from
-    // .cargo/config.toml the kernel killed the linker in a 7.7 GiB Linux VM; with 8 it passed.
-    testJobs: 8,
-  },
   "screen-sentinel-app": {
     needs: { projects: ["@screen-sentinel/app"], target: "build" },
     inputs: ["{workspaceRoot}/apps/screen-sentinel-app-tauri/lib/utils/tauri.ts"],
@@ -28,6 +23,10 @@ const CRATE_RULES = {
 // crates' builds wait on it. A `cargo build -p` per crate resolves dependency features per crate
 // and compiles many dependencies several times.
 const WORKSPACE_BUILD = { projects: ["screen-sentinel-app"], target: "build" };
+
+// The linker ran out of memory linking screen-sentinel-engine's tests in a 7.7 GiB Linux VM.
+// Line tables shrink each test binary and keep file and line numbers in backtraces.
+const TEST_ENV = { CARGO_PROFILE_TEST_DEBUG: "line-tables-only" };
 
 const isOnHost = (rule) => !rule.hosts || rule.hosts.includes(HOST);
 
@@ -57,7 +56,7 @@ function cargoTargets(name, root) {
   const commandsFor = {
     build: [workspaceBuildCommand()],
     typecheck: [`cargo check -p ${name}`],
-    test: [`cargo test -p ${name}${rule.testJobs ? ` -j ${rule.testJobs}` : ""}`],
+    test: [`cargo test -p ${name}`],
     lint: [`cargo fmt -p ${name} --check`, `cargo clippy -p ${name} --no-deps --all-targets -- -W clippy::all`],
   };
   const targets = { check: {} };
@@ -74,6 +73,7 @@ function cargoTargets(name, root) {
       parallelism: target !== "test",
     };
   }
+  targets.test.options.env = TEST_ENV;
   if (!onHost) return targets;
   if (name === WORKSPACE_BUILD.projects[0]) {
     targets.build.options.cwd = ".";
