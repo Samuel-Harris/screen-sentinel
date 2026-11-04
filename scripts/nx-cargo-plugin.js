@@ -54,6 +54,9 @@ function cargoTargets(name, root) {
       },
       inputs: ["default", "^default", "cargo"],
       dependsOn: onHost && rule.needs ? [rule.needs] : [],
+      // Some suites wait on fixed sleeps (screen-sentinel-redact worker_integration) and fail
+      // when parallel tasks load the CPU, so Rust tests run alone, as in CI before Nx.
+      parallelism: target !== "test",
     };
   }
   return targets;
