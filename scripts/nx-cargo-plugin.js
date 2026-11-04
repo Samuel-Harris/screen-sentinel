@@ -19,6 +19,18 @@ const CRATE_RULES = {
   },
 };
 
+// The app crate's build is one `cargo build --workspace` from the workspace root, and the other
+// crates' builds wait on it. A `cargo build -p` per crate resolves dependency features per crate
+// and compiles many dependencies several times.
+const WORKSPACE_BUILD = { projects: ["screen-sentinel-app"], target: "build" };
+
+const isOnHost = (rule) => !rule.hosts || rule.hosts.includes(HOST);
+
+function workspaceBuildCommand() {
+  const offHost = Object.keys(CRATE_RULES).filter((name) => !isOnHost(CRATE_RULES[name]));
+  return `cargo build --workspace${offHost.map((name) => ` --exclude ${name}`).join("")}`;
+}
+
 function cargoWorkspace(workspaceRoot) {
   const metadata = JSON.parse(
     execFileSync(
@@ -36,7 +48,7 @@ function cargoWorkspace(workspaceRoot) {
 
 function cargoTargets(name, root) {
   const rule = CRATE_RULES[name] ?? {};
-  const onHost = !rule.hosts || rule.hosts.includes(HOST);
+  const onHost = isOnHost(rule);
   const commandsFor = {
     build: [`cargo build -p ${name}`],
     typecheck: [`cargo check -p ${name}`],
@@ -56,6 +68,13 @@ function cargoTargets(name, root) {
       dependsOn: onHost && rule.needs ? [rule.needs] : [],
       parallelism: target !== "test",
     };
+  }
+  if (!onHost) return targets;
+  if (name === WORKSPACE_BUILD.projects[0]) {
+    targets.build.options = { cwd: ".", commands: [workspaceBuildCommand()] };
+    targets.build.inputs.push("{workspaceRoot}/crates/**/*", "!{workspaceRoot}/crates/**/*.md");
+  } else {
+    targets.build = { executor: "nx:noop", inputs: targets.build.inputs, dependsOn: [WORKSPACE_BUILD] };
   }
   return targets;
 }
