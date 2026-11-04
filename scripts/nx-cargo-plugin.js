@@ -13,9 +13,6 @@ const CRATE_RULES = {
     hosts: ["darwin-arm64"],
     hostReason: "mlx-rs links Apple MLX, which builds only on Apple Silicon",
   },
-  "screen-sentinel-redact": {
-    testAlone: true,
-  },
   "screen-sentinel-app": {
     needs: { projects: ["@screen-sentinel/app"], target: "build" },
     inputs: ["{workspaceRoot}/apps/screen-sentinel-app-tauri/lib/utils/tauri.ts"],
@@ -57,7 +54,7 @@ function cargoTargets(name, root) {
       },
       inputs: ["default", "^default", "cargo", ...(rule.inputs ?? [])],
       dependsOn: onHost && rule.needs ? [rule.needs] : [],
-      parallelism: !(target === "test" && rule.testAlone),
+      parallelism: target !== "test",
     };
   }
   return targets;
