@@ -13,6 +13,7 @@
     "@sentry/cli"
   ],
   "devDependencies": {
+    "@biomejs/biome": "2.4.13",
     "nx": "24.0.4"
   }
 }
