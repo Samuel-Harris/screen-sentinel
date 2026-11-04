@@ -40,7 +40,13 @@ function scratchCommitTouching(file: string): string {
   const blob = run(["git", "hash-object", "-w", "--stdin"], { input: content }).trim();
   run(["git", "update-index", "--cacheinfo", `100644,${blob},${file}`], { env });
   const tree = run(["git", "write-tree"], { env }).trim();
-  return run(["git", "commit-tree", tree, "-p", base, "-m", `check-affected: touch ${file}`]).trim();
+  const identity = {
+    GIT_AUTHOR_NAME: "check-affected",
+    GIT_AUTHOR_EMAIL: "check-affected@localhost",
+    GIT_COMMITTER_NAME: "check-affected",
+    GIT_COMMITTER_EMAIL: "check-affected@localhost",
+  };
+  return run(["git", "commit-tree", tree, "-p", base, "-m", `check-affected: touch ${file}`], { env: identity }).trim();
 }
 
 let failed = 0;
