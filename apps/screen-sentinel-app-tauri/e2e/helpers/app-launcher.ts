@@ -72,7 +72,11 @@ const APP_PID_FILE = resolve(E2E_DATA_DIR, 'app.pid');
 export const E2E_SEED_FLAGS = process.env.SCREEN_SENTINEL_E2E_SEED ?? 'onboarding,no-recording';
 
 export function getAppPath(): string {
-  const base = resolve(APP_ROOT, 'src-tauri/target/debug');
+  const metadata = execSync('cargo metadata --format-version 1 --no-deps', {
+    cwd: resolve(APP_ROOT, 'src-tauri'),
+    encoding: 'utf8',
+  });
+  const base = resolve(JSON.parse(metadata).target_directory, 'debug');
   const name = process.platform === 'win32' ? 'screen-sentinel-app.exe' : 'screen-sentinel-app';
   return resolve(base, name);
 }
