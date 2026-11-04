@@ -13,6 +13,7 @@
 # unpinned source to one commit and two lockfiles may have resolved it apart.
 
 import argparse
+import re
 import subprocess
 import sys
 import tomllib
@@ -49,6 +50,17 @@ def git_sources(pkgs):
 def guarded(source):
     url, _, query = source.partition("?")
     return "github.com/screenpipe/" in url or "rev=" in query or "tag=" in query
+
+
+def semver(version):
+    triple = tuple(int(x) for x in re.match(r"(\d+)\.(\d+)\.(\d+)", version).groups())
+    return triple, "-" not in version, version
+
+
+def compatible_line(version):
+    """Cargo locks one version per semver-compatible line, so this keys a replacement."""
+    major, minor, patch = semver(version)[0]
+    return (major,) if major else (0, minor) if minor else (0, 0, patch)
 
 
 def registry_versions(pkgs):
@@ -99,16 +111,26 @@ def main():
         differ(source, f"added {source}#{merged_git[source]}")
 
     merged_registry = registry_versions(merged)
-    print("\nregistry versions the merge moved")
-    moves = 0
+    print("\nregistry versions the merge moved (base version -> merged version on the same semver-compatible line)")
+    moved = {"down": 0, "up": 0, "line dropped": 0, "removed": 0}
     for path, pkgs in bases.items():
         for name, versions in sorted(registry_versions(pkgs).items()):
-            now = merged_registry.get(name, set())
-            for version in sorted(versions - now):
-                moves += 1
-                print(f"  {name} {version} -> {', '.join(sorted(now - versions)) or 'removed'}  ({path})")
+            now = sorted(merged_registry.get(name, set()), key=semver)
+            for version in sorted(versions - set(now), key=semver):
+                replacement = [v for v in now if compatible_line(v) == compatible_line(version)]
+                if replacement:
+                    kind = "up" if semver(replacement[0]) > semver(version) else "down"
+                    print(f"  {name} {version} -> {replacement[0]} ({kind})  ({path})")
+                elif now:
+                    kind = "line dropped"
+                    print(f"  {name} {version} -> no version on its semver line, merged keeps {', '.join(now)}  ({path})")
+                else:
+                    kind = "removed"
+                    print(f"  {name} {version} -> removed, crate no longer locked  ({path})")
+                moved[kind] += 1
 
-    print(f"\n{failures} screenpipe or pinned git source differences, {warnings} unpinned, {moves} registry version moves")
+    moves = ", ".join(f"{count} {direction}" for direction, count in moved.items())
+    print(f"\n{failures} screenpipe or pinned git source differences, {warnings} unpinned, registry version moves: {moves}")
     return 1 if failures else 0
 
 
