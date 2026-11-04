@@ -368,11 +368,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            apps/screen-sentinel-app-tauri/node_modules
+            node_modules
             apps/screen-sentinel-app-tauri/.tauri
-          key: ${{ matrix.platform }}-${{ matrix.target }}-node-${{ hashFiles('**/bun.lock') }}
+          key: ${{ matrix.platform }}-${{ matrix.target }}-node-root-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
-            ${{ matrix.platform }}-${{ matrix.target }}-node-
+            ${{ matrix.platform }}-${{ matrix.target }}-node-root-
 
       - name: Install dependencies
         if: matrix.os_type == 'macos'
