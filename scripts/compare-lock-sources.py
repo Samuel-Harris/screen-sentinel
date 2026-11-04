@@ -8,7 +8,7 @@
 # Usage: scripts/compare-lock-sources.py [--base REV] [--merged PATH]
 # Prints every git source from the Cargo.lock files tracked at REV with its
 # state in the merged lockfile, then the registry versions the merge moved.
-# Exits 1 when a screenpipe or pinned git source differs. A difference in an
+# Exits 1 when a github.com/screenpipe/ or pinned git source differs. A difference in an
 # unpinned source prints as a warning, because a lockfile resolves each
 # unpinned source to one commit and two lockfiles may have resolved it apart.
 
@@ -130,7 +130,7 @@ def main():
                 moved[kind] += 1
 
     moves = ", ".join(f"{count} {direction}" for direction, count in moved.items())
-    print(f"\n{failures} screenpipe or pinned git source differences, {warnings} unpinned, registry version moves: {moves}")
+    print(f"\n{failures} github.com/screenpipe/ or pinned git source differences, {warnings} unpinned, registry version moves: {moves}")
     return 1 if failures else 0
 
 

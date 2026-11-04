@@ -31,13 +31,14 @@ ALLOWED_FILES = (
     "scripts/rename-upstream-images.txt",
 )
 
-# Upstream references that must stay traceable: vendored dependencies,
-# hosted models, upstream issue history and the provenance line. Upstream's
+# Upstream references that must stay traceable: vendored dependencies and
+# the github.com/screenpipe/ org prefix that names them as a set, hosted
+# models, upstream issue history and the provenance line. Upstream's
 # web services and community handles also stay as they are until 11 removes
 # the code that calls them, because a renamed link would point at a domain or
 # handle the fork does not own.
 ALLOWED_SPANS = re.compile(
-    r"github\.com/screenpipe/(?!screenpipe\b)[\w.-]+"
+    r"github\.com/screenpipe/(?!screenpipe\b)[\w.-]*"
     r"|huggingface\.co/screenpipe/[\w.-]+"
     r"|github\.com/(?:screenpipe|mediar-ai)/screenpipe/(?:issues|pull|commit)/[\w#.-]+"
     r"|screenpipe 0\.4\.15"
