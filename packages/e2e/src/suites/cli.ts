@@ -83,7 +83,7 @@ const tests: TestDef[] = [
       );
       if (exitCode === 0)
         throw new Error("search exited 0 with no database — should bail");
-      if (!stdout.toLowerCase().includes("no Screen Sentinel database"))
+      if (!stdout.toLowerCase().includes("no screen sentinel database"))
         throw new Error(`unexpected error shape: ${stdout.slice(0, 200)}`);
     },
   },

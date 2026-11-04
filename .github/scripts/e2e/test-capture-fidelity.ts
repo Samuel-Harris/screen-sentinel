@@ -317,7 +317,7 @@ await test("accessibility data captured", async () => {
 await test("CPU usage < 150%", async () => {
   const proc = Bun.spawnSync([
     "bash", "-c",
-    "ps aux | grep Screen Sentinel | grep -v grep | awk '{sum += $3} END {print sum}'",
+    "ps aux | grep screen-sentinel | grep -v grep | awk '{sum += $3} END {print sum}'",
   ]);
   const cpu = parseFloat(proc.stdout.toString().trim()) || 0;
   if (cpu > 150) {
@@ -330,7 +330,7 @@ await test("CPU usage < 150%", async () => {
 await test("memory < 2GB", async () => {
   const proc = Bun.spawnSync([
     "bash", "-c",
-    "ps aux | grep Screen Sentinel | grep -v grep | awk '{sum += $6} END {print sum}'",
+    "ps aux | grep screen-sentinel | grep -v grep | awk '{sum += $6} END {print sum}'",
   ]);
   const rssKB = parseFloat(proc.stdout.toString().trim()) || 0;
   const rssMB = rssKB / 1024;

@@ -125,9 +125,9 @@ jobs:
           if [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
             export CFLAGS="-mcpu=apple-m1 -U__ARM_FEATURE_MATMUL_INT8"
             export CXXFLAGS="-mcpu=apple-m1 -U__ARM_FEATURE_MATMUL_INT8"
-            cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features rfdetr-mlx,redact-onnx-coreml --target ${{ matrix.target }}
+            cargo build --release -p screen-sentinel-engine --bin screen-sentinel --features rfdetr-mlx,redact-onnx-coreml --target ${{ matrix.target }}
           else
-            cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features redact-onnx-coreml --target ${{ matrix.target }}
+            cargo build --release -p screen-sentinel-engine --bin screen-sentinel --features redact-onnx-coreml --target ${{ matrix.target }}
           fi
 
       - name: Codesign binary
@@ -338,7 +338,7 @@ jobs:
           # Use prebuilt NASM objects on Windows: https://aws.github.io/aws-lc-rs/requirements/windows.html#prebuilt-nasm-objects
           AWS_LC_SYS_PREBUILT_NASM: "1"
         run: |
-          cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features directml,redact-onnx-directml --target x86_64-pc-windows-msvc
+          cargo build --release -p screen-sentinel-engine --bin screen-sentinel --features directml,redact-onnx-directml --target x86_64-pc-windows-msvc
 
       - name: Install CodeSignTool for SSL.com EV signing (Windows)
         shell: powershell
@@ -526,7 +526,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --features redact-onnx-cpu --target ${{ matrix.target }}
+          cargo build --release -p screen-sentinel-engine --bin screen-sentinel --features redact-onnx-cpu --target ${{ matrix.target }}
 
       - name: Set version
         run: |
@@ -620,7 +620,7 @@ jobs:
 
       - name: Update package versions
         run: |
-          for pkg in Screen Sentinel screen-sentinel-darwin-arm64 screen-sentinel-darwin-x64 screen-sentinel-linux-x64 screen-sentinel-win32-x64; do
+          for pkg in screen-sentinel screen-sentinel-darwin-arm64 screen-sentinel-darwin-x64 screen-sentinel-linux-x64 screen-sentinel-win32-x64; do
             cd packages/cli/$pkg
             npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version 2>/dev/null || true
             cd ../../..

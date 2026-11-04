@@ -94,7 +94,7 @@ function trackInstall() {
 
 if (process.platform === "win32") {
   console.log("Screen Sentinel: Windows detected; skipping Unix postinstall steps");
-  console.log("Screen Sentinel: ready! run: Screen Sentinel status");
+  console.log("Screen Sentinel: ready! run: screen-sentinel status");
   trackInstall();
   return;
 }

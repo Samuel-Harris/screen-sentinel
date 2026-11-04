@@ -186,4 +186,4 @@ if [ -n "$POSTHOG_PAYLOAD" ]; then
         -d "$POSTHOG_PAYLOAD" >/dev/null 2>&1 || true
 fi
 
-echo "Screen Sentinel: ready! run: Screen Sentinel status"
+echo "Screen Sentinel: ready! run: screen-sentinel status"

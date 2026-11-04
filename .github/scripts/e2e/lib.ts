@@ -280,7 +280,7 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** Check if Screen Sentinel process is running (cross-platform) */
 export function isScreenSentinelRunning(): boolean {
   if (IS_WINDOWS) {
-    const proc = Bun.spawnSync(["tasklist", "/FI", "IMAGENAME eq Screen Sentinel*", "/NH"]);
+    const proc = Bun.spawnSync(["tasklist", "/FI", "IMAGENAME eq screen-sentinel*", "/NH"]);
     const out = proc.stdout.toString();
     return out.includes("screen-sentinel");
   } else {
