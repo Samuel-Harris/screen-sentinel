@@ -77,7 +77,12 @@ function cargoTargets(name, root) {
   if (!onHost) return targets;
   if (name === WORKSPACE_BUILD.projects[0]) {
     targets.build.options.cwd = ".";
-    targets.build.inputs.push("{workspaceRoot}/crates/**/*", "!{workspaceRoot}/crates/**/*.md");
+    targets.build.inputs.push(
+      "{workspaceRoot}/crates/**/*",
+      "!{workspaceRoot}/crates/**/*.md",
+      // Tauri embeds the frontend build output (../out) in the app binary.
+      { dependentTasksOutputFiles: "**/*" },
+    );
   } else {
     targets.build = { executor: "nx:noop", inputs: targets.build.inputs, dependsOn: [WORKSPACE_BUILD] };
   }
