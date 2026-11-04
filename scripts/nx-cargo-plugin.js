@@ -75,12 +75,7 @@ exports.createNodesV2 = [
   },
 ];
 
-exports.createDependencies = (_options, context) => {
-  const crates = cargoWorkspace(context.workspaceRoot);
-  const members = new Set(crates.map((crate) => crate.name));
-  return crates.flatMap((crate) =>
-    crate.pathDeps
-      .filter((dep) => members.has(dep))
-      .map((dep) => ({ source: crate.name, target: dep, type: "static", sourceFile: crate.manifest })),
+exports.createDependencies = (_options, context) =>
+  cargoWorkspace(context.workspaceRoot).flatMap((crate) =>
+    crate.pathDeps.map((dep) => ({ source: crate.name, target: dep, type: "static", sourceFile: crate.manifest })),
   );
-};
