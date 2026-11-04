@@ -1,0 +1,2 @@
+# tauri-build rewrites these schemas on every app crate build; they are outputs, not inputs
+apps/screen-sentinel-app-tauri/src-tauri/gen/
