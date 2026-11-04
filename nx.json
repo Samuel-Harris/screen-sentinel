@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "neverConnectToCloud": true,
+  "analytics": false,
+  "plugins": ["./scripts/nx-cargo-plugin.js"],
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "!{projectRoot}/**/*.md"],
+    "cargo": [
+      "{workspaceRoot}/Cargo.toml",
+      "{workspaceRoot}/Cargo.lock",
+      "{workspaceRoot}/rust-toolchain.toml",
+      "{workspaceRoot}/.cargo/config.toml",
+      "{workspaceRoot}/scripts/nx-cargo-plugin.js"
+    ]
+  },
+  "targetDefaults": {
+    "build": { "cache": true },
+    "test": { "cache": true },
+    "lint": { "cache": true },
+    "typecheck": { "cache": true },
+    "check": { "executor": "nx:noop", "dependsOn": ["lint", "typecheck", "test"] }
+  }
+}

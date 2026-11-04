@@ -122,5 +122,17 @@
     "typescript": "^5.9.3",
     "vitest": "^1.6.1",
     "wdio-video-reporter": "^6.0.0"
+  },
+  "nx": {
+    "implicitDependencies": ["screen-sentinel-app"],
+    "targets": {
+      "build": { "outputs": ["{projectRoot}/out"] },
+      "lint": {
+        "command": "bunx --bun @biomejs/biome check",
+        "options": { "cwd": "{workspaceRoot}" },
+        "inputs": ["default", "{workspaceRoot}/biome.json"]
+      },
+      "check": {}
+    }
   }
 }

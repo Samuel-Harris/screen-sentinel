@@ -7,5 +7,14 @@
     "serve": "bun ./npm-e2e/cli.ts serve",
     "screen-sentinel": "NPM_CONFIG_REGISTRY=http://127.0.0.1:4873 npx --yes screen-sentinel@latest",
     "test": "bun ./npm-e2e/runner.ts"
+  },
+  "nx": {
+    "includedScripts": [],
+    "targets": {
+      "e2e": {
+        "executor": "nx:run-commands",
+        "options": { "commands": ["bun run build", "bun run test"], "cwd": "{projectRoot}", "parallel": false }
+      }
+    }
   }
 }
