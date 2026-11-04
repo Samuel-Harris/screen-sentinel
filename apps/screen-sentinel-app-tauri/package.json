@@ -122,8 +122,5 @@
     "typescript": "^5.9.3",
     "vitest": "^1.6.1",
     "wdio-video-reporter": "^6.0.0"
-  },
-  "trustedDependencies": [
-    "@sentry/cli"
-  ]
+  }
 }
