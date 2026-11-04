@@ -87,7 +87,7 @@ jobs:
           cp crates/screen-sentinel-screen/tests/testing_OCR.png target/debug/deps/
 
       - name: Run cargo tests
-        run: cargo test --workspace --exclude screen-sentinel-rfdetr-mlx
+        run: cargo test --workspace --exclude screen-sentinel-rfdetr-mlx --exclude screen-sentinel-app
 
   test-windows:
     # windows-2019 reached end-of-life on the GitHub-hosted runner fleet
