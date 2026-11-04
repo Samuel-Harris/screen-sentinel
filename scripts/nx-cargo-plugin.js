@@ -14,7 +14,6 @@ const CRATE_RULES = {
     hostReason: "mlx-rs links Apple MLX, which builds only on Apple Silicon",
   },
   "screen-sentinel-app": {
-    clippyWarnings: "51 bin and 13 test warnings on Linux at 6777b6a78, never linted by CI before",
     needs: { projects: ["@screen-sentinel/app"], target: "build" },
   },
 };
@@ -34,17 +33,6 @@ function cargoWorkspace(workspaceRoot) {
   }));
 }
 
-function lintCommands(name, rule) {
-  if (!rule.clippyWarnings) {
-    return [`cargo fmt -p ${name} --check`, `cargo clippy -p ${name} --no-deps --all-targets -- -D warnings`];
-  }
-  return [
-    `echo "${name}: clippy warnings are reported, not denied (${rule.clippyWarnings})"`,
-    `cargo fmt -p ${name} --check`,
-    `cargo clippy -p ${name} --no-deps --all-targets`,
-  ];
-}
-
 function cargoTargets(name, root) {
   const rule = CRATE_RULES[name] ?? {};
   const onHost = !rule.hosts || rule.hosts.includes(HOST);
@@ -52,7 +40,8 @@ function cargoTargets(name, root) {
     build: [`cargo build -p ${name}`],
     typecheck: [`cargo check -p ${name}`],
     test: [`cargo test -p ${name}`],
-    lint: lintCommands(name, rule),
+    // Matches the style.yml gate: rustfmt fails, clippy warnings print but do not fail.
+    lint: [`cargo fmt -p ${name} --check`, `cargo clippy -p ${name} --no-deps --all-targets -- -W clippy::all`],
   };
   const targets = { check: {} };
   for (const target of CARGO_TARGETS) {
