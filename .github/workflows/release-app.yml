@@ -312,7 +312,6 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/${{ matrix.target }}
             ${{ env.APP_TARGET_DIR }}
           # Shared cache across branches
           shared-key: "rust-cache-${{ matrix.target }}"
@@ -323,7 +322,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            target/${{ matrix.target }}/release
             ${{ env.APP_TARGET_DIR }}/release
           key: ${{ runner.os }}-artifacts-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
@@ -372,7 +370,6 @@ jobs:
           path: |
             apps/screen-sentinel-app-tauri/node_modules
             apps/screen-sentinel-app-tauri/.tauri
-            ${{ env.APP_TARGET_DIR }}
           key: ${{ matrix.platform }}-${{ matrix.target }}-node-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
             ${{ matrix.platform }}-${{ matrix.target }}-node-
