@@ -109,7 +109,11 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        # The app builds into src-tauri/target while it has its own Cargo
+        # workspace and into the root target once it joins the root one.
+        workspaces: |
+          apps/screen-sentinel-app-tauri/src-tauri
+          . -> target
         shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
@@ -478,7 +482,11 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        # The app builds into src-tauri/target while it has its own Cargo
+        # workspace and into the root target once it joins the root one.
+        workspaces: |
+          apps/screen-sentinel-app-tauri/src-tauri
+          . -> target
         shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
@@ -599,7 +607,11 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        # The app builds into src-tauri/target while it has its own Cargo
+        # workspace and into the root target once it joins the root one.
+        workspaces: |
+          apps/screen-sentinel-app-tauri/src-tauri
+          . -> target
         shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
