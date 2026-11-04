@@ -14,7 +14,8 @@
       "{workspaceRoot}/.cargo/config.toml",
       "{workspaceRoot}/scripts/nx-cargo-plugin.js",
       { "runtime": "node -p \"process.platform+'-'+process.arch\"" },
-      { "env": "RUSTFLAGS" }
+      { "env": "RUSTFLAGS" },
+      { "externalDependencies": [] }
     ]
   },
   "targetDefaults": {
