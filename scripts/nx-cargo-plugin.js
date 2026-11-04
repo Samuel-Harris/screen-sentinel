@@ -50,7 +50,7 @@ function cargoTargets(name, root) {
   const rule = CRATE_RULES[name] ?? {};
   const onHost = isOnHost(rule);
   const commandsFor = {
-    build: [`cargo build -p ${name}`],
+    build: [workspaceBuildCommand()],
     typecheck: [`cargo check -p ${name}`],
     test: [`cargo test -p ${name}`],
     lint: [`cargo fmt -p ${name} --check`, `cargo clippy -p ${name} --no-deps --all-targets -- -W clippy::all`],
@@ -71,7 +71,7 @@ function cargoTargets(name, root) {
   }
   if (!onHost) return targets;
   if (name === WORKSPACE_BUILD.projects[0]) {
-    targets.build.options = { cwd: ".", commands: [workspaceBuildCommand()] };
+    targets.build.options.cwd = ".";
     targets.build.inputs.push("{workspaceRoot}/crates/**/*", "!{workspaceRoot}/crates/**/*.md");
   } else {
     targets.build = { executor: "nx:noop", inputs: targets.build.inputs, dependsOn: [WORKSPACE_BUILD] };
