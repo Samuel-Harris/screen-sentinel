@@ -30,8 +30,7 @@ async fn open_real_db() -> Arc<DatabaseManager> {
     )
 }
 
-/// Simulate the pipe scenario: fire 4 heavy OCR searches concurrently
-/// (like obsidian-sync + toggl-sync + count queries all at once).
+/// Fire 4 heavy OCR searches concurrently.
 /// With the semaphore, only 2 should run at a time, and writes should
 /// still go through.
 ///

@@ -277,7 +277,7 @@ impl DatabaseManager {
             conn.close().await?;
         }
 
-        // Read pool: handles all SELECT queries (search, timeline, API, pipes).
+        // Read pool: handles all SELECT queries (search, timeline, API).
         let read_pool = SqlitePoolOptions::new()
             .max_connections(config.read_pool_max)
             .min_connections(config.read_pool_min)
@@ -670,60 +670,6 @@ impl DatabaseManager {
         use crate::write_queue::WriteOp;
         self.write_queue
             .submit(WriteOp::ClearSnapshotPaths { frame_ids })
-            .await?;
-        Ok(())
-    }
-
-    /// Create a pipe execution via the write queue. Returns the new row ID.
-    pub async fn pipe_create_execution_queued(
-        &self,
-        pipe_name: &str,
-        trigger_type: &str,
-        model: &str,
-        provider: Option<&str>,
-    ) -> Result<i64, sqlx::Error> {
-        use crate::write_queue::{WriteOp, WriteResult};
-        let result = self
-            .write_queue
-            .submit(WriteOp::PipeCreateExecution {
-                pipe_name: pipe_name.to_string(),
-                trigger_type: trigger_type.to_string(),
-                model: model.to_string(),
-                provider: provider.map(|s| s.to_string()),
-                started_at: chrono::Utc::now().to_rfc3339(),
-            })
-            .await?;
-        match result {
-            WriteResult::Id(id) => Ok(id),
-            _ => unreachable!(),
-        }
-    }
-
-    /// Execute a pipe UPDATE/INSERT/DELETE via the write queue.
-    pub async fn pipe_execute_write_queued(
-        &self,
-        _id: i64,
-        sql: &str,
-        binds: Vec<crate::write_queue::PipeBindValue>,
-    ) -> Result<(), sqlx::Error> {
-        use crate::write_queue::WriteOp;
-        self.write_queue
-            .submit(WriteOp::PipeUpdateExecution {
-                sql: sql.to_string(),
-                binds,
-            })
-            .await?;
-        Ok(())
-    }
-
-    /// Delete old pipe executions via the write queue.
-    pub async fn pipe_delete_old_executions_queued(
-        &self,
-        keep_per_pipe: i32,
-    ) -> Result<(), sqlx::Error> {
-        use crate::write_queue::WriteOp;
-        self.write_queue
-            .submit(WriteOp::PipeDeleteOldExecutions { keep_per_pipe })
             .await?;
         Ok(())
     }
