@@ -88,8 +88,8 @@ const lines = baseLocks.flatMap((path) => {
   return moves(dir, closure(base, base.workspaces[""], []), closure(root, member, [member.name]));
 });
 
-const allowed = allowPath ? readFileSync(allowPath, "utf8") : "";
-const unlisted = lines.filter((line) => !allowed.includes(line));
+const allowed = new Set(allowPath ? readFileSync(allowPath, "utf8").split("\n") : []);
+const unlisted = lines.filter((line) => !allowed.has(line));
 for (const line of lines) console.log(`${unlisted.includes(line) ? "UNLISTED" : "listed  "} ${line}`);
 console.log(`${baseLocks.length} base lockfiles, ${lines.length} moves, ${unlisted.length} unlisted`);
 process.exit(unlisted.length ? 1 : 0);
