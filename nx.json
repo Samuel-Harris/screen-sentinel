@@ -12,7 +12,9 @@
       "{workspaceRoot}/Cargo.lock",
       "{workspaceRoot}/rust-toolchain.toml",
       "{workspaceRoot}/.cargo/config.toml",
-      "{workspaceRoot}/scripts/nx-cargo-plugin.js"
+      "{workspaceRoot}/scripts/nx-cargo-plugin.js",
+      { "runtime": "node -p \"process.platform+'-'+process.arch\"" },
+      { "env": "RUSTFLAGS" }
     ]
   },
   "targetDefaults": {
