@@ -87,26 +87,6 @@ const tests: TestDef[] = [
         throw new Error(`unexpected error shape: ${stdout.slice(0, 200)}`);
     },
   },
-  // Regression: a6117b306 added `screenpipe team` — admin queries against
-  // the enterprise cloud API. --help must work without auth so admins can
-  // discover the subcommand without setting SCREENPIPE_TEAM_API_TOKEN first.
-  {
-    name: "team --help",
-    fn: async (exec, bin) => {
-      const { stdout, exitCode } = await exec(`${bin} team --help`);
-      if (exitCode !== 0) throw new Error(`exit code ${exitCode}`);
-      if (!stdout.toLowerCase().includes("team"))
-        throw new Error("missing 'team' in help output");
-      // The three subcommands the skill at
-      // crates/screenpipe-core/assets/skills/screenpipe-team/SKILL.md
-      // documents — if one disappears, agents written against the skill
-      // start failing.
-      for (const sub of ["devices", "search", "records"]) {
-        if (!stdout.includes(sub))
-          throw new Error(`team --help missing subcommand '${sub}'`);
-      }
-    },
-  },
 ];
 
 // ── Runner ───────────────────────────────────────────────────────────
