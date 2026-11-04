@@ -27,7 +27,7 @@ function cargoWorkspace(workspaceRoot) {
     execFileSync(
       "cargo",
       ["metadata", "--no-deps", "--format-version", "1", "--manifest-path", join(workspaceRoot, "Cargo.toml")],
-      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+      { cwd: workspaceRoot, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     ),
   );
   return metadata.packages.map((pkg) => ({
@@ -63,7 +63,7 @@ function cargoTargets(name, root) {
   return targets;
 }
 
-exports.createNodesV2 = [
+exports.createNodes = [
   "**/Cargo.toml",
   (manifests, _options, context) => {
     const crates = new Map(cargoWorkspace(context.workspaceRoot).map((crate) => [crate.manifest, crate]));
