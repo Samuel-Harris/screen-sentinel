@@ -13,6 +13,11 @@ const CRATE_RULES = {
     hosts: ["darwin-arm64"],
     hostReason: "mlx-rs links Apple MLX, which builds only on Apple Silicon",
   },
+  "screen-sentinel-engine": {
+    // cargo test builds and links 13 integration tests and 3 binaries. With the 16 jobs from
+    // .cargo/config.toml the kernel killed the linker in a 7.7 GiB Linux VM; with 8 it passed.
+    testJobs: 8,
+  },
   "screen-sentinel-app": {
     needs: { projects: ["@screen-sentinel/app"], target: "build" },
     inputs: ["{workspaceRoot}/apps/screen-sentinel-app-tauri/lib/utils/tauri.ts"],
@@ -52,7 +57,7 @@ function cargoTargets(name, root) {
   const commandsFor = {
     build: [workspaceBuildCommand()],
     typecheck: [`cargo check -p ${name}`],
-    test: [`cargo test -p ${name}`],
+    test: [`cargo test -p ${name}${rule.testJobs ? ` -j ${rule.testJobs}` : ""}`],
     lint: [`cargo fmt -p ${name} --check`, `cargo clippy -p ${name} --no-deps --all-targets -- -W clippy::all`],
   };
   const targets = { check: {} };
