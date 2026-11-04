@@ -132,7 +132,11 @@
       "lint": {
         "command": "bunx --bun @biomejs/biome check",
         "options": { "cwd": "{workspaceRoot}" },
-        "inputs": ["default", "{workspaceRoot}/biome.json"]
+        "inputs": [
+          "default",
+          "{workspaceRoot}/biome.json",
+          "{workspaceRoot}/apps/screen-sentinel-app-tauri/src-tauri/**/*.{ts,tsx,js,jsx}"
+        ]
       },
       "check": {}
     }
