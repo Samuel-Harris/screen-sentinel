@@ -7,10 +7,12 @@ author: Sam Harris
 # Accepted values: agent-skills, antigravity, claude, codex, copilot, cursor, gemini, grok-bot, grok-build, hermes, kiro, opencode, vscode, windsurf
 targets:
   - cursor
+  - claude
 dependencies:
   apm:
     - Samuel-Harris/foundry/packages/default-stack#main
     - Samuel-Harris/foundry/packages/pstack#main
+    - Samuel-Harris/foundry/packages/repo-init#main
   mcp: []
 includes: auto
 scripts: {}
