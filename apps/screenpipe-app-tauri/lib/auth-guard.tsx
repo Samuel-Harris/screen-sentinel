@@ -9,7 +9,6 @@ import { useSettings } from "@/lib/hooks/use-settings";
 import { toast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import posthog from "posthog-js";
-import { commands } from "@/lib/utils/tauri";
 import { screenpipeWebUrl } from "@/lib/web-url";
 
 const CHECK_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
@@ -60,9 +59,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     console.warn("auth-guard: session expired, clearing");
     posthog.capture("session_expired");
     await updateSettings({ user: null as any });
-    try {
-      await commands.setCloudToken(null);
-    } catch {}
     showSignedOutToast();
   }, [updateSettings]);
 

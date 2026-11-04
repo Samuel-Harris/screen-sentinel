@@ -5,7 +5,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Monitor, Mic, Keyboard, Globe, Check } from "lucide-react";
+import { Monitor, Keyboard, Globe, Check } from "lucide-react";
 import { commands } from "@/lib/utils/tauri";
 import { requestPermissionWithFlow } from "@/lib/utils/permission-flow";
 import { usePlatform } from "@/lib/hooks/use-platform";
@@ -105,14 +105,6 @@ export default function PermissionsStep({
       subtitle: "Lets Screenpipe index what's on your screen — windows, docs, chats, code",
       check: () => commands.checkScreenRecordingPermission(),
       request: () => requestPermissionWithFlow("screenRecording"),
-    },
-    {
-      id: "mic",
-      icon: <Mic className="w-3.5 h-3.5" strokeWidth={1.5} />,
-      title: "Capture what you say",
-      subtitle: "Lets Screenpipe transcribe your voice in meetings and calls",
-      check: () => commands.checkMicrophonePermission(),
-      request: () => commands.requestPermission("microphone"),
     },
     {
       id: "accessibility",

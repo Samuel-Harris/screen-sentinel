@@ -8,7 +8,6 @@ import { listen } from "@tauri-apps/api/event";
 import { commands } from "@/lib/utils/tauri";
 import { getFrameAppName } from "@/components/rewind/timeline/timeline";
 import { toast } from "@/components/ui/use-toast";
-import type { TemplatePipe } from "@/lib/hooks/use-pipes";
 import type { StreamTimeSeriesResponse } from "@/components/rewind/timeline";
 
 export function useTimelineKeyboard(opts: {
@@ -36,8 +35,6 @@ export function useTimelineKeyboard(opts: {
 	setIsArrowNav: (v: boolean) => void;
 	arrowNavTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
 	resetFilters: () => void;
-	selectionRange: any;
-	sendSelectionToChat: (pipe?: TemplatePipe) => Promise<void>;
 	selectedDeviceIdRef: React.MutableRefObject<string>;
 	selectedAppNameRef: React.MutableRefObject<string>;
 }): void {
@@ -66,29 +63,9 @@ export function useTimelineKeyboard(opts: {
 		setIsArrowNav,
 		arrowNavTimerRef,
 		resetFilters,
-		selectionRange,
-		sendSelectionToChat,
 		selectedDeviceIdRef,
 		selectedAppNameRef,
 	} = opts;
-
-	// Pass selection context to chat when chat shortcut is pressed with a selection
-	useEffect(() => {
-		const handleChatShortcut = (e: KeyboardEvent) => {
-			// Check for Ctrl+Cmd+L (macOS) or Alt+L (Windows)
-			const isMac = navigator.platform.toLowerCase().includes("mac");
-			const isChatShortcut = isMac
-				? e.ctrlKey && e.metaKey && e.key.toLowerCase() === "l"
-				: e.altKey && e.key.toLowerCase() === "l";
-
-			if (isChatShortcut && selectionRange) {
-				sendSelectionToChat();
-			}
-		};
-
-		window.addEventListener("keydown", handleChatShortcut);
-		return () => window.removeEventListener("keydown", handleChatShortcut);
-	}, [selectionRange, sendSelectionToChat]);
 
 	// Also listen for "/" key (not intercepted by Rust)
 	useEffect(() => {

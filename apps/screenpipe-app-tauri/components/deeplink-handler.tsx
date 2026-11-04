@@ -26,20 +26,6 @@ export function DeeplinkHandler() {
   const setPendingNavigation = useTimelineStore((s) => s.setPendingNavigation);
 
   useEffect(() => {
-    const emitMeetingNoteRouteWithRetries = async (
-      meetingId: number,
-      transcript: boolean,
-    ) => {
-      const payload = { meetingId, transcript };
-      for (const delayMs of [0, 250, 750, 1500]) {
-        if (delayMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-        }
-        await emit("navigate", { url: "/home?section=meetings" });
-        await emit("open-meeting-note", payload);
-      }
-    };
-
     // Shared deep-link URL processor used by both the native plugin callback
     // and the custom Tauri event from single-instance handoff.
     const processDeepLinkUrl = async (url: string) => {
@@ -55,15 +41,6 @@ export function DeeplinkHandler() {
               title: "logged in!",
               description: "you have been logged in",
             });
-            // Notify the chat UI to restart Pi with the new token so it
-            // picks up the new account immediately. The chat component knows
-            // the active session ID; we just pass the key.
-            try {
-              await emit("pi-reauth", { apiKey });
-              console.log("[deeplink] emitted pi-reauth with new auth token");
-            } catch (e) {
-              console.log("[deeplink] pi-reauth emit skipped:", e);
-            }
           } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
             console.error("failed to load user:", msg);
@@ -100,28 +77,6 @@ export function DeeplinkHandler() {
             });
           }
         }
-      }
-
-      // Handle Google Calendar OAuth callback
-      if (
-        parsedUrl.host === "auth" &&
-        parsedUrl.pathname?.includes("google-calendar")
-      ) {
-        const success = parsedUrl.searchParams.get("success") === "true";
-        const error = parsedUrl.searchParams.get("error");
-        await emit("google-calendar-auth-result", { success, error });
-        // Bring the settings window to the front so the user lands back
-        // where they started (instead of staring at the timeline).
-        await openSettingsWindow();
-        toast({
-          title: success
-            ? "google calendar connected!"
-            : "google calendar connection failed",
-          description: success
-            ? "your google calendar is now linked"
-            : error || "something went wrong",
-          variant: success ? undefined : "destructive",
-        });
       }
 
       if (url.includes("settings") || url.includes("home")) {
@@ -182,17 +137,6 @@ export function DeeplinkHandler() {
         }
       }
 
-      // Handle pipe install deep links: screenpipe://install-pipe?url=<encoded-url>
-      if (
-        parsedUrl.host === "install-pipe" ||
-        parsedUrl.pathname === "install-pipe"
-      ) {
-        const pipeUrl = parsedUrl.searchParams.get("url");
-        if (pipeUrl) {
-          await emit("install-pipe", { url: pipeUrl, name: parsedUrl.searchParams.get("name") || undefined });
-        }
-      }
-
       // Handle in-app file viewer: screenpipe://view?path=<encoded-path>
       // Notification bodies with markdown links to local files are rewritten
       // to this scheme by the /notify route in src-tauri/src/notifications/rewrite.rs
@@ -231,23 +175,6 @@ export function DeeplinkHandler() {
         }
       }
 
-      // Handle meeting note deep links:
-      //   screenpipe://meeting/123?live=1
-      //   screenpipe://meeting?id=123
-      if (parsedUrl.host === "meeting" || parsedUrl.pathname?.startsWith("/meeting/")) {
-        const pathId =
-          parsedUrl.host === "meeting"
-            ? parsedUrl.pathname.replace(/^\/+/, "").split("/")[0]
-            : parsedUrl.pathname.replace(/^\/meeting\/?/, "").split("/")[0];
-        const meetingId = parsedUrl.searchParams.get("id") || pathId;
-        if (meetingId) {
-          const numericId = Number(meetingId);
-          if (!Number.isFinite(numericId)) return;
-          const transcript = parsedUrl.searchParams.get("live") !== "0";
-          await commands.showWindowActivated({ Home: { page: "meetings" } });
-          await emitMeetingNoteRouteWithRetries(numericId, transcript);
-        }
-      }
     };
 
     const setupDeepLink = async () => {
@@ -288,27 +215,7 @@ export function DeeplinkHandler() {
 
         toast({
           title: "recording paused",
-          description: "capture paused — pipes and search still available",
-        });
-      }),
-
-      listen("shortcut-start-audio", async () => {
-        await commands.stopScreenpipe();
-        await commands.spawnScreenpipe(null);
-
-        toast({
-          title: "audio recording started",
-          description: "audio capture has been enabled",
-        });
-      }),
-
-      listen("shortcut-stop-audio", async () => {
-        await commands.stopScreenpipe();
-        await commands.spawnScreenpipe(null);
-
-        toast({
-          title: "audio recording stopped",
-          description: "audio capture has been disabled",
+          description: "capture paused — search still available",
         });
       }),
 
