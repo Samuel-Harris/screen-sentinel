@@ -15,6 +15,7 @@ const CRATE_RULES = {
   },
   "screen-sentinel-app": {
     needs: { projects: ["@screen-sentinel/app"], target: "build" },
+    inputs: ["{workspaceRoot}/apps/screen-sentinel-app-tauri/lib/utils/tauri.ts"],
   },
 };
 
@@ -51,7 +52,7 @@ function cargoTargets(name, root) {
         parallel: false,
         commands: onHost ? commandsFor[target] : [`echo "skip ${name}:${target}: ${rule.hostReason}; host is ${HOST}"`],
       },
-      inputs: ["default", "^default", "cargo"],
+      inputs: ["default", "^default", "cargo", ...(rule.inputs ?? [])],
       dependsOn: onHost && rule.needs ? [rule.needs] : [],
       parallelism: target !== "test",
     };

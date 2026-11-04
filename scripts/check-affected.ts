@@ -18,6 +18,10 @@ const CASES: { file: string; affected: string[] }[] = [
     ],
   },
   { file: "packages/screen-sentinel-mcp/src/index.ts", affected: ["screen-sentinel-mcp"] },
+  {
+    file: "apps/screen-sentinel-app-tauri/lib/utils/tauri.ts",
+    affected: ["@screen-sentinel/app", "screen-sentinel-app"],
+  },
   { file: "feature-map/03-nx-monorepo.md", affected: [] },
 ];
 
