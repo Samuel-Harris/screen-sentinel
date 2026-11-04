@@ -7732,6 +7732,7 @@ dependencies = [
  "serde_json",
  "sqlite-vec",
  "sqlx",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",
