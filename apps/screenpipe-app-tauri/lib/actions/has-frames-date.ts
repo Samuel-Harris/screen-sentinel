@@ -6,19 +6,14 @@ import { isSameDay } from "date-fns";
 import { localFetch } from "@/lib/api";
 
 /**
- * List the local-calendar days that have ANY captured data — screen
- * frames OR audio chunks. Used by the timeline calendar picker to
- * disable empty days.
+ * List the local-calendar days that have captured screen frames. Used
+ * by the timeline calendar picker to disable empty days.
  *
  * Returns a Set of "YYYY-MM-DD" local-day strings. SQL applies SQLite's
  * `'localtime'` modifier so days are bucketed in the user's local
  * timezone — matches what `format(date, "yyyy-MM-dd")` produces in
  * the UI. Without this, a UTC timestamp just past midnight could land
  * on the wrong calendar day in the picker.
- *
- * Includes audio_chunks because users with audio-only recording days
- * (mic on, screen recording paused) would otherwise see those days
- * greyed out even though the timeline has audio to play.
  *
  * Result is cached for 60s — the picker re-runs this on every popover
  * open, and the underlying day-set rarely changes within a minute.
@@ -31,21 +26,12 @@ export async function listDaysWithFrames(): Promise<Set<string>> {
 		return daysCache.days;
 	}
 	try {
-		// UNION ALL is fine — duplicates collapse via the outer DISTINCT.
-		// Both branches use the timestamp index (frames + audio_transcriptions
-		// both have one), so the query is sub-millisecond on typical DBs.
-		// audio_chunks has no timestamp column itself; the recording time
-		// lives on audio_transcriptions, which is what the timeline UI also
-		// uses to render the audio track.
 		// LIMIT is required by the /raw_sql validator; bound it to the max so
 		// future heavy users with many recording days don't get clipped.
 		// One row per local-calendar day, so 10000 = ~27 years of headroom.
 		const query = `
-			SELECT DISTINCT DATE(timestamp, 'localtime') AS day FROM (
-				SELECT timestamp FROM frames WHERE timestamp IS NOT NULL
-				UNION ALL
-				SELECT timestamp FROM audio_transcriptions WHERE timestamp IS NOT NULL
-			)
+			SELECT DISTINCT DATE(timestamp, 'localtime') AS day
+			FROM frames WHERE timestamp IS NOT NULL
 			ORDER BY day
 			LIMIT 10000
 		`;
