@@ -900,7 +900,8 @@ pub fn start_update_check(
 
     // Clean up old rollback directory if it exists (legacy, no longer needed)
     {
-        let rollback_dir = screen_sentinel_core::paths::default_screen_sentinel_data_dir().join("rollback");
+        let rollback_dir =
+            screen_sentinel_core::paths::default_screen_sentinel_data_dir().join("rollback");
         if rollback_dir.exists() {
             let _ = std::fs::remove_dir_all(&rollback_dir);
             info!("rollback: cleaned up legacy rollback directory");

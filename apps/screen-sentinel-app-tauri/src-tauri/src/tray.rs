@@ -4,8 +4,8 @@
 
 use crate::commands::{hide_main_window, show_main_window};
 use crate::health::{
-    get_high_fps_status, get_recording_info, get_recording_status, set_high_fps_status,
-    DeviceKind, HighFpsCacheEntry, RecordingStatus,
+    get_high_fps_status, get_recording_info, get_recording_status, set_high_fps_status, DeviceKind,
+    HighFpsCacheEntry, RecordingStatus,
 };
 use crate::recording::{local_api_context_from_app, RecordingState};
 use crate::store::{OnboardingStore, SettingsStore};
@@ -464,7 +464,8 @@ pub fn recreate_tray(app: &AppHandle) {
                 ) {
                     Ok(path) => tauri::image::Image::from_path(path).ok(),
                     Err(_) => {
-                        tauri::image::Image::from_path("assets/screen-sentinel-logo-tray-white.png").ok()
+                        tauri::image::Image::from_path("assets/screen-sentinel-logo-tray-white.png")
+                            .ok()
                     }
                 };
 
@@ -557,9 +558,12 @@ fn create_dynamic_menu(
     if !data.onboarding_completed {
         menu_builder = menu_builder
             .item(
-                &MenuItemBuilder::with_id("version", format!("version {}", app.package_info().version))
-                    .enabled(false)
-                    .build(app)?,
+                &MenuItemBuilder::with_id(
+                    "version",
+                    format!("version {}", app.package_info().version),
+                )
+                .enabled(false)
+                .build(app)?,
             )
             .item(&PredefinedMenuItem::separator(app)?)
             .item(&MenuItemBuilder::with_id("skip_onboarding", "Skip onboarding").build(app)?)
@@ -638,7 +642,6 @@ fn create_dynamic_menu(
                     .build(app)?,
             );
         }
-
     }
 
     // Show "fix permissions" when recording is in error state
@@ -1297,7 +1300,10 @@ async fn update_menu_if_needed(
         "Screen Sentinel — ⚠️ permissions needed".to_string()
     } else if effective_status == RecordingStatus::Paused {
         match pause_remaining() {
-            Some(d) => format!("Screen Sentinel — paused, resumes in {}", format_remaining(d)),
+            Some(d) => format!(
+                "Screen Sentinel — paused, resumes in {}",
+                format_remaining(d)
+            ),
             None => "Screen Sentinel — paused".to_string(),
         }
     } else {

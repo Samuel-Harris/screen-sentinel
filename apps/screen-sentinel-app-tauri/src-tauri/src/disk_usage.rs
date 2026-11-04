@@ -148,9 +148,10 @@ pub async fn disk_usage(
                                         // Normalize the cached key too: old entries were written with
                                         // raw `to_string_lossy()`, may differ from canonical form for
                                         // the same directory.
-                let cached_key_normalized = canonical_dir_key(Path::new(&cached.screen_sentinel_dir));
-                let dir_matches =
-                    !cached.screen_sentinel_dir.is_empty() && cached_key_normalized == current_dir_key;
+                let cached_key_normalized =
+                    canonical_dir_key(Path::new(&cached.screen_sentinel_dir));
+                let dir_matches = !cached.screen_sentinel_dir.is_empty()
+                    && cached_key_normalized == current_dir_key;
                 if dir_matches && now - cached.timestamp < one_hour {
                     info!(
                         "Using cached disk usage data (age: {}s)",

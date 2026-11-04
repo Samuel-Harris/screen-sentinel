@@ -14,8 +14,9 @@ use crate::store::SettingsStore;
 
 pub fn start(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
-        let mut sub =
-            screen_sentinel_events::subscribe_to_event::<serde_json::Value>("monitor_topology_changed");
+        let mut sub = screen_sentinel_events::subscribe_to_event::<serde_json::Value>(
+            "monitor_topology_changed",
+        );
 
         while let Some(event) = sub.next().await {
             if !display_changes_enabled(&app) {

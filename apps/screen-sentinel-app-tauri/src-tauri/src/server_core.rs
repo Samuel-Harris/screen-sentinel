@@ -214,11 +214,13 @@ impl ServerCore {
             };
             match screen_sentinel_secrets::SecretStore::new(db.pool.clone(), secret_key).await {
                 Ok(store) => {
-                    let fixed = screen_sentinel_secrets::fix_secret_file_permissions(&config.data_dir);
+                    let fixed =
+                        screen_sentinel_secrets::fix_secret_file_permissions(&config.data_dir);
                     if fixed > 0 {
                         info!("fixed permissions on {} credential files", fixed);
                     }
-                    match screen_sentinel_secrets::migrate_legacy_secrets(&store, &config.data_dir).await
+                    match screen_sentinel_secrets::migrate_legacy_secrets(&store, &config.data_dir)
+                        .await
                     {
                         Ok(report) => {
                             if !report.migrated.is_empty() {
@@ -530,6 +532,5 @@ impl ServerCore {
         // to land on a select! boundary and exit cleanly.
         self.redact_shutdown.notify_waiters();
         info!("Signaled redaction workers to shut down");
-
     }
 }

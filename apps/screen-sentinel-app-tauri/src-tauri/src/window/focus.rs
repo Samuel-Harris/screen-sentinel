@@ -121,7 +121,9 @@ pub(crate) fn restore_frontmost_app_if_external_with_app(app: Option<&AppHandle>
     use tauri::Manager;
 
     if is_own_app_still_active() {
-        info!("Focus moved to another Screen Sentinel window, clearing saved app without restoring");
+        info!(
+            "Focus moved to another Screen Sentinel window, clearing saved app without restoring"
+        );
         clear_frontmost_app();
         return;
     }

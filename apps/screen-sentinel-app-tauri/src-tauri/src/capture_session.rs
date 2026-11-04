@@ -46,8 +46,9 @@ impl CaptureSession {
         let (shutdown_tx, _) = broadcast::channel::<()>(1);
 
         // --- Capture trigger sender (set by VisionManager, consumed by UI recorder) ---
-        let mut capture_trigger_tx: Option<screen_sentinel_engine::event_driven_capture::TriggerSender> =
-            None;
+        let mut capture_trigger_tx: Option<
+            screen_sentinel_engine::event_driven_capture::TriggerSender,
+        > = None;
         // --- Frame-linker sender (set by VisionManager, consumed by UI recorder + capture loops) ---
         let mut linker_tx: Option<screen_sentinel_engine::frame_linker_actor::LinkerSender> = None;
         let mut vision_task = None;
@@ -170,7 +171,9 @@ impl CaptureSession {
             {
                 Ok(handle) => {
                     info!("UI event recording started successfully");
-                    screen_sentinel_engine::drm_detector::set_ui_recorder_stop_flag(handle.stop_flag());
+                    screen_sentinel_engine::drm_detector::set_ui_recorder_stop_flag(
+                        handle.stop_flag(),
+                    );
                     Some(handle)
                 }
                 Err(e) => {
