@@ -18,12 +18,8 @@ icon: "wrench"
 | desktop timeline missing after CLI install | install desktop app, not only CLI | [getting started](/getting-started) |
 | app opens but data is empty | `curl http://localhost:3030/health` and wait 1-2 minutes | [API recipes](/api-recipes) |
 | AI tool cannot see screenpipe | MCP config, Node 18+, app running | [MCP server](/mcp-server) |
-| pipe fails or hangs | pipe logs, provider auth, permissions | [pipe debugging](/pipe-debugging) |
-| Windows command window flashes during pipe run | pipe exits immediately; check logs | [pipe debugging](/pipe-debugging) |
-| meeting transcript is empty | microphone, system audio, transcription engine | [meeting intelligence](/meeting-intelligence) |
 | `/api/search` returns 404 | use `/search` on `localhost:3030` | [API recipes](/api-recipes) |
 | privacy question | local/cloud path and enabled toggles | [privacy data flow](/privacy-data-flow) |
-| connected app fails | OAuth callback, token, proxy path | [connection reference](/connection-reference) |
 
 <img src="https://docs.screenpi.pe/public/app-screenshots/settings-storage.png" alt="screenpipe storage settings" width="1200" />
 
@@ -312,13 +308,12 @@ debug the pipeline in pieces:
 - screenpipe uses ~30 GB/month at 1 FPS — this is normal
 - reduce capture rate in settings
 - data is stored in `~/.screenpipe/data/` — you can delete old recordings
-- future: cloud archive offloads older data ([learn more →](/cloud-archive))
 
 ### can I store data on a NAS or external drive?
 
 you can back up `~/.screenpipe/` to external storage. be careful with active database and media writes on slow or unreliable network drives; they can make the app feel broken or risk corruption.
 
-for active long-term retention, prefer [cloud archive](/cloud-archive) or a stable local disk plus backup. if you do use a NAS, test recording, search, restart, and recovery before relying on it.
+for active long-term retention, prefer cloud archive or a stable local disk plus backup. if you do use a NAS, test recording, search, restart, and recovery before relying on it.
 
 ### screenpipe using too much RAM
 

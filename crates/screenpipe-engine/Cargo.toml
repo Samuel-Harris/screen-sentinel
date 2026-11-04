@@ -17,7 +17,7 @@ oasgen = { workspace = true }
 
 screenpipe-events = { path = "../screenpipe-events" }
 screenpipe-screen = { path = "../screenpipe-screen" }
-screenpipe-core = { path = "../screenpipe-core", features = ["security", "secrets"] }
+screenpipe-core = { path = "../screenpipe-core", features = ["security"] }
 screenpipe-db = { path = "../screenpipe-db" }
 screenpipe-redact = { path = "../screenpipe-redact", features = ["opf-text"] }
 screenpipe-a11y = { path = "../screenpipe-a11y", features = ["db"] }

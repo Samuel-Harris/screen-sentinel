@@ -279,11 +279,6 @@ pub struct RecordingSettings {
     #[serde(rename = "useChineseMirror")]
     pub use_chinese_mirror: bool,
 
-    /// Enable AI workflow event detection (cloud feature, requires subscription).
-    /// When enabled, classifies desktop activity and triggers event-based pipes.
-    #[serde(rename = "enableWorkflowEvents", default)]
-    pub enable_workflow_events: bool,
-
     /// Detected hardware tier ("high", "mid", "low").
     /// Set once on first launch; `None` for existing installs (treated as High).
     #[serde(
@@ -369,7 +364,6 @@ impl Default for RecordingSettings {
             port: 3030,
             power_mode: None,
             use_chinese_mirror: false,
-            enable_workflow_events: false,
             device_tier: None,
             schedule_enabled: false,
             schedule_rules: vec![],

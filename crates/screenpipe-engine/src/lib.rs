@@ -5,7 +5,6 @@
 pub mod auth_key;
 mod auto_destruct;
 pub mod cli;
-pub mod cli_reminder;
 pub mod core;
 pub mod crash_log;
 pub mod drm_detector;
@@ -38,7 +37,6 @@ pub mod video_cache;
 pub mod video_export;
 pub mod video_utils;
 pub mod vision_manager;
-pub mod workflow_classifier;
 pub use auto_destruct::watch_pid;
 pub use axum::Json as JsonResponse;
 pub use cli::Cli;

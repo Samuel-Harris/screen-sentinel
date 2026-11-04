@@ -17,10 +17,8 @@ this FAQ is organized around the questions people ask support most often: what t
 | --- | --- |
 | get value in the first hour | [quickstart](/quickstart), then [use cases](/use-cases) |
 | fix install, login, empty timeline, or audio | [troubleshooting](/troubleshooting) |
-| debug a custom pipe | [pipe debugging](/pipe-debugging) |
 | connect Claude, Codex, Cursor, or ChatGPT | [MCP server](/mcp-server) |
 | check what data leaves your computer | [privacy data flow](/privacy-data-flow) |
-| deploy to a team | [teams](/teams) and [Intune deployment](/intune-deployment) |
 
 ## getting value
 
@@ -46,7 +44,7 @@ this FAQ is organized around the questions people ask support most often: what t
   - monitor a specific app or window for changes
   - sync activity to Notion, HubSpot, Toggl, or another tool
 
-  see [pipes](/pipes), [pipe store](/pipe-store), and [pipe debugging](/pipe-debugging).
+  see pipes, pipe store, and pipe debugging.
 </Expandable>
 
 <Expandable title="how does screenpipe help with Claude, Codex, Cursor, or ChatGPT context loss?">
@@ -340,7 +338,7 @@ this FAQ is organized around the questions people ask support most often: what t
   - the AI provider is connected and has credits
   - the pipe has permissions for the endpoints it calls
 
-  see [pipe debugging](/pipe-debugging) for the full checklist.
+  see pipe debugging for the full checklist.
 </Expandable>
 
 <Expandable title="on Windows, a command window opens and closes when a pipe runs.">
@@ -442,7 +440,7 @@ this FAQ is organized around the questions people ask support most often: what t
 <Expandable title="can I write my own pipe? what language are pipes in?">
   yes. pipes are `pipe.md` files containing a natural-language prompt plus optional ```bash``` and ```bun``` code blocks. you do not write a separate program — the prompt drives the pipe.
 
-  see [pipes](/pipes), [pipe permissions](/pipe-permissions), and [pipe debugging](/pipe-debugging). prebuilt pipes live in the [pipe store](/pipe-store).
+  see pipes, pipe permissions, and pipe debugging. prebuilt pipes live in the pipe store.
 </Expandable>
 
 ## audio and meetings
@@ -450,7 +448,7 @@ this FAQ is organized around the questions people ask support most often: what t
 <Expandable title="does screenpipe join meetings as a bot?">
   no. screenpipe records locally from your screen, microphone, and selected audio devices. it can capture Zoom, Google Meet, Microsoft Teams, Slack huddles, and other call surfaces without a meeting bot joining.
 
-  see [meeting intelligence](/meeting-intelligence).
+  see meeting intelligence.
 </Expandable>
 
 <Expandable title="my meeting transcript is empty or late.">
@@ -476,7 +474,7 @@ this FAQ is organized around the questions people ask support most often: what t
 
   this works for Zoom, Google Meet, Microsoft Teams, Slack huddles, Discord voice/video, WebEx, GoToMeeting, FaceTime, WhatsApp calls, Telegram calls, and any browser-based call. no calendar invite is needed, no other participant sees a bot, and recordings stay local by default.
 
-  see [meeting intelligence](/meeting-intelligence) and [meeting transcription](/meeting-transcription).
+  see meeting intelligence and meeting transcription.
 </Expandable>
 
 <Expandable title="where do I find my meeting transcripts and summaries after a call?">
@@ -502,7 +500,7 @@ this FAQ is organized around the questions people ask support most often: what t
 <Expandable title="can I export meeting notes to Notion, Obsidian, Google Docs, or Apple Notes?">
   yes, via pipes. install or write a pipe that takes the latest meeting and writes its summary, action items, and decisions to the destination you choose.
 
-  prebuilt destinations include [Obsidian](/obsidian), Notion, Apple Notes, Google Docs, and any connected app. browse the [pipe store](/pipe-store) for ready-made meeting-export pipes.
+  prebuilt destinations include [Obsidian](/obsidian), Notion, Apple Notes, Google Docs, and any connected app. browse the pipe store for ready-made meeting-export pipes.
 </Expandable>
 
 <Expandable title="can screenpipe identify the names of meeting participants?">
@@ -534,7 +532,7 @@ this FAQ is organized around the questions people ask support most often: what t
   - `data/`: screen and audio media
   - `pipes/`: installed pipes
 
-  if you need long-term storage, use [cloud archive](/cloud-archive) or a carefully configured local backup/sync path. for a NAS, make sure the database and active write path are reliable; slow or flaky network storage can corrupt active databases or make the app feel broken.
+  if you need long-term storage, use cloud archive or a carefully configured local backup/sync path. for a NAS, make sure the database and active write path are reliable; slow or flaky network storage can corrupt active databases or make the app feel broken.
 </Expandable>
 
 <Expandable title="does screenpipe work for teams or enterprise trials?">
@@ -547,7 +545,7 @@ this FAQ is organized around the questions people ask support most often: what t
   - centralized archive or storage design
   - integration with Microsoft 365, SharePoint, cloud storage, CRM, or internal systems
 
-  start with [teams](/teams). for Windows fleets, see [Intune deployment](/intune-deployment).
+  start with teams. for Windows fleets, see Intune deployment.
 </Expandable>
 
 <Expandable title="is screenpipe employee surveillance software?">
@@ -585,7 +583,7 @@ this FAQ is organized around the questions people ask support most often: what t
 <Expandable title="can my employer see my screenpipe data?">
   on personal devices: no. screenpipe is local-first and your employer has no access unless you choose to share.
 
-  on company devices with screenpipe deployed by IT: depends on the deployment. team and enterprise plans can sync to a shared archive or surface activity to admins, but only when configured and within the bounds your IT policy allows. read [teams](/teams) and your company policy. screenpipe is designed as employee-owned AI memory, not surveillance — see [privacy data flow](/privacy-data-flow).
+  on company devices with screenpipe deployed by IT: depends on the deployment. team and enterprise plans can sync to a shared archive or surface activity to admins, but only when configured and within the bounds your IT policy allows. read teams and your company policy. screenpipe is designed as employee-owned AI memory, not surveillance — see [privacy data flow](/privacy-data-flow).
 </Expandable>
 
 <Expandable title="is screenpipe HIPAA, SOC2, or GDPR compliant?">
@@ -615,7 +613,7 @@ this FAQ is organized around the questions people ask support most often: what t
 <Expandable title="how long is my data retained by default?">
   indefinitely, locally, until you delete it. screenpipe does not auto-prune by default — your `~/.screenpipe/` directory grows until you remove files or run out of disk.
 
-  to keep storage in check: lower capture FPS, exclude apps you do not need, periodically delete old media in `~/.screenpipe/data/`, or use [cloud archive](/cloud-archive) to offload older months. enterprise deployments can set retention policies as part of their config.
+  to keep storage in check: lower capture FPS, exclude apps you do not need, periodically delete old media in `~/.screenpipe/data/`, or use cloud archive to offload older months. enterprise deployments can set retention policies as part of their config.
 </Expandable>
 
 <Expandable title="does screenpipe phone home or send telemetry?">
@@ -688,7 +686,6 @@ this FAQ is organized around the questions people ask support most often: what t
   - exclude apps you do not need recorded
   - lower audio chunk duration or use mono
   - set up auto-cleanup of old media in settings → storage
-  - use [cloud archive](/cloud-archive) to offload older months
 
   enterprise deployments can configure tighter retention by policy.
 </Expandable>
@@ -710,19 +707,19 @@ this FAQ is organized around the questions people ask support most often: what t
 <Expandable title="how do I see what my team worked on this week?">
   on the team plan, the admin dashboard shows per-member activity summaries (apps used, meetings attended, focus time) without exposing raw recordings.
 
-  for richer reporting, run a weekly digest pipe that aggregates each member's screenpipe data and posts a summary to Slack, Notion, or email. raw screen and audio data stays on the user's device unless they explicitly share. see [teams](/teams).
+  for richer reporting, run a weekly digest pipe that aggregates each member's screenpipe data and posts a summary to Slack, Notion, or email. raw screen and audio data stays on the user's device unless they explicitly share. see teams.
 </Expandable>
 
 <Expandable title="how do I add team members to screenpipe?">
   on Team and Enterprise plans, open **settings → team → invite** in the desktop app, enter the member's email, and they receive an invite to install screenpipe with your team license already attached.
 
-  for managed fleets, use Intune, Jamf, or your MDM to deploy the installer with the license token pre-set. see [Intune deployment](/intune-deployment).
+  for managed fleets, use Intune, Jamf, or your MDM to deploy the installer with the license token pre-set. see Intune deployment.
 </Expandable>
 
 <Expandable title="can I deploy screenpipe via Intune, Jamf, or another MDM?">
   yes. screenpipe ships a silent installer for Windows (MSI) and a signed `.pkg` for macOS that work with Intune, Jamf Pro, Kandji, Mosyle, and other MDM tools.
 
-  pre-configure the license token, telemetry, cloud transcription, and recording filters via a JSON config file dropped at install time. enterprise customers get a deployment guide and a sample MDM configuration profile — see [Intune deployment](/intune-deployment) or contact [louis@screenpi.pe](mailto:louis@screenpi.pe).
+  pre-configure the license token, telemetry, cloud transcription, and recording filters via a JSON config file dropped at install time. enterprise customers get a deployment guide and a sample MDM configuration profile — see Intune deployment or contact [louis@screenpi.pe](mailto:louis@screenpi.pe).
 </Expandable>
 
 <Expandable title="does screenpipe support Microsoft 365 / Entra ID / SAML single sign-on (SSO)?">
