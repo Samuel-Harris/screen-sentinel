@@ -345,6 +345,7 @@ impl DatabaseManager {
         let mut migrator = sqlx::migrate!("./src/migrations");
         migrator.set_ignore_missing(true);
         Self::log_pending_search_index_migration(pool, &migrator).await;
+        crate::audio_cleanup::delete_audio_files(pool).await?;
         match migrator.run(pool).await {
             Ok(_) => {}
             Err(e) => {
