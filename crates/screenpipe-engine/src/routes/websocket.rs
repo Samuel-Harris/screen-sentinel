@@ -29,7 +29,6 @@ use tracing::{debug, error};
 use crate::server::AppState;
 
 use super::health::health_check;
-use super::meetings::{resolve_meeting_status_from, MeetingStatusResponse};
 
 /// Maximum number of concurrent WebSocket connections allowed.
 /// This prevents file descriptor exhaustion from too many open connections.
@@ -219,61 +218,6 @@ pub(crate) async fn ws_metrics_handler(
     }
 }
 
-pub(crate) async fn ws_meeting_status_handler(
-    ws: WebSocketUpgrade,
-    State(state): State<Arc<AppState>>,
-) -> Response {
-    match try_acquire_ws_connection(&state.ws_connection_count) {
-        Some(guard) => {
-            ws.on_upgrade(move |socket| handle_meeting_status_socket(socket, state, guard))
-        }
-        None => Response::builder()
-            .status(StatusCode::SERVICE_UNAVAILABLE)
-            .body(Body::from("Too many WebSocket connections"))
-            .unwrap(),
-    }
-}
-
-async fn handle_meeting_status_socket(
-    mut socket: WebSocket,
-    state: Arc<AppState>,
-    _guard: WsConnectionGuard,
-) {
-    if let Ok(status) =
-        resolve_meeting_status_from(state.db.as_ref(), state.manual_meeting.as_ref()).await
-    {
-        if let Ok(json) = serde_json::to_string(&status) {
-            if socket.send(Message::Text(json)).await.is_err() {
-                return;
-            }
-        }
-    }
-
-    let mut stream =
-        screenpipe_events::subscribe_to_event::<MeetingStatusResponse>("meeting_status_changed");
-    loop {
-        tokio::select! {
-            event = stream.next() => {
-                if let Some(event) = event {
-                    let json = serde_json::to_string(&event.data).unwrap_or_default();
-                    if let Err(e) = socket.send(Message::Text(json)).await {
-                        error!("Failed to send meeting status: {}", e);
-                        break;
-                    }
-                }
-            }
-            _ = tokio::time::sleep(Duration::from_secs(15)) => {
-                let _ = socket.send(Message::Ping(vec![])).await;
-            }
-            result = socket.recv() => {
-                if result.is_none() {
-                    break;
-                }
-            }
-        }
-    }
-}
-
 async fn handle_metrics_socket(
     mut socket: WebSocket,
     state: Arc<AppState>,
@@ -284,18 +228,8 @@ async fn handle_metrics_socket(
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                let audio = state.audio_metrics.snapshot();
-                let per_device_levels = state.audio_metrics.per_device_rms_snapshot();
                 let vision = state.vision_metrics.snapshot();
                 let payload = serde_json::json!({
-                    "audio": {
-                        "vad_passed": audio.vad_passed,
-                        "vad_rejected": audio.vad_rejected,
-                        "chunks_sent": audio.chunks_sent,
-                        "total_words": audio.total_words,
-                        "audio_level_rms": audio.audio_level_rms,
-                        "device_levels": per_device_levels,
-                    },
                     "vision": {
                         "frames_captured": vision.frames_captured,
                         "ocr_completed": vision.ocr_completed,

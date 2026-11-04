@@ -6,8 +6,8 @@
 //!
 //! Emitted when the engine detects a runtime permission change (e.g. user
 //! revokes screen recording in System Settings while the app is running).
-//! Detection happens at the source — SCStream errors, CoreAudio errors, or
-//! an `AXIsProcessTrusted()` transition — so events fire within ~100ms of
+//! Detection happens at the source — SCStream errors or an
+//! `AXIsProcessTrusted()` transition — so events fire within ~100ms of
 //! the actual OS state change.
 //!
 //! The Tauri app subscribes via `/ws/events` and opens the recovery modal.
@@ -27,7 +27,6 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum PermissionKind {
     ScreenRecording,
-    Microphone,
     Accessibility,
     Keychain,
 }
@@ -46,7 +45,7 @@ pub enum PermissionState {
 /// Published to the event bus as `"permission_lost"` or `"permission_restored"`.
 ///
 /// Event names are split so subscribers can filter without inspecting the
-/// payload — matches the pattern used by `meeting_started` / `meeting_ended`.
+/// payload.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PermissionEvent {
     pub kind: PermissionKind,
@@ -83,7 +82,7 @@ impl PermissionEvent {
     }
 
     /// Event name to publish on the bus. Split by state so subscribers can
-    /// filter cheaply (same convention as `meeting_started` / `meeting_ended`).
+    /// filter cheaply.
     pub fn event_name(&self) -> &'static str {
         match self.state {
             PermissionState::Lost => "permission_lost",

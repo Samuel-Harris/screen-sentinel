@@ -36,7 +36,6 @@ jobs:
           cargo clippy --workspace \
             --exclude screenpipe-rfdetr-mlx \
             --exclude screenpipe-screen \
-            --exclude screenpipe-audio \
             --all-targets -- -W clippy::all
 
   optimize:

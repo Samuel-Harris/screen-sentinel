@@ -6,7 +6,7 @@
 //!
 //! This module polls battery/thermal state, selects a power profile
 //! (Performance / Balanced / Saver), and broadcasts parameter changes
-//! to vision and audio subsystems via a `tokio::sync::watch` channel.
+//! to the vision subsystem via a `tokio::sync::watch` channel.
 //!
 //! # Architecture
 //!

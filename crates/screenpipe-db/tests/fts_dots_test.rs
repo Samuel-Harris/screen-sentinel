@@ -79,8 +79,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await;
 
@@ -135,9 +133,7 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 Some("https://www.example.com/page"),
-                None,
                 None,
                 None,
                 None,
@@ -193,8 +189,6 @@ mod tests {
                 None,
                 None,
                 Some("main.rs — screenpipe"),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -264,8 +258,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await;
 
@@ -308,7 +300,7 @@ mod tests {
         .await
         .unwrap();
 
-        // ContentType::All exercises OCR + Accessibility + Audio paths
+        // ContentType::All exercises OCR + Accessibility paths
         let count = db
             .count_search_results(
                 "",
@@ -316,8 +308,6 @@ mod tests {
                 None,
                 None,
                 Some("zoom.us"),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -483,8 +473,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await;
 
@@ -538,8 +526,6 @@ mod tests {
                 ContentType::OCR,
                 100,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -610,8 +596,6 @@ mod tests {
                     None,
                     None,
                     Some(app_name),
-                    None,
-                    None,
                     None,
                     None,
                     None,

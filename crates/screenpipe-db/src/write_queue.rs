@@ -66,38 +66,6 @@ pub fn request_write_resume() {
 /// Only hot-path operations are included here; cold-path writes still use
 /// `begin_immediate_with_retry` directly.
 pub(crate) enum WriteOp {
-    InsertAudioChunk {
-        file_path: String,
-        timestamp: Option<DateTime<Utc>>,
-    },
-    InsertAudioTranscription {
-        audio_chunk_id: i64,
-        transcription: String,
-        offset_index: i64,
-        transcription_engine: String,
-        device_name: String,
-        is_input_device: bool,
-        speaker_id: Option<i64>,
-        start_time: Option<f64>,
-        end_time: Option<f64>,
-        timestamp: Option<DateTime<Utc>>,
-    },
-    InsertAudioChunkAndTranscription {
-        file_path: String,
-        transcription: String,
-        offset_index: i64,
-        transcription_engine: String,
-        device_name: String,
-        is_input_device: bool,
-        speaker_id: Option<i64>,
-        start_time: Option<f64>,
-        end_time: Option<f64>,
-        timestamp: Option<DateTime<Utc>>,
-        /// Pre-computed during read phase: existing chunk ID (0 if not found)
-        existing_chunk_id: i64,
-        /// Pre-computed during read phase: whether a similar transcription exists
-        is_duplicate: bool,
-    },
     InsertSnapshotFrameWithOcr {
         device_name: String,
         timestamp: DateTime<Utc>,
@@ -151,9 +119,6 @@ pub(crate) enum WriteOp {
         row_id: i64,
         frame_id: i64,
     },
-    DeleteAudioChunksBatch {
-        chunk_ids: Vec<i64>,
-    },
     CompactSnapshots {
         chunk_id: i64,
         batch: Vec<(i64, u32)>,
@@ -197,16 +162,6 @@ pub(crate) enum WriteOp {
         app_name: String,
         window_name: Option<String>,
         sync_id: String,
-    },
-    /// Insert a synced transcription (audio_chunk + audio_transcription) from cloud sync import.
-    SyncInsertTranscription {
-        sync_id: String,
-        machine_id: String,
-        timestamp: String,
-        transcription: String,
-        device: String,
-        is_input_device: bool,
-        speaker_id: Option<i64>,
     },
     /// Insert a synced accessibility record as a frame from cloud sync import.
     SyncInsertAccessibility {
@@ -327,7 +282,6 @@ pub(crate) struct UiEventWrite {
 #[derive(Debug, Clone)]
 pub enum SyncTable {
     Frames,
-    AudioTranscriptions,
     FramesAccessibility,
     UiEvents,
 }
@@ -658,201 +612,6 @@ async fn execute_single_write(
     conn: &mut sqlx::pool::PoolConnection<Sqlite>,
 ) -> Result<WriteResult, sqlx::Error> {
     match op {
-        WriteOp::InsertAudioChunk {
-            file_path,
-            timestamp,
-        } => {
-            let ts = timestamp.unwrap_or_else(Utc::now);
-            let id = sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
-                .bind(file_path.as_str())
-                .bind(ts)
-                .execute(&mut **conn)
-                .await?
-                .last_insert_rowid();
-            Ok(WriteResult::Id(id))
-        }
-
-        WriteOp::InsertAudioTranscription {
-            audio_chunk_id,
-            transcription,
-            offset_index,
-            transcription_engine,
-            device_name,
-            is_input_device,
-            speaker_id,
-            start_time,
-            end_time,
-            timestamp,
-        } => {
-            let ts = timestamp.unwrap_or_else(Utc::now);
-            let text_length = transcription.len() as i64;
-            let result = sqlx::query(
-                "INSERT OR IGNORE INTO audio_transcriptions (audio_chunk_id, transcription, offset_index, timestamp, transcription_engine, device, is_input_device, speaker_id, start_time, end_time, text_length) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            )
-            .bind(audio_chunk_id)
-            .bind(transcription.as_str())
-            .bind(offset_index)
-            .bind(ts)
-            .bind(transcription_engine.as_str())
-            .bind(device_name.as_str())
-            .bind(is_input_device)
-            .bind(speaker_id)
-            .bind(start_time)
-            .bind(end_time)
-            .bind(text_length)
-            .execute(&mut **conn)
-            .await?;
-
-            // Flip the chunk's processing status in the same TX so the
-            // reconciliation sweep can't re-pick this chunk between the
-            // INSERT landing and a separate UPDATE. INSERT OR IGNORE
-            // collisions (UNIQUE on chunk_id+text) still count as
-            // "transcribed" — the row already exists, we've considered
-            // this chunk.
-            sqlx::query(
-                "UPDATE audio_chunks \
-                 SET transcription_status = 'transcribed', \
-                     transcription_attempts = transcription_attempts + 1, \
-                     last_transcription_attempt_at = ?1, \
-                     transcription_failure_reason = NULL \
-                 WHERE id = ?2",
-            )
-            .bind(ts)
-            .bind(audio_chunk_id)
-            .execute(&mut **conn)
-            .await?;
-
-            if result.rows_affected() == 0 {
-                Ok(WriteResult::Id(0))
-            } else {
-                Ok(WriteResult::Id(result.last_insert_rowid()))
-            }
-        }
-
-        WriteOp::InsertAudioChunkAndTranscription {
-            file_path,
-            transcription,
-            offset_index,
-            transcription_engine,
-            device_name,
-            is_input_device,
-            speaker_id,
-            start_time,
-            end_time,
-            timestamp,
-            existing_chunk_id,
-            is_duplicate,
-        } => {
-            let ts = timestamp.unwrap_or_else(Utc::now);
-
-            // Cross-device duplicate detected by the read-side dedup check.
-            // The chunk row still needs to exist (so the audio file is
-            // findable on disk for playback / future reconciliation), but no
-            // transcription row is recorded. We mark status='transcribed'
-            // because we *did* process this chunk — its content is captured
-            // on the other device's row. Without this flip the reconciliation
-            // sweep would re-pick the chunk forever (the original zombie loop).
-            if *is_duplicate {
-                let audio_chunk_id = if *existing_chunk_id != 0 {
-                    *existing_chunk_id
-                } else {
-                    sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
-                        .bind(file_path.as_str())
-                        .bind(ts)
-                        .execute(&mut **conn)
-                        .await?
-                        .last_insert_rowid()
-                };
-                sqlx::query(
-                    "UPDATE audio_chunks \
-                     SET transcription_status = 'transcribed', \
-                         transcription_attempts = transcription_attempts + 1, \
-                         last_transcription_attempt_at = ?1, \
-                         transcription_failure_reason = NULL \
-                     WHERE id = ?2",
-                )
-                .bind(ts)
-                .bind(audio_chunk_id)
-                .execute(&mut **conn)
-                .await?;
-                return Ok(WriteResult::Id(audio_chunk_id));
-            }
-
-            // Empty STT result — same story as Duplicate but marked 'silent'
-            // so ops can distinguish silent capture from dedup-suppressed.
-            if transcription.trim().is_empty() {
-                let audio_chunk_id = if *existing_chunk_id != 0 {
-                    *existing_chunk_id
-                } else {
-                    sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
-                        .bind(file_path.as_str())
-                        .bind(ts)
-                        .execute(&mut **conn)
-                        .await?
-                        .last_insert_rowid()
-                };
-                sqlx::query(
-                    "UPDATE audio_chunks \
-                     SET transcription_status = 'silent', \
-                         transcription_attempts = transcription_attempts + 1, \
-                         last_transcription_attempt_at = ?1, \
-                         transcription_failure_reason = NULL \
-                     WHERE id = ?2",
-                )
-                .bind(ts)
-                .bind(audio_chunk_id)
-                .execute(&mut **conn)
-                .await?;
-                return Ok(WriteResult::Id(audio_chunk_id));
-            }
-
-            // Insert chunk if needed
-            let audio_chunk_id = if *existing_chunk_id != 0 {
-                *existing_chunk_id
-            } else {
-                sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES (?1, ?2)")
-                    .bind(file_path.as_str())
-                    .bind(ts)
-                    .execute(&mut **conn)
-                    .await?
-                    .last_insert_rowid()
-            };
-
-            // Insert transcription + flip status atomically.
-            let text_length = transcription.len() as i64;
-            sqlx::query(
-                "INSERT OR IGNORE INTO audio_transcriptions (audio_chunk_id, transcription, offset_index, timestamp, transcription_engine, device, is_input_device, speaker_id, start_time, end_time, text_length) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-            )
-            .bind(audio_chunk_id)
-            .bind(transcription.as_str())
-            .bind(offset_index)
-            .bind(ts)
-            .bind(transcription_engine.as_str())
-            .bind(device_name.as_str())
-            .bind(is_input_device)
-            .bind(speaker_id)
-            .bind(start_time)
-            .bind(end_time)
-            .bind(text_length)
-            .execute(&mut **conn)
-            .await?;
-
-            sqlx::query(
-                "UPDATE audio_chunks \
-                 SET transcription_status = 'transcribed', \
-                     transcription_attempts = transcription_attempts + 1, \
-                     last_transcription_attempt_at = ?1, \
-                     transcription_failure_reason = NULL \
-                 WHERE id = ?2",
-            )
-            .bind(ts)
-            .bind(audio_chunk_id)
-            .execute(&mut **conn)
-            .await?;
-
-            Ok(WriteResult::Id(audio_chunk_id))
-        }
-
         WriteOp::InsertSnapshotFrameWithOcr {
             device_name,
             timestamp,
@@ -1009,9 +768,6 @@ async fn execute_single_write(
                 SyncTable::Frames => {
                     "UPDATE frames SET synced_at = ?1 WHERE timestamp >= ?2 AND timestamp <= ?3 AND synced_at IS NULL"
                 }
-                SyncTable::AudioTranscriptions => {
-                    "UPDATE audio_transcriptions SET synced_at = ?1 WHERE timestamp >= ?2 AND timestamp <= ?3 AND synced_at IS NULL"
-                }
                 SyncTable::FramesAccessibility => {
                     "UPDATE frames SET synced_at = ?1 WHERE timestamp >= ?2 AND timestamp <= ?3 AND text_source = 'accessibility' AND synced_at IS NULL"
                 }
@@ -1050,20 +806,6 @@ async fn execute_single_write(
                 .bind(row_id)
                 .execute(&mut **conn)
                 .await?;
-            Ok(WriteResult::Unit)
-        }
-
-        WriteOp::DeleteAudioChunksBatch { chunk_ids } => {
-            for id in chunk_ids {
-                sqlx::query("DELETE FROM audio_transcriptions WHERE audio_chunk_id = ?1")
-                    .bind(id)
-                    .execute(&mut **conn)
-                    .await?;
-                sqlx::query("DELETE FROM audio_chunks WHERE id = ?1")
-                    .bind(id)
-                    .execute(&mut **conn)
-                    .await?;
-            }
             Ok(WriteResult::Unit)
         }
 
@@ -1140,45 +882,6 @@ async fn execute_single_write(
             .execute(&mut **conn)
             .await?;
             Ok(WriteResult::Id(*frame_id))
-        }
-
-        WriteOp::SyncInsertTranscription {
-            sync_id,
-            machine_id,
-            timestamp,
-            transcription,
-            device,
-            is_input_device,
-            speaker_id,
-        } => {
-            let now = Utc::now().to_rfc3339();
-            // Create audio chunk for synced transcription
-            let audio_chunk_id: i64 = sqlx::query_scalar(
-                r#"INSERT INTO audio_chunks (file_path, sync_id, machine_id)
-                VALUES ('cloud://' || ?1, ?1, ?2)
-                RETURNING id"#,
-            )
-            .bind(sync_id.as_str())
-            .bind(machine_id.as_str())
-            .fetch_one(&mut **conn)
-            .await?;
-
-            sqlx::query(
-                r#"INSERT INTO audio_transcriptions (audio_chunk_id, offset_index, timestamp, transcription, device, is_input_device, speaker_id, sync_id, synced_at)
-                VALUES (?1, 0, ?2, ?3, ?4, ?5, ?6, ?7, ?8)"#,
-            )
-            .bind(audio_chunk_id)
-            .bind(timestamp.as_str())
-            .bind(transcription.as_str())
-            .bind(device.as_str())
-            .bind(is_input_device)
-            .bind(speaker_id)
-            .bind(sync_id.as_str())
-            .bind(now.as_str())
-            .execute(&mut **conn)
-            .await?;
-
-            Ok(WriteResult::Id(audio_chunk_id))
         }
 
         WriteOp::SyncInsertAccessibility {
@@ -1731,42 +1434,6 @@ mod tests {
             .unwrap();
 
         sqlx::query(
-            "CREATE TABLE IF NOT EXISTS audio_chunks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                file_path TEXT NOT NULL,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                transcription_status TEXT NOT NULL DEFAULT 'pending',
-                transcription_attempts INTEGER NOT NULL DEFAULT 0,
-                last_transcription_attempt_at TIMESTAMP,
-                transcription_failure_reason TEXT
-            )",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        sqlx::query(
-            "CREATE TABLE IF NOT EXISTS audio_transcriptions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                audio_chunk_id INTEGER NOT NULL,
-                transcription TEXT NOT NULL,
-                offset_index INTEGER NOT NULL DEFAULT 0,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                transcription_engine TEXT NOT NULL DEFAULT '',
-                device TEXT NOT NULL DEFAULT '',
-                is_input_device BOOLEAN DEFAULT TRUE,
-                speaker_id INTEGER,
-                start_time REAL,
-                end_time REAL,
-                text_length INTEGER DEFAULT 0,
-                UNIQUE(audio_chunk_id, transcription)
-            )",
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        sqlx::query(
             "CREATE TABLE IF NOT EXISTS video_chunks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 file_path TEXT NOT NULL,
@@ -1830,9 +1497,10 @@ mod tests {
         let queue = spawn_write_drain(pool.clone(), sem, std::sync::Arc::from("sqlite::memory:"));
 
         let result = queue
-            .submit(WriteOp::InsertAudioChunk {
-                file_path: "/tmp/test.wav".to_string(),
-                timestamp: None,
+            .submit(WriteOp::InsertVideoChunkWithFps {
+                file_path: "/tmp/test.mp4".to_string(),
+                device_name: "monitor1".to_string(),
+                fps: 1.0,
             })
             .await
             .unwrap();
@@ -1843,7 +1511,7 @@ mod tests {
         }
 
         // Verify in DB
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_chunks")
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM video_chunks")
             .fetch_one(&pool)
             .await
             .unwrap();
@@ -1860,9 +1528,10 @@ mod tests {
         for i in 0..50 {
             let q = queue.clone();
             handles.push(tokio::spawn(async move {
-                q.submit(WriteOp::InsertAudioChunk {
-                    file_path: format!("/tmp/test_{}.wav", i),
-                    timestamp: None,
+                q.submit(WriteOp::InsertVideoChunkWithFps {
+                    file_path: format!("/tmp/test_{}.mp4", i),
+                    device_name: "monitor1".to_string(),
+                    fps: 1.0,
                 })
                 .await
             }));
@@ -1877,149 +1546,11 @@ mod tests {
         }
 
         // Verify all 50 rows exist
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_chunks")
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM video_chunks")
             .fetch_one(&pool)
             .await
             .unwrap();
         assert_eq!(count.0, 50);
-    }
-
-    #[tokio::test]
-    async fn test_ordering_chunk_before_transcription() {
-        let (pool, sem) = setup_test_db().await;
-        let queue = spawn_write_drain(pool.clone(), sem, std::sync::Arc::from("sqlite::memory:"));
-
-        // Insert chunk first
-        let chunk_result = queue
-            .submit(WriteOp::InsertAudioChunk {
-                file_path: "/tmp/ordered.wav".to_string(),
-                timestamp: None,
-            })
-            .await
-            .unwrap();
-
-        let chunk_id = match chunk_result {
-            WriteResult::Id(id) => id,
-            _ => panic!("expected Id"),
-        };
-
-        // Then insert transcription referencing the chunk
-        let tx_result = queue
-            .submit(WriteOp::InsertAudioTranscription {
-                audio_chunk_id: chunk_id,
-                transcription: "hello world".to_string(),
-                offset_index: 0,
-                transcription_engine: "test".to_string(),
-                device_name: "mic".to_string(),
-                is_input_device: true,
-                speaker_id: None,
-                start_time: None,
-                end_time: None,
-                timestamp: None,
-            })
-            .await
-            .unwrap();
-
-        match tx_result {
-            WriteResult::Id(id) => assert!(id > 0),
-            _ => panic!("expected Id"),
-        }
-
-        // Verify transcription is linked to chunk
-        let row: (i64,) = sqlx::query_as("SELECT audio_chunk_id FROM audio_transcriptions LIMIT 1")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(row.0, chunk_id);
-    }
-
-    #[tokio::test]
-    async fn test_combined_chunk_and_transcription() {
-        let (pool, sem) = setup_test_db().await;
-        let queue = spawn_write_drain(pool.clone(), sem, std::sync::Arc::from("sqlite::memory:"));
-
-        let result = queue
-            .submit(WriteOp::InsertAudioChunkAndTranscription {
-                file_path: "/tmp/combined.wav".to_string(),
-                transcription: "test transcription".to_string(),
-                offset_index: 0,
-                transcription_engine: "whisper".to_string(),
-                device_name: "mic".to_string(),
-                is_input_device: true,
-                speaker_id: None,
-                start_time: Some(0.0),
-                end_time: Some(1.5),
-                timestamp: None,
-                existing_chunk_id: 0,
-                is_duplicate: false,
-            })
-            .await
-            .unwrap();
-
-        let chunk_id = match result {
-            WriteResult::Id(id) => {
-                assert!(id > 0);
-                id
-            }
-            _ => panic!("expected Id"),
-        };
-
-        // Verify both chunk and transcription exist
-        let chunk_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_chunks")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(chunk_count.0, 1);
-
-        let tx_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_transcriptions")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(tx_count.0, 1);
-
-        // Verify FK relationship
-        let tx_chunk: (i64,) =
-            sqlx::query_as("SELECT audio_chunk_id FROM audio_transcriptions LIMIT 1")
-                .fetch_one(&pool)
-                .await
-                .unwrap();
-        assert_eq!(tx_chunk.0, chunk_id);
-    }
-
-    #[tokio::test]
-    async fn test_duplicate_transcription_skipped() {
-        let (pool, sem) = setup_test_db().await;
-        let queue = spawn_write_drain(pool.clone(), sem, std::sync::Arc::from("sqlite::memory:"));
-
-        let result = queue
-            .submit(WriteOp::InsertAudioChunkAndTranscription {
-                file_path: "/tmp/dup.wav".to_string(),
-                transcription: "hello".to_string(),
-                offset_index: 0,
-                transcription_engine: "whisper".to_string(),
-                device_name: "mic".to_string(),
-                is_input_device: true,
-                speaker_id: None,
-                start_time: None,
-                end_time: None,
-                timestamp: None,
-                existing_chunk_id: 0,
-                is_duplicate: true, // pre-computed as duplicate
-            })
-            .await
-            .unwrap();
-
-        // Chunk should still be inserted, but no transcription
-        match result {
-            WriteResult::Id(id) => assert!(id > 0),
-            _ => panic!("expected Id"),
-        }
-
-        let tx_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_transcriptions")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(tx_count.0, 0);
     }
 
     #[tokio::test]
@@ -2097,13 +1628,30 @@ mod tests {
 
         let mut handles = Vec::new();
 
-        // Mix of audio chunks, video chunks, and frames
+        // Mix of snapshot frames and video chunks
         for i in 0..20 {
             let q = queue.clone();
             handles.push(tokio::spawn(async move {
-                q.submit(WriteOp::InsertAudioChunk {
-                    file_path: format!("/tmp/audio_{}.wav", i),
-                    timestamp: None,
+                q.submit(WriteOp::InsertSnapshotFrameWithOcr {
+                    device_name: "monitor1".to_string(),
+                    timestamp: Utc::now(),
+                    snapshot_path: format!("/tmp/frame_{}.jpg", i),
+                    app_name: None,
+                    window_name: None,
+                    browser_url: None,
+                    document_path: None,
+                    focused: false,
+                    capture_trigger: None,
+                    accessibility_text: None,
+                    text_source: None,
+                    accessibility_tree_json: None,
+                    content_hash: None,
+                    simhash: None,
+                    ocr_text: None,
+                    ocr_text_json: None,
+                    ocr_engine: None,
+                    full_text: None,
+                    elements_ref_frame_id: None,
                 })
                 .await
             }));
@@ -2124,11 +1672,11 @@ mod tests {
             handle.await.unwrap().unwrap();
         }
 
-        let audio_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_chunks")
+        let frame_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM frames")
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!(audio_count.0, 20);
+        assert_eq!(frame_count.0, 20);
 
         let video_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM video_chunks")
             .fetch_one(&pool)
@@ -2153,9 +1701,10 @@ mod tests {
 
         // Submit a write
         let result = queue
-            .submit(WriteOp::InsertAudioChunk {
-                file_path: "/tmp/shutdown_test.wav".to_string(),
-                timestamp: None,
+            .submit(WriteOp::InsertVideoChunkWithFps {
+                file_path: "/tmp/shutdown_test.mp4".to_string(),
+                device_name: "monitor1".to_string(),
+                fps: 1.0,
             })
             .await
             .unwrap();
@@ -2172,47 +1721,11 @@ mod tests {
         handle.await.unwrap();
 
         // Verify the write was persisted
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_chunks")
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM video_chunks")
             .fetch_one(&pool)
             .await
             .unwrap();
         assert_eq!(count.0, 1);
-    }
-
-    #[tokio::test]
-    async fn test_empty_transcription_skipped() {
-        let (pool, sem) = setup_test_db().await;
-        let queue = spawn_write_drain(pool.clone(), sem, std::sync::Arc::from("sqlite::memory:"));
-
-        let result = queue
-            .submit(WriteOp::InsertAudioChunkAndTranscription {
-                file_path: "/tmp/empty.wav".to_string(),
-                transcription: "   ".to_string(), // whitespace only
-                offset_index: 0,
-                transcription_engine: "whisper".to_string(),
-                device_name: "mic".to_string(),
-                is_input_device: true,
-                speaker_id: None,
-                start_time: None,
-                end_time: None,
-                timestamp: None,
-                existing_chunk_id: 0,
-                is_duplicate: false,
-            })
-            .await
-            .unwrap();
-
-        // Chunk should exist but no transcription
-        match result {
-            WriteResult::Id(id) => assert!(id > 0),
-            _ => panic!("expected Id"),
-        }
-
-        let tx_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audio_transcriptions")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        assert_eq!(tx_count.0, 0);
     }
 
     /// Regression: 2026-04-26 17:25-17:39 incident.
@@ -2297,9 +1810,10 @@ mod tests {
     fn test_send_error_to_all_propagates_actual_error() {
         let (tx, rx) = tokio::sync::oneshot::channel();
         let pw = PendingWrite {
-            op: WriteOp::InsertAudioChunk {
+            op: WriteOp::InsertVideoChunkWithFps {
                 file_path: "/tmp/test".into(),
-                timestamp: None,
+                device_name: "monitor1".into(),
+                fps: 1.0,
             },
             respond: tx,
         };

@@ -306,7 +306,6 @@ pub async fn sync_init(
                                     Ok(result) => {
                                         let count = result.imported_frames
                                             + result.imported_ocr
-                                            + result.imported_transcriptions
                                             + result.imported_accessibility
                                             + result.imported_ui_events;
                                         imported += count;
@@ -594,7 +593,6 @@ pub async fn sync_download(
             Ok(result) => {
                 records_imported += result.imported_frames
                     + result.imported_ocr
-                    + result.imported_transcriptions
                     + result.imported_accessibility
                     + result.imported_ui_events;
             }

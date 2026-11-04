@@ -49,7 +49,6 @@ use serde_json::{json, Value};
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -61,7 +60,7 @@ use crate::server::AppState;
 use crate::video_utils::extract_frame;
 
 use super::content::{
-    AudioContent, ContentItem, InputContent, MemoryContent, OCRContent, PaginationInfo, UiContent,
+    ContentItem, InputContent, MemoryContent, OCRContent, PaginationInfo, UiContent,
 };
 
 // Update the SearchQuery struct
@@ -94,11 +93,6 @@ pub(crate) struct SearchQuery {
     min_length: Option<usize>,
     #[serde(default)]
     max_length: Option<usize>,
-    #[serde(
-        deserialize_with = "from_comma_separated_array",
-        default = "default_speaker_ids"
-    )]
-    speaker_ids: Option<Vec<i64>>,
     #[serde(default, deserialize_with = "deserialize_flexible_bool_option")]
     focused: Option<bool>,
     /// Restrict accessibility hits to elements visually present on the
@@ -111,13 +105,10 @@ pub(crate) struct SearchQuery {
     on_screen: Option<bool>,
     #[serde(default)]
     browser_url: Option<String>,
-    /// Filter audio transcriptions by speaker name (case-insensitive partial match)
-    #[serde(default)]
-    speaker_name: Option<String>,
     /// Include cloud-synced data in search results (requires cloud sync to be enabled)
     #[serde(default, deserialize_with = "deserialize_flexible_bool")]
     include_cloud: bool,
-    /// Truncate each result's text/transcription to this many characters using middle-truncation.
+    /// Truncate each result's text to this many characters using middle-truncation.
     /// When set, long content is replaced with first half + "...(truncated N chars)..." + last half.
     #[serde(default)]
     max_content_length: Option<usize>,
@@ -127,15 +118,15 @@ pub(crate) struct SearchQuery {
     /// Filter results by machine identifier (UUID)
     #[serde(default)]
     machine_id: Option<String>,
-    /// Redact PII from text-bearing fields (ocr `text`, audio `transcription`,
-    /// ui `text`, input `text_content`, memory `content`) before returning.
+    /// Redact PII from text-bearing fields (ocr `text`, ui `text`, input
+    /// `text_content`, memory `content`) before returning.
     /// Routed through the attested Tinfoil enclave; adds latency so leave it
     /// off unless the caller will forward these results to an LLM.
     #[serde(default, deserialize_with = "deserialize_flexible_bool")]
     filter_pii: bool,
     /// Restrict results to items carrying ALL of these tags. Comma-separated,
     /// e.g. `tags=person:ada,project:atlas`. Tags span one string namespace
-    /// across three stores: screen + audio (junction tags written via
+    /// across two stores: screen (junction tags written via
     /// `POST /tags/:type/:id`) and memories (their JSON `tags`, filtered when
     /// `content_type=memory`). Input and accessibility have no tags and return
     /// nothing when this is set. Omit for no tag filtering.
@@ -263,31 +254,6 @@ pub fn search_result_to_content_item(
             device_name: ocr.device_name.clone(),
             text_source: ocr.text_source.clone(),
         }),
-        SearchResult::Audio(audio) => {
-            let transcription = truncate(audio.transcription.clone());
-            ContentItem::Audio(AudioContent {
-                chunk_id: audio.audio_chunk_id,
-                transcription: transcription.clone(),
-                text: transcription,
-                timestamp: audio.timestamp,
-                file_path: audio.file_path.clone(),
-                offset_index: audio.offset_index,
-                tags: audio.tags.clone(),
-                device_name: audio.device_name.clone(),
-                device_type: audio.device_type.clone().into(),
-                speaker: audio.speaker.clone(),
-                speaker_label: audio.speaker_label.clone(),
-                speaker_source: audio.speaker_source.clone(),
-                speaker_confidence: audio.speaker_confidence,
-                speaker_provisional: audio.speaker_provisional,
-                start_time: audio.start_time,
-                end_time: audio.end_time,
-                source: audio.source.clone(),
-                meeting_id: audio.meeting_id,
-                provider: audio.provider.clone(),
-                model: audio.model.clone(),
-            })
-        }
         SearchResult::UI(ui) => ContentItem::UI(UiContent {
             id: ui.id,
             text: truncate(ui.text.clone()),
@@ -350,14 +316,12 @@ pub(crate) fn compute_search_cache_key(query: &SearchQuery) -> u64 {
     query.frame_name.hash(&mut hasher);
     query.min_length.hash(&mut hasher);
     query.max_length.hash(&mut hasher);
-    query.speaker_ids.hash(&mut hasher);
     query.focused.hash(&mut hasher);
     // on_screen changes the result set materially — must be in the
     // cache key so a cached "no filter" response can't be returned for
     // an "on_screen=true" query (and vice-versa). Issue #2436.
     query.on_screen.hash(&mut hasher);
     query.browser_url.hash(&mut hasher);
-    query.speaker_name.hash(&mut hasher);
     query.include_cloud.hash(&mut hasher);
     query.max_content_length.hash(&mut hasher);
     query.device_name.hash(&mut hasher);
@@ -387,7 +351,7 @@ pub(crate) async fn search(
         }
     }
     debug!(
-        "received search request: query='{}', content_type={:?}, limit={}, offset={}, start_time={:?}, end_time={:?}, app_name={:?}, window_name={:?}, min_length={:?}, max_length={:?}, speaker_ids={:?}, frame_name={:?}, browser_url={:?}, focused={:?}",
+        "received search request: query='{}', content_type={:?}, limit={}, offset={}, start_time={:?}, end_time={:?}, app_name={:?}, window_name={:?}, min_length={:?}, max_length={:?}, frame_name={:?}, browser_url={:?}, focused={:?}",
         query.q.as_deref().unwrap_or(""),
         query.content_type,
         query.pagination.limit,
@@ -398,7 +362,6 @@ pub(crate) async fn search(
         query.window_name,
         query.min_length,
         query.max_length,
-        query.speaker_ids,
         query.frame_name,
         query.browser_url,
         query.focused,
@@ -432,11 +395,9 @@ pub(crate) async fn search(
                 query.window_name.as_deref(),
                 query.min_length,
                 query.max_length,
-                query.speaker_ids.clone(),
                 query.frame_name.as_deref(),
                 query.browser_url.as_deref(),
                 query.focused,
-                query.speaker_name.as_deref(),
                 query.device_name.as_deref(),
                 query.machine_id.as_deref(),
                 query.on_screen,
@@ -451,11 +412,9 @@ pub(crate) async fn search(
                 query.window_name.as_deref(),
                 query.min_length,
                 query.max_length,
-                query.speaker_ids.clone(),
                 query.frame_name.as_deref(),
                 query.browser_url.as_deref(),
                 query.focused,
-                query.speaker_name.as_deref(),
                 query.on_screen,
                 tags,
             ),
@@ -482,7 +441,6 @@ pub(crate) async fn search(
         // Filter out screenpipe results at display time
         .filter(|result| match result {
             SearchResult::OCR(ocr) => !is_screenpipe_app(&ocr.app_name),
-            SearchResult::Audio(_) => true, // Audio doesn't have app_name
             SearchResult::UI(ui) => !is_screenpipe_app(&ui.app_name),
             SearchResult::Input(input) => input
                 .app_name
@@ -557,7 +515,6 @@ pub(crate) async fn search(
         #[derive(Clone, Copy)]
         enum Field {
             Ocr,
-            Audio,
             Ui,
             Input,
             Memory,
@@ -569,10 +526,6 @@ pub(crate) async fn search(
                 ContentItem::OCR(c) => {
                     targets.push((i, Field::Ocr));
                     texts.push(c.text.clone());
-                }
-                ContentItem::Audio(c) => {
-                    targets.push((i, Field::Audio));
-                    texts.push(c.transcription.clone());
                 }
                 ContentItem::UI(c) => {
                     targets.push((i, Field::Ui));
@@ -605,7 +558,6 @@ pub(crate) async fn search(
         for ((idx, field), new_text) in targets.into_iter().zip(redacted.into_iter()) {
             match (field, &mut content_items[idx]) {
                 (Field::Ocr, ContentItem::OCR(c)) => c.text = new_text,
-                (Field::Audio, ContentItem::Audio(c)) => c.transcription = new_text,
                 (Field::Ui, ContentItem::UI(c)) => c.text = new_text,
                 (Field::Input, ContentItem::Input(c)) => c.text_content = Some(new_text),
                 (Field::Memory, ContentItem::Memory(c)) => c.content = new_text,
@@ -808,27 +760,6 @@ pub(crate) fn default_limit() -> u32 {
     20
 }
 
-pub(crate) fn default_speaker_ids() -> Option<Vec<i64>> {
-    None
-}
-
-pub(crate) fn from_comma_separated_array<'de, D>(
-    deserializer: D,
-) -> Result<Option<Vec<i64>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = Option::<String>::deserialize(deserializer).unwrap_or(None);
-    let s = match s {
-        None => return Ok(None),
-        Some(s) => s,
-    };
-    s.split(',')
-        .map(|i| i64::from_str(i).map_err(serde::de::Error::custom))
-        .collect::<Result<Vec<_>, _>>()
-        .map(Some)
-}
-
 /// Split a comma-separated `tags` query param into a trimmed, non-empty list.
 /// `?tags=person:ada,project:atlas` → `["person:ada", "project:atlas"]`.
 /// Returns `None` when the param is absent or contains only blanks, so a
@@ -891,11 +822,9 @@ mod tests {
             include_frames: false,
             min_length: None,
             max_length: None,
-            speaker_ids: None,
             focused: None,
             on_screen: None,
             browser_url: None,
-            speaker_name: None,
             include_cloud: false,
             max_content_length: None,
             device_name: None,
@@ -919,11 +848,9 @@ mod tests {
             include_frames: false,
             min_length: None,
             max_length: None,
-            speaker_ids: None,
             focused: None,
             on_screen: None,
             browser_url: None,
-            speaker_name: None,
             include_cloud: false,
             max_content_length: None,
             device_name: None,
@@ -955,11 +882,9 @@ mod tests {
             include_frames: false,
             min_length: None,
             max_length: None,
-            speaker_ids: None,
             focused: None,
             on_screen: None,
             browser_url: None,
-            speaker_name: None,
             include_cloud: false,
             max_content_length: None,
             device_name: None,
@@ -983,11 +908,9 @@ mod tests {
             include_frames: false,
             min_length: None,
             max_length: None,
-            speaker_ids: None,
             focused: None,
             on_screen: None,
             browser_url: None,
-            speaker_name: None,
             include_cloud: false,
             max_content_length: None,
             device_name: None,
@@ -1026,11 +949,9 @@ mod tests {
             include_frames: false,
             min_length: None,
             max_length: None,
-            speaker_ids: None,
             focused: None,
             on_screen,
             browser_url: None,
-            speaker_name: None,
             include_cloud: false,
             max_content_length: None,
             device_name: None,
