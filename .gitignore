@@ -41,7 +41,7 @@ onnxruntime-win-x64*/
 # JavaScript stuff
 node_modules/
 
-# Nx task cache and workspace data
+# Nx
 .nx/
 
 # Swift build artifacts (ee/sdk)

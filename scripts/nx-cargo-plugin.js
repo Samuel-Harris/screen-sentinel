@@ -40,7 +40,6 @@ function cargoTargets(name, root) {
     build: [`cargo build -p ${name}`],
     typecheck: [`cargo check -p ${name}`],
     test: [`cargo test -p ${name}`],
-    // Matches the style.yml gate: rustfmt fails, clippy warnings print but do not fail.
     lint: [`cargo fmt -p ${name} --check`, `cargo clippy -p ${name} --no-deps --all-targets -- -W clippy::all`],
   };
   const targets = { check: {} };
@@ -54,8 +53,6 @@ function cargoTargets(name, root) {
       },
       inputs: ["default", "^default", "cargo"],
       dependsOn: onHost && rule.needs ? [rule.needs] : [],
-      // Some suites wait on fixed sleeps (screen-sentinel-redact worker_integration) and fail
-      // when parallel tasks load the CPU, so Rust tests run alone, as in CI before Nx.
       parallelism: target !== "test",
     };
   }
