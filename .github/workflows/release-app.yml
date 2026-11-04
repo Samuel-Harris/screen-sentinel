@@ -362,7 +362,7 @@ jobs:
           restore-keys: |
             ${{ matrix.platform }}-${{ matrix.target }}-bins-
 
-      # Cache node_modules and tauri CLI - changes with bun.lockb
+      # Cache node_modules and tauri CLI - changes with bun.lock
       - name: Cache Node Modules
         id: cache-pre-build
         uses: actions/cache@v4
@@ -370,7 +370,7 @@ jobs:
           path: |
             apps/screen-sentinel-app-tauri/node_modules
             apps/screen-sentinel-app-tauri/.tauri
-          key: ${{ matrix.platform }}-${{ matrix.target }}-node-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ matrix.platform }}-${{ matrix.target }}-node-${{ hashFiles('**/bun.lock') }}
           restore-keys: |
             ${{ matrix.platform }}-${{ matrix.target }}-node-
 
