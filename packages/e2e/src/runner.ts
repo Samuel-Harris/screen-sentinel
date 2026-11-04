@@ -16,7 +16,7 @@
  *
  * Environment:
  *   SCREEN_SENTINEL_BASE_URL  — API base URL (default: http://localhost:3130)
- *   SCREEN_SENTINEL_BINARY    — path to Screen Sentinel binary (default: Screen Sentinel)
+ *   SCREEN_SENTINEL_BINARY    — path to Screen Sentinel binary (default: screen-sentinel)
  */
 
 import { runApiTests } from "./suites/api";

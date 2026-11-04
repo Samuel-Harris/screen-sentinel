@@ -67,7 +67,7 @@ async function startServer(ip: string, port = 3130): Promise<void> {
 }
 
 async function stopServer(ip: string): Promise<void> {
-  await ssh(ip, "pkill -f 'Screen Sentinel record' 2>/dev/null || true");
+  await ssh(ip, "pkill -f 'screen-sentinel record' 2>/dev/null || true");
   await Bun.sleep(1_000);
 }
 

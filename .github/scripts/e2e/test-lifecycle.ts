@@ -23,7 +23,7 @@ function getScreenSentinelPids(): number[] {
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync([
       "powershell", "-NoProfile", "-Command",
-      "Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id",
+      "Get-Process -Name 'screen-sentinel*' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id",
     ]);
     return proc.stdout.toString().trim().split(/\r?\n/).filter(Boolean).map(Number).filter(n => !isNaN(n));
   } else {
@@ -48,11 +48,11 @@ function isPortInUse(): boolean {
 function findScreenSentinelExe(): string | null {
   if (IS_WINDOWS) {
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-      "(Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"]);
+      "(Get-Process -Name 'screen-sentinel*' -ErrorAction SilentlyContinue | Select-Object -First 1).Path"]);
     const path = proc.stdout.toString().trim();
     return path || null;
   } else {
-    const proc = Bun.spawnSync(["bash", "-c", "ps aux | grep -i Screen Sentinel | grep -v grep | head -1 | awk '{print $11}'"]);
+    const proc = Bun.spawnSync(["bash", "-c", "ps aux | grep -i screen-sentinel | grep -v grep | head -1 | awk '{print $11}'"]);
     const path = proc.stdout.toString().trim();
     return path || null;
   }
@@ -142,7 +142,7 @@ await test("CPU not spiking on idle (10s sample)", async () => {
     const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", `
       $samples = @()
       for ($i = 0; $i -lt 5; $i++) {
-        $cpu = (Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Measure-Object -Property CPU -Sum).Sum
+        $cpu = (Get-Process -Name 'screen-sentinel*' -ErrorAction SilentlyContinue | Measure-Object -Property CPU -Sum).Sum
         $samples += $cpu
         Start-Sleep -Seconds 2
       }
@@ -157,7 +157,7 @@ await test("CPU not spiking on idle (10s sample)", async () => {
   } else {
     // macOS: use ps to sample CPU %
     const proc = Bun.spawnSync(["bash", "-c",
-      "ps aux | grep -i Screen Sentinel | grep -v grep | awk '{sum+=$3} END {print sum}'"]);
+      "ps aux | grep -i screen-sentinel | grep -v grep | awk '{sum+=$3} END {print sum}'"]);
     const cpuPct = parseFloat(proc.stdout.toString().trim());
     if (!isNaN(cpuPct) && cpuPct > 30) {
       throw new Error(`high CPU on idle: ${cpuPct.toFixed(1)}%`);
@@ -207,7 +207,7 @@ await test("force quit + recovery (DB intact)", async () => {
   console.log("  force killing screen-sentinel...");
   if (IS_WINDOWS) {
     Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-      "Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Stop-Process -Force"]);
+      "Get-Process -Name 'screen-sentinel*' -ErrorAction SilentlyContinue | Stop-Process -Force"]);
   } else {
     Bun.spawnSync(["pkill", "-9", "-f", "screen-sentinel-app"]);
   }

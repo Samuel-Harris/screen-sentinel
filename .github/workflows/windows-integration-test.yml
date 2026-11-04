@@ -96,7 +96,7 @@ jobs:
         OPENBLAS_PATH: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/openblas
         # Use prebuilt NASM objects on Windows: https://aws.github.io/aws-lc-rs/requirements/windows.html#prebuilt-nasm-objects
         AWS_LC_SYS_PREBUILT_NASM: "1"
-      run: cargo build --release -p screen-sentinel-engine --bin Screen Sentinel --target x86_64-pc-windows-msvc
+      run: cargo build --release -p screen-sentinel-engine --bin screen-sentinel --target x86_64-pc-windows-msvc
 
     - name: Run CLI and generate activity
       shell: pwsh

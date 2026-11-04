@@ -135,7 +135,7 @@ await test("not blocked by Windows Defender", async () => {
   // Check if Screen Sentinel is in Defender exclusions or if there are recent blocks
   const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", `
     $threats = Get-MpThreatDetection -ErrorAction SilentlyContinue |
-      Where-Object { $_.ProcessName -like '*Screen Sentinel*' } |
+      Where-Object { $_.ProcessName -like '*screen-sentinel*' } |
       Select-Object -First 5
     if ($threats) {
       Write-Output "BLOCKED:$($threats.Count)"
@@ -155,7 +155,7 @@ await test("not blocked by Windows Defender", async () => {
 await test("no orphaned Screen Sentinel child processes", async () => {
   // Get Screen Sentinel parent PID
   const parentProc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-    "(Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Select-Object -First 1).Id"]);
+    "(Get-Process -Name 'screen-sentinel*' -ErrorAction SilentlyContinue | Select-Object -First 1).Id"]);
   const parentPid = parseInt(parentProc.stdout.toString().trim());
 
   if (!parentPid) {

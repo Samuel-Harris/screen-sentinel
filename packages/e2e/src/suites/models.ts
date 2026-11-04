@@ -87,7 +87,7 @@ export async function runModelTests(
     const start = Date.now();
     try {
       // Kill any existing server
-      await exec("pkill -f 'Screen Sentinel record' 2>/dev/null || true");
+      await exec("pkill -f 'screen-sentinel record' 2>/dev/null || true");
       await new Promise((r) => setTimeout(r, 1_000));
 
       // Start server with this engine
@@ -161,7 +161,7 @@ export async function runModelTests(
       }
     } finally {
       // Always cleanup
-      await exec("pkill -f 'Screen Sentinel record' 2>/dev/null || true");
+      await exec("pkill -f 'screen-sentinel record' 2>/dev/null || true");
       await new Promise((r) => setTimeout(r, 1_000));
     }
   }
