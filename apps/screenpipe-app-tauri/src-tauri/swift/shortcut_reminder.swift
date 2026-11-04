@@ -6,20 +6,13 @@ import Foundation
 import AppKit
 import SwiftUI
 
-// MARK: - Callback for actions (close, open window, toggle meeting)
+// MARK: - Callback for actions (close, open window)
 public typealias ShortcutActionCallback = @convention(c) (UnsafePointer<CChar>) -> Void
 private var gShortcutCallback: ShortcutActionCallback?
 
 @_cdecl("shortcut_set_action_callback")
 public func shortcutSetActionCallback(_ cb: @escaping ShortcutActionCallback) {
     gShortcutCallback = cb
-}
-
-@_cdecl("shortcut_set_meeting_active")
-public func shortcutSetMeetingActive(_ active: Int32) {
-    if #available(macOS 13.0, *) {
-        ShortcutReminderController.shared.setMeetingActive(active != 0)
-    }
 }
 
 // MARK: - Metrics data pushed from Rust
@@ -29,7 +22,6 @@ struct OverlayMetrics {
     var speechRatio: Double = 0
     var screenActive: Bool = false
     var captureFps: Double = 0
-    var meetingActive: Bool = false
 }
 
 // MARK: - Font helper (same as notification panel)
@@ -179,7 +171,6 @@ private let kAnimDur: Double = 0.2
 @available(macOS 13.0, *)
 struct ShortcutReminderView: View {
     let overlayShortcut: String
-    let chatShortcut: String
     let searchShortcut: String
     let metrics: OverlayMetrics
     let scale: CGFloat
@@ -212,9 +203,9 @@ struct ShortcutReminderView: View {
     }
 
     // MARK: - Collapsed pill
-    // Three zones, so the only thing that expands on hover is the middle
-    // (equalizer + screen matrix). The app icon opens the timeline; the
-    // phone toggles the meeting. Both stay put under the cursor.
+    // Two zones, so the only thing that expands on hover is the right side
+    // (equalizer + screen matrix). The app icon opens the timeline and
+    // stays put under the cursor.
     private var collapsedView: some View {
         HStack(spacing: 0) {
             CollapsedAppIconButton(
@@ -236,13 +227,7 @@ struct ShortcutReminderView: View {
             .onHover { hovering in
                 if hovering { isExpanded = true }
             }
-
-            CollapsedPhoneButton(
-                isActive: metrics.meetingActive,
-                scale: scale,
-                action: { onAction("toggle_meeting") }
-            )
-            .padding(.trailing, s(5))
+            .padding(.trailing, s(2))
         }
         .frame(height: kBaseCollapsedH * scale)
         .background(Capsule().fill(Color.black.opacity(0.75)))
@@ -254,10 +239,6 @@ struct ShortcutReminderView: View {
         HStack(spacing: 0) {
             ShortcutCellButton(icon: "rectangle", label: overlayShortcut, colW: nil, edge: .leading, scale: scale) {
                 onAction("open_timeline")
-            }
-            Rectangle().fill(.white.opacity(0.15)).frame(width: 0.5)
-            ShortcutCellButton(icon: "bubble.left", label: chatShortcut, colW: nil, edge: nil, scale: scale) {
-                onAction("open_chat")
             }
             Rectangle().fill(.white.opacity(0.15)).frame(width: 0.5)
             ShortcutCellButton(icon: "magnifyingglass", label: searchShortcut, colW: nil, edge: nil, scale: scale) {
@@ -276,9 +257,6 @@ struct ShortcutReminderView: View {
 
             Rectangle().fill(.white.opacity(0.15)).frame(width: 0.5)
 
-            HoverIconButton(icon: "phone.fill", isActive: metrics.meetingActive, edge: nil, scale: scale) {
-                onAction("toggle_meeting")
-            }
             HoverIconButton(icon: "xmark", isActive: false, edge: .trailing, scale: scale) {
                 onAction("close")
             }
@@ -325,7 +303,7 @@ struct ShortcutCellButton: View {
 }
 
 // App icon button shown in the collapsed pill. Click opens the timeline;
-// hovering it does NOT expand the bar — same rationale as the phone button.
+// hovering it does NOT expand the bar.
 @available(macOS 13.0, *)
 struct CollapsedAppIconButton: View {
     let scale: CGFloat
@@ -342,41 +320,6 @@ struct CollapsedAppIconButton: View {
                         .opacity(hovered ? 1.0 : 0.85)
                 }
             }
-            .frame(maxHeight: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { h in hovered = h }
-    }
-}
-
-// Phone button shown in the collapsed pill. Same look as the bare icon it
-// replaces, plus a subtle hover halo so the click target is discoverable.
-// Crucially: no .onHover wired to isExpanded — clicking it toggles the
-// meeting without forcing the user through the expanded layout.
-@available(macOS 13.0, *)
-struct CollapsedPhoneButton: View {
-    let isActive: Bool
-    let scale: CGFloat
-    let action: () -> Void
-    @State private var hovered = false
-
-    var body: some View {
-        Button(action: action) {
-            ZStack {
-                Image(systemName: "phone.fill")
-                    .font(.system(size: 6 * scale))
-                    .foregroundColor(
-                        isActive ? .white :
-                            (hovered ? .white.opacity(0.6) : .white.opacity(0.2))
-                    )
-                if isActive {
-                    Circle().fill(.white)
-                        .frame(width: 4 * scale, height: 4 * scale)
-                        .offset(x: 5 * scale, y: -5 * scale)
-                }
-            }
-            .frame(width: 14 * scale)
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
         }
@@ -438,19 +381,15 @@ class ShortcutReminderController: NSObject {
     private var trackingView: ReminderTrackingView?
 
     private var overlayShortcut = "⌘⌃S"
-    private var chatShortcut = "⌘⌃L"
     private var searchShortcut = "⌘⌃K"
     private var metrics = OverlayMetrics()
     @Published var isExpanded = false
     private var wsTask: URLSessionWebSocketTask?
     private var wsRetryTimer: Timer?
-    private var meetingWsTask: URLSessionWebSocketTask?
-    private var meetingWsRetryTimer: Timer?
     private var prevFramesCaptured: Int?
     private var prevOcrCompleted: Int?
     /// Set from Rust `show_shortcut_reminder` when API auth is enabled (includes ?token=).
     private var metricsWsUrl = "ws://127.0.0.1:3030/ws/metrics"
-    private var eventsWsUrl = "ws://127.0.0.1:3030/ws/meeting-status"
 
     func show(shortcuts: String?) {
         DispatchQueue.main.async { [self] in
@@ -470,14 +409,12 @@ class ShortcutReminderController: NSObject {
             panel?.orderFrontRegardless()
             AnimationTick.shared.start()
             connectWebSocket()
-            connectMeetingEventsWebSocket()
         }
     }
 
     func hide() {
         AnimationTick.shared.stop()
         disconnectWebSocket()
-        disconnectMeetingEventsWebSocket()
         DispatchQueue.main.async { [self] in
             panel?.orderOut(nil)
         }
@@ -550,70 +487,14 @@ class ShortcutReminderController: NSObject {
         }
     }
 
-    // MARK: - Meeting status events
-
-    private func connectMeetingEventsWebSocket() {
-        disconnectMeetingEventsWebSocket()
-        guard let url = URL(string: eventsWsUrl) else { return }
-        let session = URLSession(configuration: .default)
-        let task = session.webSocketTask(with: url)
-        self.meetingWsTask = task
-        task.resume()
-        receiveMeetingEvent()
-    }
-
-    private func disconnectMeetingEventsWebSocket() {
-        meetingWsRetryTimer?.invalidate()
-        meetingWsRetryTimer = nil
-        meetingWsTask?.cancel(with: .goingAway, reason: nil)
-        meetingWsTask = nil
-    }
-
-    private func receiveMeetingEvent() {
-        meetingWsTask?.receive { [weak self] result in
-            guard let self = self else { return }
-            switch result {
-            case .success(let message):
-                if case .string(let text) = message {
-                    self.processMeetingEventMessage(text)
-                }
-                self.receiveMeetingEvent()
-            case .failure:
-                DispatchQueue.main.async {
-                    self.meetingWsRetryTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
-                        self?.connectMeetingEventsWebSocket()
-                    }
-                }
-            }
-        }
-    }
-
-    private func processMeetingEventMessage(_ text: String) {
-        guard let data = text.data(using: .utf8),
-              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
-        let active = payload["active"] as? Bool ?? false
-        setMeetingActive(active)
-    }
-
-    func setMeetingActive(_ active: Bool) {
-        DispatchQueue.main.async { [self] in
-            if self.metrics.meetingActive != active {
-                self.metrics.meetingActive = active
-                self.updateContent()
-            }
-        }
-    }
-
     private func parseShortcuts(_ json: String) {
         // Expects shortcut labels, size, and optional authenticated API URLs from Rust.
         guard let data = json.data(using: .utf8),
               let dict = try? JSONDecoder().decode([String: String].self, from: data) else { return }
         if let s = dict["overlay"] { overlayShortcut = prettifyShortcut(s) }
-        if let s = dict["chat"] { chatShortcut = prettifyShortcut(s) }
         if let s = dict["search"] { searchShortcut = prettifyShortcut(s) }
         if let s = dict["shortcutOverlaySize"] { setOverlayScale(s) }
         if let s = dict["metrics_ws_url"] { metricsWsUrl = s }
-        if let s = dict["events_ws_url"] { eventsWsUrl = s }
     }
 
     /// Convert "Super+Ctrl+S" → "⌘⌃S" for compact overlay display.
@@ -687,7 +568,6 @@ class ShortcutReminderController: NSObject {
         let controller = self
         let view = ShortcutReminderView(
             overlayShortcut: overlayShortcut,
-            chatShortcut: chatShortcut,
             searchShortcut: searchShortcut,
             metrics: metrics,
             scale: gOverlayScale,

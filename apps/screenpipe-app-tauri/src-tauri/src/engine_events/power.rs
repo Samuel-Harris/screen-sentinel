@@ -87,11 +87,11 @@ pub(super) fn handle(_app: &AppHandle, _name: &str, data: &Value) {
             ),
         ),
 
-        // ── AudioPaused: vision still runs, audio is off ────────────────
-        ("AudioPaused", _) => (
-            "battery low — audio paused",
+        // ── ScreenshotPaused: accessibility capture on, screenshots off ─
+        ("ScreenshotPaused", _) => (
+            "battery low — screenshots paused",
             format!(
-                "battery at {battery}% — audio transcription stopped, screenshots paused. \
+                "battery at {battery}% — screenshots paused. \
                 accessibility metadata still captured."
             ),
         ),
