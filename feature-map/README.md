@@ -63,6 +63,43 @@ runs through one scripted recipe. Then 05 and 06, because unattended
 recording is useless without them. Then 11, whose unattended-day
 check needs 05 and 06. Then 08, 07 and 09. Do 10 only if its check fails.
 
+## Follow-ups
+
+Defects found while building 03. Neither belongs to a feature above, and
+both exist on the base branch. Fix each in its own pull request.
+
+### The macOS app aborts about 5 seconds after launch
+
+- Seen in the macOS E2E job of runs
+  [41752903409](https://github.com/Samuel-Harris/screen-sentinel/actions/runs/41752903409)
+  and [41752617669](https://github.com/Samuel-Harris/screen-sentinel/actions/runs/41752617669),
+  where 0 of 46 specs pass.
+- The process panics in `cidre` 0.13.1 at `src/os.rs:169:18` with "trying to
+  construct an enum from an invalid value 0xffffffffffffffffffffffffffff9d84".
+  The panic cannot unwind, so the app aborts.
+- The call comes from `screen_sentinel_a11y::platform::macos::get_focused_app_info`
+  through `cidre::ax::ui_element::UiElement::attr`.
+- The value is probably accessibility error -25212, which `cidre`'s error
+  enum does not cover. This is a guess.
+- Earlier runs never got this far, because the build failed on a missing
+  `mlx.metallib` download first.
+- Not yet reproduced on a Mac outside CI.
+
+Done when the app keeps running through an accessibility error it does not
+recognise, and the macOS E2E job reaches its specs with the app alive.
+
+### "Dependency & Performance Checks" fails on every pull request
+
+- The "Install cargo-audit" step in `.github/workflows/style.yml` runs
+  `cargo install cargo-audit` with no lockfile. That resolves cargo-audit
+  0.22.2 and kstring 2.0.5.
+- kstring 2.0.5 requires rustc 1.96, and the pinned toolchain is 1.93.1, so
+  the install fails to compile.
+- The job fails the same way on every pull request in the 03 stack and on
+  the base branch.
+
+Done when the job passes on a pull request that changes nothing else.
+
 ## Out of scope
 
 - Audio capture, transcription and meetings (see 01).
