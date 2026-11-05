@@ -281,6 +281,11 @@ jobs:
           echo $ortLib | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           Write-Host "PATH appended: $ortLib"
 
+      # Engine tests run ffmpeg and ffprobe from PATH, as apt and brew provide on the other legs.
+      - name: Add the pre_build ffmpeg to PATH for cargo tests
+        shell: pwsh
+        run: echo "${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/ffmpeg/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Install dependencies
         shell: bash
         run: bun install --frozen-lockfile
