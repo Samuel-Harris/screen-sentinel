@@ -32,7 +32,9 @@ const tsApp = project("@x/app", "apps/desk", ["type:app", "scope:desktop", "lang
 const mcp = project("mcp", "packages/mcp", ["type:publish", "scope:mcp", "lang:ts", "npm:public"], "mcp");
 const shell = project("shell", "packages/cli/shell", ["type:publish", "scope:cli", "lang:ts"], "shell");
 const cliOs = project("cli-os", "packages/cli/os", ["type:publish", "scope:cli", "lang:ts"], "cli-os");
-const projects = [db, core, rustApp, tsApp, mcp, shell, cliOs];
+const harness = project("harness", "packages/cli", ["type:tool", "scope:cli", "lang:ts"], "harness");
+const e2e = project("e2e", "packages/e2e", ["type:tool", "scope:e2e", "lang:ts"], "e2e");
+const projects = [db, core, rustApp, tsApp, mcp, shell, cliOs, harness, e2e];
 
 const todaysEdges: Edge[] = [
   { source: "db", target: "core", file: "crates/db/Cargo.toml" },
@@ -58,9 +60,31 @@ describe("checkBoundaries", () => {
     ]);
   });
 
-  test("an mcp-to-Rust edge fails on the scope rule", () => {
+  test("an mcp-to-Rust edge fails on the publish rule", () => {
     expect(lines([{ source: "mcp", target: "core", file: "packages/mcp/package.json" }])).toEqual([
-      "packages/mcp/package.json: mcp -> core: scope:mcp must not depend on lang:rust",
+      "packages/mcp/package.json: mcp -> core: type:publish must not depend on lang:rust",
+    ]);
+  });
+
+  test("a tool harness may depend on a Rust lib, a CLI shell may not", () => {
+    const toolToLib = [
+      { source: "harness", target: "core", file: "packages/cli" },
+      { source: "e2e", target: "core", file: "packages/e2e" },
+    ];
+    const shellToLib = { source: "shell", target: "core", file: "packages/cli/shell/package.json" };
+    expect(lines([...toolToLib, shellToLib])).toEqual([
+      "packages/cli/shell/package.json: shell -> core: type:publish must not depend on lang:rust",
+    ]);
+  });
+
+  test("a tool harness must not depend on an app", () => {
+    const toolToApp = [
+      { source: "harness", target: "rust-app", file: "packages/cli" },
+      { source: "e2e", target: "@x/app", file: "packages/e2e/package.json" },
+    ];
+    expect(lines(toolToApp)).toEqual([
+      "packages/cli: harness -> rust-app: type:tool must not depend on type:app",
+      "packages/e2e/package.json: e2e -> @x/app: type:tool must not depend on type:app",
     ]);
   });
 
@@ -82,12 +106,11 @@ describe("checkBoundaries", () => {
     ]);
   });
 
-  test("a relative import into another project fails naming the file and the scope rules it breaks", () => {
+  test("a relative import into another project fails naming the file and the rules it breaks", () => {
     const relativeImport = { source: "mcp", file: "packages/mcp/src/x.ts", specifier: "../../../apps/desk/lib/util" };
     expect(lines([], [relativeImport])).toEqual([
       "packages/mcp/src/x.ts: mcp -> @x/app: relative import into another project; import it by package name",
-      "packages/mcp/src/x.ts: mcp -> @x/app: type:publish must not depend on type:app",
-      "packages/mcp/src/x.ts: mcp -> @x/app: scope:mcp must not depend on scope:desktop",
+      "packages/mcp/src/x.ts: mcp -> @x/app: type:publish must not depend on type:app, scope:desktop",
     ]);
   });
 
@@ -96,8 +119,7 @@ describe("checkBoundaries", () => {
     const appConfig = { source: "@x/app", file: "apps/desk/lib/a.ts", specifier: "../src-tauri/tauri.conf.json" };
     const fromMcp = { source: "mcp", file: "packages/mcp/src/x.ts", specifier: "../../../apps/desk/src-tauri/x" };
     expect(lines([], [own, appConfig, fromMcp])).toEqual([
-      "packages/mcp/src/x.ts: mcp -> rust-app: type:publish must not depend on type:app",
-      "packages/mcp/src/x.ts: mcp -> rust-app: scope:mcp must not depend on lang:rust, scope:desktop",
+      "packages/mcp/src/x.ts: mcp -> rust-app: type:publish must not depend on type:app, lang:rust, scope:desktop",
     ]);
   });
 
@@ -107,15 +129,13 @@ describe("checkBoundaries", () => {
     expect(lines([], [viaNodeModules, otherCase])).toEqual([
       "packages/mcp/src/x.ts: mcp -> @x/app: relative import into another project; import it by package name",
       "packages/cli/shell/x.ts: shell -> mcp: relative import into another project; import it by package name",
-      "packages/mcp/src/x.ts: mcp -> @x/app: type:publish must not depend on type:app",
-      "packages/mcp/src/x.ts: mcp -> @x/app: scope:mcp must not depend on scope:desktop",
+      "packages/mcp/src/x.ts: mcp -> @x/app: type:publish must not depend on type:app, scope:desktop",
     ]);
   });
 
-  test("a declared dependency on the app from mcp fails on the scope rule", () => {
+  test("a declared dependency on the app from mcp fails on the publish rule", () => {
     expect(lines([{ source: "mcp", target: "@x/app", file: "packages/mcp/package.json" }])).toEqual([
-      "packages/mcp/package.json: mcp -> @x/app: type:publish must not depend on type:app",
-      "packages/mcp/package.json: mcp -> @x/app: scope:mcp must not depend on scope:desktop",
+      "packages/mcp/package.json: mcp -> @x/app: type:publish must not depend on type:app, scope:desktop",
     ]);
   });
 
