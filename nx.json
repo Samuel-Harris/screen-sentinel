@@ -5,7 +5,11 @@
   "useDaemonProcess": false,
   "plugins": ["./scripts/nx-cargo-plugin.js"],
   "namedInputs": {
-    "sharedGlobals": ["{workspaceRoot}/package.json"],
+    "sharedGlobals": [
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/.github/workflows/ci.yml",
+      "{workspaceRoot}/.github/scripts/**/*"
+    ],
     "default": ["{projectRoot}/**/*", "!{projectRoot}/**/*.md", "sharedGlobals"],
     "cargo": [
       "{workspaceRoot}/Cargo.toml",
@@ -27,9 +31,18 @@
     "test": { "cache": true },
     "lint": { "cache": true },
     "typecheck": { "cache": true },
-    "check": {
-      "executor": "nx:noop",
-      "dependsOn": ["lint", "typecheck", "test", { "projects": ["scripts"], "target": "boundaries" }]
-    }
+    "check": [
+      {
+        "executor": "nx:noop",
+        "dependsOn": ["lint", "typecheck", "test", { "projects": ["scripts"], "target": "boundaries" }],
+        "inputs": ["default", "^default"]
+      },
+      { "filter": { "projects": ["tag:lang:rust"] }, "inputs": ["default", "^default", "cargo"] },
+      {
+        "filter": { "projects": ["screen-sentinel-app"] },
+        "inputs": ["default", "^default", "cargo", "{workspaceRoot}/apps/screen-sentinel-app-tauri/lib/utils/tauri.ts"]
+      },
+      { "filter": { "projects": ["@screen-sentinel/app"] }, "inputs": ["default", "^default", "{workspaceRoot}/biome.json"] }
+    ]
   }
 }
