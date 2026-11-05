@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, nx/6-ci ]
   workflow_dispatch:
 
 concurrency:
