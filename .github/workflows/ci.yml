@@ -19,7 +19,6 @@ concurrency:
 env:
   GIT_LFS_SKIP_SMUDGE: 1
   NX_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
-  # The affected job counts these tasks, and each OS job runs them.
   LINUX_TASKS: "-t lint typecheck test build"
   MACOS_TASKS: "-t test e2e --exclude=!tag:os:macos"
   MACOS_APP_TASKS: "-t typecheck --exclude=!screen-sentinel-app"
@@ -58,10 +57,10 @@ jobs:
       - name: Count affected tasks per OS
         id: tasks
         run: |
-          linux=$(.github/scripts/affected-tasks.sh $LINUX_TASKS)
-          macos=$(.github/scripts/affected-tasks.sh $MACOS_TASKS)
-          macos_app=$(.github/scripts/affected-tasks.sh $MACOS_APP_TASKS)
-          windows=$(.github/scripts/affected-tasks.sh $WINDOWS_TASKS)
+          linux=$(.github/scripts/count-affected-tasks.sh $LINUX_TASKS)
+          macos=$(.github/scripts/count-affected-tasks.sh $MACOS_TASKS)
+          macos_app=$(.github/scripts/count-affected-tasks.sh $MACOS_APP_TASKS)
+          windows=$(.github/scripts/count-affected-tasks.sh $WINDOWS_TASKS)
           printf 'linux=%s\nmacos=%s\nwindows=%s\n' "$linux" "$((macos + macos_app))" "$windows" | tee -a "$GITHUB_OUTPUT"
           if [ $((linux + macos + macos_app + windows)) -eq 0 ]; then echo "No projects affected"; fi
 
@@ -76,8 +75,6 @@ jobs:
     if: ${{ !cancelled() && needs.affected.outputs.linux > 0 }}
     runs-on: ubuntu-latest
     env:
-      # Replaces the rustflags of both .cargo configs, so the app crate's targets,
-      # which run from src-tauri, reuse what the workspace build compiled.
       RUSTFLAGS: "-C link-arg=-Wl,--allow-multiple-definition"
     steps:
       - uses: actions/checkout@v4
@@ -216,8 +213,7 @@ jobs:
       # exits with STATUS_DLL_NOT_FOUND (0xc0000135) on the first
       # ort::api() call — which is exactly what test_process_ocr_task_windows
       # hits inside accuracy_test. Stage them before any cargo test that
-      # touches ort. Nx runs `cargo test -p <crate>`, which puts test
-      # binaries under target/debug/deps/.
+      # touches ort.
       - name: Stage ONNX Runtime DLLs next to test binary
         shell: pwsh
         run: |
