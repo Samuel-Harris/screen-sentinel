@@ -72,3 +72,4 @@ check needs 05 and 06. Then 08, 07 and 09. Do 10 only if its check fails.
 - The screenpipe name and logo (see 02).
 - Nx Cloud and remote caching (see 03).
 <!-- p6 probe: docs-only change -->
+<!-- p6 probe: warm sample 183031 -->
