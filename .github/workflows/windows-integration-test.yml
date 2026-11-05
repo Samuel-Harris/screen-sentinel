@@ -18,6 +18,7 @@ env:
 
 jobs:
   affected:
+    name: Windows CLI Integration affected
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.tasks.outputs.run }}

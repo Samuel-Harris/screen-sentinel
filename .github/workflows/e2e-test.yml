@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   affected:
+    name: E2E affected
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.tasks.outputs.run }}
