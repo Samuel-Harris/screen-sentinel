@@ -1,0 +1,9 @@
+{
+  "name": "scripts",
+  "tags": ["type:tool", "scope:repo", "lang:ts"],
+  "targets": {
+    "boundaries": { "command": "bun scripts/check-boundaries.ts", "cache": false },
+    "test": { "command": "bun test scripts/check-boundaries.test.ts" },
+    "check": {}
+  }
+}

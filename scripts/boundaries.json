@@ -1,0 +1,16 @@
+{
+  "axes": {
+    "type": ["app", "lib", "tool", "publish"],
+    "scope": ["engine", "desktop", "mcp", "cli", "e2e", "repo"],
+    "lang": ["rust", "ts"]
+  },
+  "depConstraints": [
+    { "sourceTag": "type:lib", "onlyDependOnLibsWithTags": ["type:lib"] },
+    { "sourceTag": "type:tool", "notDependOnLibsWithTags": ["type:app"] },
+    { "sourceTag": "type:publish", "notDependOnLibsWithTags": ["type:app"] },
+    { "sourceTag": "lang:rust", "notDependOnLibsWithTags": ["type:app"] },
+    { "sourceTag": "scope:mcp", "notDependOnLibsWithTags": ["lang:rust", "scope:desktop"] },
+    { "sourceTag": "scope:cli", "notDependOnLibsWithTags": ["lang:rust", "scope:desktop"] },
+    { "sourceTag": "scope:e2e", "notDependOnLibsWithTags": ["lang:rust", "scope:desktop"] }
+  ]
+}
