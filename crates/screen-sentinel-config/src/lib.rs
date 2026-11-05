@@ -29,3 +29,5 @@ pub use defaults::*;
 pub use persistence::*;
 pub use recording::*;
 pub use screen_lock::{screen_is_locked, set_screen_locked};
+
+pub fn p6_probe_fmt( ) -> u32 { 1 }

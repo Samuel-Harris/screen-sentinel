@@ -20,3 +20,7 @@ pub use migration_worker::{
 pub use text_normalizer::{expand_search_query, sanitize_fts5_query};
 pub use types::*;
 pub use write_queue::{request_write_pause, request_write_resume};
+
+pub fn p6_probe_clippy(x: u32) -> bool {
+    return x == 1;
+}
