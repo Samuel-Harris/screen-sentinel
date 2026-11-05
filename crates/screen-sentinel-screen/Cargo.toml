@@ -103,4 +103,4 @@ atspi-common     = { version = "0.9.0", default-features = false }
 atspi-proxies    = { version = "0.9.0", default-features = false }
 
 [package.metadata.nx]
-tags = ["type:lib", "scope:engine", "lang:rust"]
+tags = ["type:lib", "scope:engine", "lang:rust", "os:macos", "os:windows"]
