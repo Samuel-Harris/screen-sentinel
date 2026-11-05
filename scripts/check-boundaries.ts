@@ -5,11 +5,17 @@
 import { readFileSync } from "node:fs";
 import { join, posix, relative } from "node:path";
 import { fileDataDepTarget } from "nx/src/config/project-graph";
-import { createProjectGraphAsync, workspaceRoot } from "nx/src/devkit-exports";
+import { createProjectGraphAsync, type TargetDependencyConfig, workspaceRoot } from "nx/src/devkit-exports";
 import { readFileMapCache } from "nx/src/devkit-internals";
 import { findImports } from "nx/src/native";
 
-export type Project = { name: string; root: string; tags: string[]; packageName?: string; hasCheck: boolean };
+export type Project = {
+  name: string;
+  root: string;
+  tags: string[];
+  packageName?: string;
+  checkRunsBoundaries: boolean;
+};
 export type Edge = { source: string; target: string; file: string };
 export type Import = { source: string; file: string; specifier: string };
 export type Workspace = { projects: Project[]; edges: Edge[]; imports: Import[] };
@@ -29,19 +35,16 @@ const JS_FILE = /\.[cm]?[jt]sx?$/;
 
 export function validateRules(rules: Rules): Rules {
   const isAxisTag = (tag: string) => {
-    const [axis, value] = tag.split(":");
-    return rules.axes[axis]?.includes(value) ?? false;
+    const colon = tag.indexOf(":");
+    return rules.axes[tag.slice(0, colon)]?.includes(tag.slice(colon + 1)) ?? false;
   };
   for (const constraint of rules.depConstraints) {
+    const { sourceTag, onlyDependOnLibsWithTags: only, notDependOnLibsWithTags: not } = constraint;
     const unsupported = Object.keys(constraint).filter((key) => !CONSTRAINT_KEYS.includes(key));
-    const unknownTags = [
-      constraint.sourceTag,
-      ...(constraint.onlyDependOnLibsWithTags ?? []),
-      ...(constraint.notDependOnLibsWithTags ?? []),
-    ].filter((tag) => !isAxisTag(tag));
-    if (unsupported.length || unknownTags.length) {
+    const unknownTags = [sourceTag, ...(only ?? []), ...(not ?? [])].filter((tag) => !isAxisTag(tag));
+    if (unsupported.length || unknownTags.length || !(only?.length || not?.length)) {
       throw new Error(
-        `${RULES_FILE}: ${JSON.stringify(constraint)} has unsupported keys [${unsupported}] or tags outside axes [${unknownTags}]`,
+        `${RULES_FILE}: ${JSON.stringify(constraint)} needs a non-empty tag list, and has unsupported keys [${unsupported}] or tags outside axes [${unknownTags}]`,
       );
     }
   }
@@ -58,8 +61,19 @@ export function checkBoundaries(workspace: Workspace, rules: Rules): Violation[]
   const byName = new Map(workspace.projects.map((project) => [project.name, project]));
   const byPackage = new Map(workspace.projects.filter((p) => p.packageName).map((p) => [p.packageName, p]));
   const byDeepestRoot = workspace.projects.filter((p) => p.root !== ".").sort((a, b) => b.root.length - a.root.length);
-  const ownerOf = (path: string) => byDeepestRoot.find((p) => path === p.root || path.startsWith(`${p.root}/`));
-  const declared = new Set(workspace.edges.map((edge) => `${edge.source} ${edge.target}`));
+  const ownerOf = (path: string) => {
+    const [inWorkspace, ...inNodeModules] = path.toLowerCase().split("node_modules/");
+    if (inNodeModules.length) return byPackage.get(packageNameOf(inNodeModules.at(-1) ?? ""));
+    return byDeepestRoot.find((p) => {
+      const root = p.root.toLowerCase();
+      return inWorkspace === root || inWorkspace.startsWith(`${root}/`);
+    });
+  };
+  const declared = new Set(
+    workspace.edges
+      .filter((edge) => edge.file === `${byName.get(edge.source)?.root}/package.json`)
+      .map((edge) => `${edge.source} ${edge.target}`),
+  );
 
   for (const project of workspace.projects) {
     for (const [axis, values] of Object.entries(rules.axes)) {
@@ -72,8 +86,8 @@ export function checkBoundaries(workspace: Workspace, rules: Rules): Violation[]
         });
       }
     }
-    if (!project.hasCheck) {
-      violations.push({ file: project.root, source: project.name, rule: "needs a check target, which runs boundaries" });
+    if (!project.checkRunsBoundaries) {
+      violations.push({ file: project.root, source: project.name, rule: "needs a check target that depends on scripts:boundaries" });
     }
   }
 
@@ -84,15 +98,18 @@ export function checkBoundaries(workspace: Workspace, rules: Rules): Violation[]
       ? ownerOf(posix.join(posix.dirname(file), specifier))
       : byPackage.get(packageNameOf(specifier));
     if (!target || target.name === source) continue;
+    const edge = { source, target: target.name, file };
     if (relativeImport) {
-      violations.push({ file, source, target: target.name, rule: "relative import into another project; import it by package name" });
-    } else if (!declared.has(`${source} ${target.name}`)) {
-      const manifest = `${byName.get(source)?.root}/package.json`;
-      violations.push({ file, source, target: target.name, rule: `undeclared import; add ${target.packageName} to ${manifest}` });
-    } else {
+      if (target.packageName) {
+        violations.push({ ...edge, rule: "relative import into another project; import it by package name" });
+      }
+    } else if (declared.has(`${source} ${target.name}`)) {
       continue;
+    } else {
+      const manifest = `${byName.get(source)?.root}/package.json`;
+      violations.push({ ...edge, rule: `undeclared import; add ${target.packageName} to ${manifest}` });
     }
-    edges.push({ source, target: target.name, file });
+    edges.push(edge);
   }
 
   for (const edge of edges) {
@@ -114,7 +131,13 @@ export function formatViolation({ file, source, target, rule }: Violation): stri
   return `${file}: ${source}${target ? ` -> ${target}` : ""}: ${rule}`;
 }
 
+const runsBoundaries = (dependsOn: (string | TargetDependencyConfig)[] = []) =>
+  dependsOn.some((dep) => typeof dep === "object" && dep.target === "boundaries" && [dep.projects].flat().includes("scripts"));
+
 async function loadWorkspace(): Promise<Workspace> {
+  if (process.env.NX_CACHE_PROJECT_GRAPH === "false") {
+    throw new Error("NX_CACHE_PROJECT_GRAPH=false stops Nx writing the file map this check reads; unset it");
+  }
   const graph = await createProjectGraphAsync({ exitOnError: true });
   const files = readFileMapCache()?.fileMap.projectFileMap;
   if (!files) throw new Error("Nx wrote no file map after building the project graph");
@@ -136,7 +159,7 @@ async function loadWorkspace(): Promise<Workspace> {
       root: node.data.root,
       tags: node.data.tags ?? [],
       packageName: node.data.metadata?.js?.packageName,
-      hasCheck: "check" in (node.data.targets ?? {}),
+      checkRunsBoundaries: runsBoundaries(node.data.targets?.check?.dependsOn),
     })),
     edges: Object.values(graph.dependencies)
       .flat()

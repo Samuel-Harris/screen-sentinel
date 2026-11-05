@@ -22,7 +22,7 @@ const project = (name: string, root: string, tags: string[], packageName?: strin
   root,
   tags,
   packageName,
-  hasCheck: true,
+  checkRunsBoundaries: true,
 });
 
 const db = project("db", "crates/db", ["type:lib", "scope:engine", "lang:rust"]);
@@ -75,6 +75,13 @@ describe("checkBoundaries", () => {
     expect(lines([declared], [{ source: "mcp", file: "packages/mcp/src/index.ts", specifier: "shell" }])).toEqual([]);
   });
 
+  test("an edge not recorded on the importer's package.json does not declare the import", () => {
+    const implicit = { source: "mcp", target: "shell", file: "packages/mcp" };
+    expect(lines([implicit], [{ source: "mcp", file: "packages/mcp/src/index.ts", specifier: "shell" }])).toEqual([
+      "packages/mcp/src/index.ts: mcp -> shell: undeclared import; add shell to packages/mcp/package.json",
+    ]);
+  });
+
   test("a relative import into another project fails naming the file and the scope rules it breaks", () => {
     const relativeImport = { source: "mcp", file: "packages/mcp/src/x.ts", specifier: "../../../apps/desk/lib/util" };
     expect(lines([], [relativeImport])).toEqual([
@@ -84,11 +91,24 @@ describe("checkBoundaries", () => {
     ]);
   });
 
-  test("relative imports inside a project and into nested project roots resolve to the deepest root", () => {
+  test("a relative import into a project with no package name is held to the constraints only", () => {
     const own = { source: "@x/app", file: "apps/desk/lib/a.ts", specifier: "./b" };
-    const nested = { source: "@x/app", file: "apps/desk/lib/a.ts", specifier: "../src-tauri/scripts/x" };
-    expect(lines([], [own, nested])).toEqual([
-      "apps/desk/lib/a.ts: @x/app -> rust-app: relative import into another project; import it by package name",
+    const appConfig = { source: "@x/app", file: "apps/desk/lib/a.ts", specifier: "../src-tauri/tauri.conf.json" };
+    const fromMcp = { source: "mcp", file: "packages/mcp/src/x.ts", specifier: "../../../apps/desk/src-tauri/x" };
+    expect(lines([], [own, appConfig, fromMcp])).toEqual([
+      "packages/mcp/src/x.ts: mcp -> rust-app: type:publish must not depend on type:app",
+      "packages/mcp/src/x.ts: mcp -> rust-app: scope:mcp must not depend on lang:rust, scope:desktop",
+    ]);
+  });
+
+  test("a relative import through node_modules or in other letter case still names the target project", () => {
+    const viaNodeModules = { source: "mcp", file: "packages/mcp/src/x.ts", specifier: "../../../node_modules/@x/app/lib/util" };
+    const otherCase = { source: "shell", file: "packages/cli/shell/x.ts", specifier: "../../MCP/src/http" };
+    expect(lines([], [viaNodeModules, otherCase])).toEqual([
+      "packages/mcp/src/x.ts: mcp -> @x/app: relative import into another project; import it by package name",
+      "packages/cli/shell/x.ts: shell -> mcp: relative import into another project; import it by package name",
+      "packages/mcp/src/x.ts: mcp -> @x/app: type:publish must not depend on type:app",
+      "packages/mcp/src/x.ts: mcp -> @x/app: scope:mcp must not depend on scope:desktop",
     ]);
   });
 
@@ -116,17 +136,20 @@ describe("checkBoundaries", () => {
     ]);
   });
 
-  test("a project without a check target fails", () => {
-    expect(lines([], [], [{ ...project("bare", "packages/bare", ["type:tool", "scope:e2e", "lang:ts"]), hasCheck: false }])).toEqual([
-      "packages/bare: bare: needs a check target, which runs boundaries",
-    ]);
+  test("a project whose check does not run boundaries fails", () => {
+    const bare = { ...project("bare", "packages/bare", ["type:tool", "scope:e2e", "lang:ts"]), checkRunsBoundaries: false };
+    expect(lines([], [], [bare])).toEqual(["packages/bare: bare: needs a check target that depends on scripts:boundaries"]);
   });
 });
 
 describe("validateRules", () => {
-  test("rejects a constraint tag outside the axes", () => {
-    const typo = { ...rules, depConstraints: [{ sourceTag: "type:libs", onlyDependOnLibsWithTags: ["type:lib"] }] };
-    expect(() => validateRules(typo)).toThrow("tags outside axes [type:libs]");
+  test("rejects a constraint tag outside the axes, including a trailing colon", () => {
+    const typo = { ...rules, depConstraints: [{ sourceTag: "type:libs", onlyDependOnLibsWithTags: ["type:lib:"] }] };
+    expect(() => validateRules(typo)).toThrow("tags outside axes [type:libs,type:lib:]");
+  });
+
+  test("rejects a constraint with no tag list", () => {
+    expect(() => validateRules({ ...rules, depConstraints: [{ sourceTag: "type:lib" }] })).toThrow("needs a non-empty tag list");
   });
 
   test("rejects a constraint key the checker does not enforce", () => {
