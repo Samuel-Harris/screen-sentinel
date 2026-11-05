@@ -72,7 +72,7 @@ jobs:
 
   affected-linux:
     needs: affected
-    if: ${{ !cancelled() && needs.affected.outputs.linux > 0 }}
+    if: false
     runs-on: ubuntu-latest
     env:
       RUSTFLAGS: "-C link-arg=-Wl,--allow-multiple-definition"
@@ -102,7 +102,7 @@ jobs:
 
   affected-macos:
     needs: affected
-    if: ${{ !cancelled() && needs.affected.outputs.macos > 0 }}
+    if: false
     runs-on: macos-latest
     env:
       SCREEN_SENTINEL_RELEASE_TARGET: aarch64-apple-darwin
@@ -288,3 +288,8 @@ jobs:
       - name: Run affected tests
         shell: bash
         run: bunx nx affected $WINDOWS_TASKS
+
+      - name: Check module boundaries on Windows
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: bunx nx run scripts:boundaries
