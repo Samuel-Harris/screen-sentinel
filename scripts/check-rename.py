@@ -40,7 +40,7 @@ ALLOWED_FILES = (
 ALLOWED_SPANS = re.compile(
     r"github\.com/screenpipe/(?!screenpipe\b)[\w.-]*"
     r"|huggingface\.co/screenpipe/[\w.-]+"
-    r"|github\.com/(?:screenpipe|mediar-ai)/screenpipe/(?:issues|pull|commit)/[\w#.-]+"
+    r"|github\.com/(?:screenpipe|mediar-ai)/screenpipe/(?:issues|pull|commit|releases/download)/[\w#.-]+"
     r"|screenpipe 0\.4\.15"
     r"|(?:[\w-]+\.)*screenpipe\.com\b"
     r"|(?:discord\.gg|discord\.com/invite|twitter\.com|x\.com|cal\.com/team|producthunt\.com/posts"

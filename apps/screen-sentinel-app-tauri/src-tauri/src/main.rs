@@ -1331,3 +1331,4 @@ async fn main() {
 pub fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     define_specta_builder!()
 }
+// p6 probe: app crate change

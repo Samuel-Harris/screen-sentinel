@@ -203,7 +203,7 @@ jobs:
           # CI cmake uses JIT mode so metallib isn't compiled — download pre-built from GitHub releases.
           if [[ "${{ matrix.target }}" == "aarch64-apple-darwin" ]]; then
             curl -L -f -o screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin/mlx.metallib \
-              "https://github.com/Samuel-Harris/screen-sentinel/releases/download/mlx-metallib-v0.2.0/mlx.metallib" \
+              "https://github.com/screenpipe/screenpipe/releases/download/mlx-metallib-v0.2.0/mlx.metallib" \
               && echo "✅ Bundled mlx.metallib for CLI ($(du -h screen-sentinel-${{ env.VERSION }}-${{ matrix.target }}/bin/mlx.metallib | cut -f1))" \
               || echo "⚠️ Failed to download mlx.metallib"
           fi

@@ -285,6 +285,10 @@ jobs:
         shell: bash
         run: bun install --frozen-lockfile
 
+      - name: Check module boundaries on Windows
+        shell: bash
+        run: bunx nx run scripts:boundaries
+
       - name: Run affected tests
         shell: bash
         run: bunx nx affected $WINDOWS_TASKS

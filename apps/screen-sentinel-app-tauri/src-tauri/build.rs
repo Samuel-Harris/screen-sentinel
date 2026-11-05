@@ -393,7 +393,7 @@ fn main() {
 
         if needs_download {
             println!("cargo:warning=mlx-metallib: downloading from GitHub releases...");
-            let url = "https://github.com/Samuel-Harris/screen-sentinel/releases/download/mlx-metallib-v0.2.0/mlx.metallib";
+            let url = "https://github.com/screenpipe/screenpipe/releases/download/mlx-metallib-v0.2.0/mlx.metallib";
             let status = std::process::Command::new("curl")
                 .args(["-L", "-f", "-o", metallib.to_str().unwrap(), url])
                 .status();
