@@ -19,7 +19,7 @@ concurrency:
 env:
   GIT_LFS_SKIP_SMUDGE: 1
   NX_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
-  LINUX_TASKS: "-t lint typecheck test build"
+  LINUX_TASKS: "-t check build"
   MACOS_TASKS: "-t test e2e --exclude=!tag:os:macos"
   MACOS_APP_TASKS: "-t typecheck --exclude=!screen-sentinel-app"
   WINDOWS_TASKS: "-t test --exclude=!tag:os:windows"
