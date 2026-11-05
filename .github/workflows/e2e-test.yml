@@ -45,7 +45,7 @@ jobs:
           echo "run=true" >> "$GITHUB_OUTPUT"
           exit 0
         fi
-        tasks=$(.github/scripts/affected-tasks.sh -t build --exclude='!@screen-sentinel/app,!screen-sentinel-engine')
+        tasks=$(.github/scripts/count-affected-tasks.sh -t build --exclude='!@screen-sentinel/app,!screen-sentinel-engine')
         echo "Affected app and engine build tasks: $tasks"
         if [ "$tasks" -gt 0 ]; then echo "run=true"; else echo "run=false"; fi >> "$GITHUB_OUTPUT"
 
