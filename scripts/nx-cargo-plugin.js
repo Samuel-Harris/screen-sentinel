@@ -30,9 +30,17 @@ const TEST_ENV = { CARGO_PROFILE_TEST_DEBUG: "line-tables-only" };
 
 const isOnHost = (rule) => !rule.hosts || rule.hosts.includes(HOST);
 
-function workspaceBuildCommand() {
+// Prototype for the P6 perf lane: with NX_CARGO_WORKSPACE=1, lint, typecheck and test also run as
+// one workspace cargo call each, owned by the app crate, like build.
+const WORKSPACE_MODE = process.env.NX_CARGO_WORKSPACE === "1";
+
+function workspaceExcludes() {
   const offHost = Object.keys(CRATE_RULES).filter((name) => !isOnHost(CRATE_RULES[name]));
-  return `cargo build --workspace${offHost.map((name) => ` --exclude ${name}`).join("")}`;
+  return offHost.map((name) => ` --exclude ${name}`).join("");
+}
+
+function workspaceBuildCommand() {
+  return `cargo build --workspace${workspaceExcludes()}`;
 }
 
 function cargoWorkspace(workspaceRoot) {
@@ -84,8 +92,30 @@ function cargoTargets(name, root) {
       // Tauri embeds the frontend build output (../out) in the app binary.
       { dependentTasksOutputFiles: "**/*" },
     );
+    if (WORKSPACE_MODE) {
+      const ex = workspaceExcludes();
+      targets.lint.options.commands = [
+        "cargo fmt --all --check",
+        `cargo clippy --workspace${ex} --no-deps --all-targets -- -W clippy::all`,
+      ];
+      targets.typecheck.options.commands = [`cargo check --workspace${ex}`];
+      targets.test.options.commands = [`cargo test --workspace${ex}`];
+      for (const target of ["lint", "typecheck", "test"]) {
+        targets[target].options.cwd = ".";
+        targets[target].inputs.push("{workspaceRoot}/crates/**/*", "!{workspaceRoot}/crates/**/*.md");
+      }
+    }
   } else {
     targets.build = { executor: "nx:noop", inputs: targets.build.inputs, dependsOn: [WORKSPACE_BUILD] };
+    if (WORKSPACE_MODE) {
+      for (const target of ["lint", "typecheck", "test"]) {
+        targets[target] = {
+          executor: "nx:noop",
+          inputs: targets[target].inputs,
+          dependsOn: [{ projects: [WORKSPACE_BUILD.projects[0]], target }],
+        };
+      }
+    }
   }
   return targets;
 }
