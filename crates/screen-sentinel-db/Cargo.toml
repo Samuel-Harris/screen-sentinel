@@ -8,6 +8,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
+screen-sentinel-app = { path = "../../apps/screen-sentinel-app-tauri/src-tauri" }
 chrono = { version = "0.4.31", features = ["serde"] }
 image = { workspace = true }
 sqlx = { version = "0.7", features = [
