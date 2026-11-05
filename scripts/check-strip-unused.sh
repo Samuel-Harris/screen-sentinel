@@ -15,12 +15,9 @@ fail() { echo "FAIL $*"; fails=$((fails + 1)); }
 
 banned_crates='^(screen-sentinel-audio|screen-sentinel-audio-eval|screen-sentinel-meeting-eval|screen-sentinel-sync|screen-sentinel-team-memory|screen-sentinel-connect|screen-sentinel-apple-intelligence|sentry|sentry-[a-z-]+|tauri-plugin-sentry|posthog-rs|cpal|whisper-rs|whisper-rs-sys|coreaudio-rs|coreaudio-sys)$'
 
-# cargo tree re-resolves a stale lockfile, so restore every lockfile on exit.
+# cargo tree re-resolves a stale lockfile, so restore the lockfile on exit.
 lock_backup=$(mktemp -d)
-lockfiles=()
-for lock in Cargo.lock apps/screen-sentinel-app-tauri/src-tauri/Cargo.lock; do
-  [ -f "$lock" ] && lockfiles+=("$lock")
-done
+lockfiles=(Cargo.lock)
 for lock in "${lockfiles[@]}"; do mkdir -p "$lock_backup/$(dirname "$lock")"; cp "$lock" "$lock_backup/$lock"; done
 restore_locks() {
   for lock in "${lockfiles[@]}"; do cp "$lock_backup/$lock" "$lock"; done

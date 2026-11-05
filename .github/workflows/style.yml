@@ -11,34 +11,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  lint:
-    name: Clippy & Format
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: .github/scripts/install_dependencies.sh
-
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy, rustfmt
-          rustflags: ""
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: |
-          # Skip packages with macOS-specific Objective-C code that won't compile on Linux
-          cargo clippy --workspace \
-            --exclude screen-sentinel-rfdetr-mlx \
-            --exclude screen-sentinel-screen \
-            --exclude screen-sentinel-app \
-            --all-targets -- -W clippy::all
-
   optimize:
     name: Dependency & Performance Checks
     runs-on: ubuntu-latest

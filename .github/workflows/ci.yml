@@ -2,31 +2,12 @@
 
 # act -W .github/workflows/ci.yml --container-architecture linux/amd64 -env ACTIONS_RUNTIME_URL=http://host.docker.internal:8080/ --env ACTIONS_RUNTIME_TOKEN=foo --env ACTIONS_CACHE_URL=http://host.docker.internal:8080/ --artifact-server-path out -j build-ubuntu -P ubuntu-latest=-self-hosted --env-file .env --secret-file .secrets
 
-name: Rust CI
+name: CI
 
 on:
   push:
-    paths:
-      - '**.rs'
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
-      - '.github/workflows/ci.yml'
-      - '.github/scripts/**'
-      - 'scripts/check-strip-unused.sh'
-      - '**/Info.plist'
-      - '**/*.entitlements'
-      - '**/entitlements*.plist'
+    branches: [main]
   pull_request:
-    paths:
-      - '**.rs'
-      - '**/Cargo.toml'
-      - '**/Cargo.lock'
-      - '.github/workflows/ci.yml'
-      - '.github/scripts/**'
-      - 'scripts/check-strip-unused.sh'
-      - '**/Info.plist'
-      - '**/*.entitlements'
-      - '**/entitlements*.plist'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.sha || github.ref }}
@@ -37,6 +18,12 @@ concurrency:
 
 env:
   GIT_LFS_SKIP_SMUDGE: 1
+  NX_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+  # The affected job counts these tasks, and each OS job runs them.
+  LINUX_TASKS: "-t lint typecheck test build"
+  MACOS_TASKS: "-t test e2e --exclude=!tag:os:macos"
+  MACOS_APP_TASKS: "-t typecheck --exclude=!screen-sentinel-app"
+  WINDOWS_TASKS: "-t test --exclude=!tag:os:windows"
 
 jobs:
   strip-unused:
@@ -50,76 +37,143 @@ jobs:
       - name: Check stripped areas stay removed
         run: scripts/check-strip-unused.sh
 
-  test-ubuntu:
+  affected:
     runs-on: ubuntu-latest
-    env:
-      RUSTFLAGS: "-C link-arg=-Wl,--allow-multiple-definition"
+    outputs:
+      linux: ${{ steps.tasks.outputs.linux }}
+      macos: ${{ steps.tasks.outputs.macos }}
+      windows: ${{ steps.tasks.outputs.windows }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          cache: true
-          rustflags: ""
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.10
 
       - name: Install dependencies
-        run: .github/scripts/install_dependencies.sh
+        run: bun install --frozen-lockfile
 
-      - name: Copy test image
+      - name: Count affected tasks per OS
+        id: tasks
         run: |
-          mkdir -p target/debug/deps
-          cp crates/screen-sentinel-screen/tests/testing_OCR.png target/debug/deps/
+          linux=$(.github/scripts/affected-tasks.sh $LINUX_TASKS)
+          macos=$(.github/scripts/affected-tasks.sh $MACOS_TASKS)
+          macos_app=$(.github/scripts/affected-tasks.sh $MACOS_APP_TASKS)
+          windows=$(.github/scripts/affected-tasks.sh $WINDOWS_TASKS)
+          printf 'linux=%s\nmacos=%s\nwindows=%s\n' "$linux" "$((macos + macos_app))" "$windows" | tee -a "$GITHUB_OUTPUT"
+          if [ $((linux + macos + macos_app + windows)) -eq 0 ]; then echo "No projects affected"; fi
 
-      - name: Run cargo tests
-        run: cargo test --workspace --exclude screen-sentinel-rfdetr-mlx --exclude screen-sentinel-app
+      - name: Check module boundaries
+        run: bunx nx run scripts:boundaries
 
-  test-windows:
+      - name: Check affected sets
+        run: bun scripts/check-affected.ts
+
+  affected-linux:
+    needs: affected
+    if: ${{ !cancelled() && needs.affected.outputs.linux > 0 }}
+    runs-on: ubuntu-latest
+    env:
+      # Replaces the rustflags of both .cargo configs, so the app crate's targets,
+      # which run from src-tauri, reuse what the workspace build compiled.
+      RUSTFLAGS: "-C link-arg=-Wl,--allow-multiple-definition"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      - name: Install system dependencies
+        run: |
+          .github/scripts/install_dependencies.sh
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run affected targets
+        run: bunx nx affected $LINUX_TASKS
+
+  affected-macos:
+    needs: affected
+    if: ${{ !cancelled() && needs.affected.outputs.macos > 0 }}
+    runs-on: macos-latest
+    env:
+      SCREEN_SENTINEL_RELEASE_TARGET: aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          rustflags: ""
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      - name: Install native build dependencies
+        run: |
+          brew unlink pkg-config@0.29.2 || true
+          brew install ffmpeg pkg-config
+          brew link --overwrite pkg-config
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run pre_build.js
+        run: bun ./scripts/pre_build.js
+        working-directory: ./apps/screen-sentinel-app-tauri
+
+      - name: Run affected tests and the CLI npm e2e
+        run: bunx nx affected $MACOS_TASKS
+
+      - name: Check the app crate compiles
+        if: ${{ !cancelled() }}
+        run: bunx nx affected $MACOS_APP_TASKS
+
+      - name: Upload npm e2e logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-e2e-logs
+          path: packages/cli/npm-e2e/.work/logs
+          if-no-files-found: ignore
+
+  affected-windows:
     # windows-2019 reached end-of-life on the GitHub-hosted runner fleet
     # (deprecation message in CI logs since mid-2025). Stay on a supported
     # image so we keep getting security patches and can pin a stable build
     # toolchain.
+    needs: affected
+    if: ${{ !cancelled() && needs.affected.outputs.windows > 0 }}
     runs-on: windows-2022
+    env:
+      RUSTFLAGS: "-C link-arg=/LTCG"
+      ORT_STRATEGY: system
+      ORT_LIB_LOCATION: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
         with:
-          path: |
-            ~\AppData\Local\cargo\
-            target\
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install Rust
-        run: |
-          Invoke-WebRequest https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-gnu/rustup-init.exe -OutFile rustup-init.exe
-          .\rustup-init.exe -y
-
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: stable
-          override: true
-          cache: true
           rustflags: ""
 
       - name: setup Bun
@@ -156,26 +210,19 @@ jobs:
         run: bun ./scripts/pre_build.js
         working-directory: ./apps/screen-sentinel-app-tauri
 
-      - name: Copy test image
-        shell: bash
-        run: |
-          mkdir -p target/debug/deps || true
-          cp crates/screen-sentinel-screen/tests/testing_OCR.png target/debug/deps/
-
       # ORT_STRATEGY=system tells ort to LINK against onnxruntime.lib but
       # does NOT copy onnxruntime*.dll next to the test binary. Without
       # the DLLs adjacent to the .exe at runtime, the Windows DLL loader
       # exits with STATUS_DLL_NOT_FOUND (0xc0000135) on the first
       # ort::api() call — which is exactly what test_process_ocr_task_windows
       # hits inside accuracy_test. Stage them before any cargo test that
-      # touches ort. Run this once for both --release/--target builds —
-      # cargo test --release --target x86_64-pc-windows-msvc puts test
-      # binaries under target/x86_64-pc-windows-msvc/release/deps/.
+      # touches ort. Nx runs `cargo test -p <crate>`, which puts test
+      # binaries under target/debug/deps/.
       - name: Stage ONNX Runtime DLLs next to test binary
         shell: pwsh
         run: |
           $src = "${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0/lib"
-          $dst = "${{ github.workspace }}/target/x86_64-pc-windows-msvc/release/deps"
+          $dst = "${{ github.workspace }}/target/debug/deps"
           if (-not (Test-Path $dst)) {
             New-Item -ItemType Directory -Path $dst -Force | Out-Null
           }
@@ -238,107 +285,10 @@ jobs:
           echo $ortLib | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           Write-Host "PATH appended: $ortLib"
 
-      - name: Run specific Windows OCR cargo test
-        env:
-          RUSTFLAGS: "-C link-arg=/LTCG"
-          ORT_STRATEGY: system
-          ORT_LIB_LOCATION: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
-          # Use prebuilt NASM objects on Windows: https://aws.github.io/aws-lc-rs/requirements/windows.html#prebuilt-nasm-objects
-          AWS_LC_SYS_PREBUILT_NASM: "1"
-        run: cargo test -p screen-sentinel-screen test_process_ocr_task_windows --release --target x86_64-pc-windows-msvc
-
-      - name: Run PII removal tests
-        env:
-          RUSTFLAGS: "-C link-arg=/LTCG"
-          ORT_STRATEGY: system
-          ORT_LIB_LOCATION: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
-          # Use prebuilt NASM objects on Windows: https://aws.github.io/aws-lc-rs/requirements/windows.html#prebuilt-nasm-objects
-          AWS_LC_SYS_PREBUILT_NASM: "1"
-        run: cargo test -p screen-sentinel-core pii_removal --release --target x86_64-pc-windows-msvc
-
-      - name: Run PII redaction tests
-        env:
-          RUSTFLAGS: "-C link-arg=/LTCG"
-          ORT_STRATEGY: system
-          ORT_LIB_LOCATION: ${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/onnxruntime-win-x64-1.22.0
-          # Use prebuilt NASM objects on Windows: https://aws.github.io/aws-lc-rs/requirements/windows.html#prebuilt-nasm-objects
-          AWS_LC_SYS_PREBUILT_NASM: "1"
-        run: cargo test -p screen-sentinel-engine --lib pii_redaction_tests --release --target x86_64-pc-windows-msvc
-
-      # pipes_test removed — pipe manager system deleted in #2212
-
-  test-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-          cache: true
-          rustflags: ""
-
-      - name: Verify Rust toolchain
+      - name: Install dependencies
         shell: bash
-        run: |
-          set -euo pipefail
-          export PATH="$HOME/.cargo/bin:$PATH"
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        run: bun install --frozen-lockfile
 
-          cargo_output="$(cargo --version 2>&1 || true)"
-          if [[ "$cargo_output" == *"rustup-init"* || "$cargo_output" != cargo* ]]; then
-            curl --proto '=https' --tlsv1.2 --retry 5 --retry-connrefused -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
-            . "$HOME/.cargo/env"
-          fi
-
-          rustup default stable
-          rustup override set stable
-          cargo --version
-          rustc --version
-
-      - name: setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.10
-
-      - name: Install macOS media sidecars
-        run: brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
-
-      - name: Run pre_build.js
+      - name: Run affected tests
         shell: bash
-        env:
-          SKIP_SCREEN_SENTINEL_SETUP: true # avoid trying to copy Screen Sentinel binaries, not yet built (next step)
-          SCREEN_SENTINEL_RELEASE_TARGET: ${{ runner.arch == 'ARM64' && 'aarch64-apple-darwin' || 'x86_64-apple-darwin' }}
-        run: bun ./scripts/pre_build.js
-        working-directory: ./apps/screen-sentinel-app-tauri
-
-      - name: Copy test image
-        shell: bash
-        run: |
-          mkdir -p target/debug/deps || true
-          cp crates/screen-sentinel-screen/tests/testing_OCR.png target/debug/deps/
-
-      - name: Run specific Apple OCR cargo test
-        shell: bash
-        env:
-          DYLD_LIBRARY_PATH: /Users/runner/work/screen-sentinel/screen-sentinel/crates/screen-sentinel-screen/lib
-        # Only test vision package to avoid whisper-rs build issues on macOS CI
-        run: cargo test -p screen-sentinel-screen test_apple_native_ocr
-
-      - name: Run PII removal tests
-        run: cargo test -p screen-sentinel-core pii_removal
-
-      # PII redaction tests skipped on macOS due to whisper-rs build issues
-      # - name: Run PII redaction tests
-      #   run: cargo test -p screen-sentinel-engine --lib pii_redaction_tests
+        run: bunx nx affected $WINDOWS_TASKS
