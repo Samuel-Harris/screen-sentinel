@@ -124,6 +124,7 @@
     "wdio-video-reporter": "^6.0.0"
   },
   "nx": {
+    "tags": ["type:app", "scope:desktop", "lang:ts"],
     "implicitDependencies": ["screen-sentinel-app"],
     "targets": {
       "build": { "outputs": ["{projectRoot}/out"], "inputs": ["default", "^default"] },

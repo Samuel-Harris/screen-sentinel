@@ -87,3 +87,6 @@ zbus = { version = "5", features = ["blocking"] }
 
 [target.'cfg(target_os = "macos")'.dev-dependencies]
 libc = "0.2"
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

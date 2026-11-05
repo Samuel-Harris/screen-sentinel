@@ -21,9 +21,11 @@
     "@types/bun": "latest"
   },
   "nx": {
+    "tags": ["type:tool", "scope:e2e", "lang:ts"],
     "includedScripts": [],
     "targets": {
-      "e2e": { "command": "bun run test", "options": { "cwd": "{projectRoot}" } }
+      "e2e": { "command": "bun run test", "options": { "cwd": "{projectRoot}" } },
+      "check": {}
     }
   }
 }

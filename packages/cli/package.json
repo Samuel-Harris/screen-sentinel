@@ -9,12 +9,14 @@
     "test": "bun ./npm-e2e/runner.ts"
   },
   "nx": {
+    "tags": ["type:tool", "scope:cli", "lang:ts"],
     "includedScripts": [],
     "targets": {
       "e2e": {
         "executor": "nx:run-commands",
         "options": { "commands": ["bun run build", "bun run test"], "cwd": "{projectRoot}", "parallel": false }
-      }
+      },
+      "check": {}
     }
   }
 }

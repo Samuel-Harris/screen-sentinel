@@ -24,3 +24,6 @@ keyring = { version = "3", features = ["linux-native-sync-persistent"] }
 [dev-dependencies]
 tokio = { version = "1", features = ["full", "test-util"] }
 tempfile = "3"
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

@@ -23,5 +23,9 @@
     "url": "https://github.com/Samuel-Harris/screen-sentinel"
   },
   "license": "MIT",
-  "keywords": ["screen-sentinel", "screen-recording", "ai", "memory", "cli"]
+  "keywords": ["screen-sentinel", "screen-recording", "ai", "memory", "cli"],
+  "nx": {
+    "tags": ["type:publish", "scope:cli", "lang:ts"],
+    "targets": { "check": {} }
+  }
 }

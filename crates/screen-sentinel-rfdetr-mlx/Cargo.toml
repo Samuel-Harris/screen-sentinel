@@ -18,3 +18,6 @@ mlx-sys = "0.2"
 safetensors = "0.6"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 thiserror = "1"
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

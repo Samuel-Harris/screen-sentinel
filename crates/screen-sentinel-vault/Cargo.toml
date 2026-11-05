@@ -35,3 +35,6 @@ tempfile = "3"
 
 [features]
 default = []
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]
