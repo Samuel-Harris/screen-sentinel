@@ -42,4 +42,4 @@ core-foundation = "0.10"
 core-graphics = { version = "0.24.0", features = ["highsierra"] }
 
 [package.metadata.nx]
-tags = ["type:lib", "scope:engine", "lang:rust"]
+tags = ["type:lib", "scope:engine", "lang:rust", "os:macos", "os:windows"]

@@ -9,7 +9,8 @@
     "test": "bun ./npm-e2e/runner.ts"
   },
   "nx": {
-    "tags": ["type:tool", "scope:cli", "lang:ts"],
+    "tags": ["type:tool", "scope:cli", "lang:ts", "os:macos"],
+    "implicitDependencies": ["screen-sentinel-engine", "screen-sentinel", "@screen-sentinel/cli-*"],
     "includedScripts": [],
     "targets": {
       "e2e": {

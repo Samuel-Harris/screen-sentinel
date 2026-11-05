@@ -9,6 +9,8 @@ const CASES: { file: string; affected: string[] }[] = [
     file: "crates/screen-sentinel-db/src/lib.rs",
     affected: [
       "@screen-sentinel/app",
+      "@screen-sentinel/cli-packages",
+      "@screen-sentinel/e2e",
       "screen-sentinel-a11y",
       "screen-sentinel-app",
       "screen-sentinel-capture",
@@ -18,6 +20,7 @@ const CASES: { file: string; affected: string[] }[] = [
     ],
   },
   { file: "packages/screen-sentinel-mcp/src/index.ts", affected: ["screen-sentinel-mcp"] },
+  { file: "packages/cli/screen-sentinel/lib/cli.js", affected: ["@screen-sentinel/cli-packages", "screen-sentinel"] },
   {
     file: "apps/screen-sentinel-app-tauri/lib/utils/tauri.ts",
     affected: ["@screen-sentinel/app", "screen-sentinel-app"],
