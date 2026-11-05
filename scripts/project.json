@@ -2,7 +2,7 @@
   "name": "scripts",
   "tags": ["type:tool", "scope:repo", "lang:ts"],
   "targets": {
-    "boundaries": { "command": "bun scripts/check-boundaries.ts", "cache": false },
+    "boundaries": { "command": "node scripts/check-boundaries.mts", "cache": false },
     "test": { "command": "bun test scripts/check-boundaries.test.ts" },
     "check": {}
   }
