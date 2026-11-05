@@ -448,7 +448,7 @@ mod tests {
                     .map(|ext| ext == "log")
                     .unwrap_or(false)
             })
-            .map(|e| e.metadata().map(|m| m.len()).unwrap_or(0))
+            .map(|e| fs::metadata(e.path()).map(|m| m.len()).unwrap_or(0))
             .sum()
     }
 
