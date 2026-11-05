@@ -41,3 +41,5 @@ export function redactPii(text: string): string {
     .replace(/C:\\Users\\[^\\\s]+/g, "C:\\Users\\[USER]")
     .replace(/\/home\/[^/\s]+/g, "/home/[USER]");
 }
+
+export const p6Probe: number = "not a number";
