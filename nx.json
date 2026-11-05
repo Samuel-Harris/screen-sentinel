@@ -2,6 +2,7 @@
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "neverConnectToCloud": true,
   "analytics": false,
+  "defaultBase": "main",
   "useDaemonProcess": false,
   "plugins": ["./scripts/nx-cargo-plugin.js"],
   "namedInputs": {
