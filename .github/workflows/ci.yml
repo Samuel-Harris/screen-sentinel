@@ -285,6 +285,9 @@ jobs:
         shell: bash
         run: bun install --frozen-lockfile
 
+      # Not bash: Git Bash puts its own link.exe ahead of the MSVC linker, so cargo cannot link.
       - name: Run affected tests
-        shell: bash
-        run: bunx nx affected $WINDOWS_TASKS
+        shell: pwsh
+        run: |
+          $tasks = $env:WINDOWS_TASKS -split ' '
+          bunx nx affected @tasks
