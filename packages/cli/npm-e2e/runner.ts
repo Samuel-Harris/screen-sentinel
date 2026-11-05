@@ -26,3 +26,4 @@ main().catch((error) => {
   console.error(error.stack || error.message);
   process.exit(1);
 });
+// p6 probe: cli harness change
