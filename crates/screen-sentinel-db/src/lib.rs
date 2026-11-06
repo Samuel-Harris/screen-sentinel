@@ -20,3 +20,6 @@ pub use migration_worker::{
 pub use text_normalizer::{expand_search_query, sanitize_fts5_query};
 pub use types::*;
 pub use write_queue::{request_write_pause, request_write_resume};
+// p6 probe: one-line db change
+// p6 probe: warm sample 171243
+// p6 probe: warm sample 183029
