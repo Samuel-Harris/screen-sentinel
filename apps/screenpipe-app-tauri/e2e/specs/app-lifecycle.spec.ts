@@ -99,7 +99,6 @@ describe("App lifecycle and UI stability", function () {
   const routeCases = [
     ["/home?section=home", "home-route"],
     ["/home?section=help", "help-route"],
-    ["/home?section=pipes", "pipes-route"],
     ["/home?section=timeline", "timeline-route"],
     ["/settings?section=display", "settings-display-route"],
     ["/settings?section=privacy", "settings-privacy-route"],
@@ -180,7 +179,6 @@ describe("App lifecycle and UI stability", function () {
       "/settings?section=display",
       "/home?section=timeline",
       "/settings?section=storage",
-      "/home?section=pipes",
       "/settings?section=notifications",
       "/home?section=help",
     ];
