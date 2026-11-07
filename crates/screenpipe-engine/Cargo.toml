@@ -43,14 +43,12 @@ sqlx = { version = "0.7", features = [
 ] }
 
 anyhow = "1.0.86"
-async-trait = "0.1"
 moka = { version = "0.12", features = ["future"] }
 
 # Server
 axum = { version = "0.7.5", features = ["ws", "multipart"] }
 http-body-util = "0.1"
 tokio = { version = "1.15", features = ["full", "tracing"] }
-tokio-stream = "0.1"
 tower-http = { version = "0.5.2", features = ["cors", "trace"] }
 
 # Log

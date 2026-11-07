@@ -363,48 +363,43 @@ async fn do_local_cleanup(
         let batch_end = (batch_start + batch_size).min(cutoff);
 
         match mode {
-            RetentionMode::All => {
-                match db
-                    .delete_time_range_batch(batch_start, batch_end)
-                    .await
-                {
-                    Ok(result) => {
-                        let batch_total =
-                            result.frames_deleted + result.ocr_deleted + result.ui_events_deleted;
+            RetentionMode::All => match db.delete_time_range_batch(batch_start, batch_end).await {
+                Ok(result) => {
+                    let batch_total =
+                        result.frames_deleted + result.ocr_deleted + result.ui_events_deleted;
 
-                        if batch_total > 0 {
-                            any_deleted = true;
-                            info!(
-                                "retention: batch deleted frames={} ocr={} ui_events={} \
+                    if batch_total > 0 {
+                        any_deleted = true;
+                        info!(
+                            "retention: batch deleted frames={} ocr={} ui_events={} \
                                  (video_files={} snapshot_files={})",
-                                result.frames_deleted,
-                                result.ocr_deleted,
-                                result.ui_events_deleted,
-                                result.video_files.len(),
-                                result.snapshot_files.len(),
-                            );
-                        }
-
-                        total += batch_total;
-
-                        for path in result
-                            .video_files
-                            .iter()
-                            .chain(result.snapshot_files.iter())
-                        {
-                            if let Err(e) = tokio::fs::remove_file(path).await {
-                                warn!("retention: failed to delete file {}: {}", path, e);
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!(
-                            "retention: batch delete failed for range {} to {}: {}",
-                            batch_start, batch_end, e
+                            result.frames_deleted,
+                            result.ocr_deleted,
+                            result.ui_events_deleted,
+                            result.video_files.len(),
+                            result.snapshot_files.len(),
                         );
                     }
+
+                    total += batch_total;
+
+                    for path in result
+                        .video_files
+                        .iter()
+                        .chain(result.snapshot_files.iter())
+                    {
+                        if let Err(e) = tokio::fs::remove_file(path).await {
+                            warn!("retention: failed to delete file {}: {}", path, e);
+                        }
+                    }
                 }
-            }
+                Err(e) => {
+                    warn!(
+                        "retention: batch delete failed for range {} to {}: {}",
+                        batch_start, batch_end, e
+                    );
+                }
+            },
             RetentionMode::Media => match db.evict_media_in_range(batch_start, batch_end).await {
                 Ok(result) => {
                     let batch_total = result.video_chunks_evicted + result.snapshots_evicted;
