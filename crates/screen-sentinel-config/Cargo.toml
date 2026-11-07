@@ -22,3 +22,6 @@ specta = ["dep:specta"]
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

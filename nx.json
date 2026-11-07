@@ -27,6 +27,9 @@
     "test": { "cache": true },
     "lint": { "cache": true },
     "typecheck": { "cache": true },
-    "check": { "executor": "nx:noop", "dependsOn": ["lint", "typecheck", "test"] }
+    "check": {
+      "executor": "nx:noop",
+      "dependsOn": ["lint", "typecheck", "test", { "projects": ["scripts"], "target": "boundaries" }]
+    }
   }
 }

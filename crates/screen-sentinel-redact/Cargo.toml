@@ -137,3 +137,6 @@ features = ["metal"]
 [target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies.screen-sentinel-rfdetr-mlx]
 path = "../screen-sentinel-rfdetr-mlx"
 optional = true
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

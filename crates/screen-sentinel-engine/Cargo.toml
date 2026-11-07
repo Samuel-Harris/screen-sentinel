@@ -197,3 +197,6 @@ tracing-oslog = { workspace = true }
 # screen-sentinel-redact is wired into the engine binary (image-PII
 # reconciliation worker, screen-sentinel-engine.rs:1571).
 ignored = []
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

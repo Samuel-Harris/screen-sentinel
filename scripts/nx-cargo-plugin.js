@@ -47,6 +47,7 @@ function cargoWorkspace(workspaceRoot) {
     name: pkg.name,
     manifest: relative(workspaceRoot, pkg.manifest_path).split("\\").join("/"),
     pathDeps: pkg.dependencies.filter((dep) => dep.path).map((dep) => dep.name),
+    tags: pkg.metadata?.nx?.tags ?? [],
   }));
 }
 
@@ -97,7 +98,10 @@ exports.createNodes = [
       const crate = crates.get(manifest);
       if (!crate) return [manifest, {}];
       const root = dirname(manifest);
-      return [manifest, { projects: { [root]: { name: crate.name, targets: cargoTargets(crate.name, root) } } }];
+      return [
+        manifest,
+        { projects: { [root]: { name: crate.name, tags: crate.tags, targets: cargoTargets(crate.name, root) } } },
+      ];
     });
   },
 ];

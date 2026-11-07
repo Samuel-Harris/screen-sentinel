@@ -45,3 +45,6 @@ harness = false
 [[bench]]
 name = "new_db_benchmark"
 harness = false
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

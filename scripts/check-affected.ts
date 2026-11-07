@@ -23,6 +23,7 @@ const CASES: { file: string; affected: string[] }[] = [
     affected: ["@screen-sentinel/app", "screen-sentinel-app"],
   },
   { file: "feature-map/03-nx-monorepo.md", affected: [] },
+  { file: "scripts/boundaries.json", affected: ["scripts"] },
 ];
 
 function run(cmd: string[], options: { input?: string; env?: Record<string, string> } = {}): string {

@@ -42,6 +42,7 @@
     "node": ">=18.0.0"
   },
   "nx": {
+    "tags": ["type:publish", "scope:mcp", "lang:ts"],
     "targets": {
       "build": { "outputs": ["{projectRoot}/dist"], "inputs": ["default", "^default"] },
       "test": { "inputs": ["default", "^default"] },

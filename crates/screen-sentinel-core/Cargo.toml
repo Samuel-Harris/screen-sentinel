@@ -40,3 +40,6 @@ accessibility = { git = "https://github.com/eiz/accessibility.git", rev = "173e8
 
 core-foundation = "0.10"
 core-graphics = { version = "0.24.0", features = ["highsierra"] }
+
+[package.metadata.nx]
+tags = ["type:lib", "scope:engine", "lang:rust"]

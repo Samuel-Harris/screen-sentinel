@@ -232,3 +232,6 @@ tempfile = "3"
 # screen-sentinel-redact: workspace dep added for async PII reconciliation (PR #3188);
 # wiring lands in a follow-up. Cargo compiles it for the workspace either way.
 ignored = ["tauri-utils", "screen-sentinel-redact"]
+
+[package.metadata.nx]
+tags = ["type:app", "scope:desktop", "lang:rust"]
