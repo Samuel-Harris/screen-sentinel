@@ -41,7 +41,6 @@ const SETTINGS_SECTIONS = [
   { id: 'usage', keywords: ['usage', 'activity', 'analytics'] },
   { id: 'privacy', keywords: ['privacy', 'api', 'encryption', 'keychain'] },
   { id: 'storage', keywords: ['storage', 'disk', 'retention', 'cache'] },
-  { id: 'team', keywords: ['team', 'share', 'member', 'invite'] },
   { id: 'account', keywords: ['account', 'sign', 'login', 'cloud'] },
   { id: 'referral', keywords: ['free month', 'referral', 'invite', 'share'] },
 ] as const;
