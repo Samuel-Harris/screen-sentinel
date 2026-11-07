@@ -7,7 +7,8 @@ import { openHomeWindow, waitForAppReady, t } from '../helpers/test-utils.js';
 import { saveScreenshot } from '../helpers/screenshot-utils.js';
 
 const SECTIONS = [
-  { id: 'timeline', label: 'Timeline', sectionTestId: 'section-timeline', urlMatch: /section=timeline/ },
+  // Timeline is the default section, so the URL can drop ?section=timeline.
+  { id: 'timeline', label: 'Timeline', sectionTestId: 'section-timeline', urlMatch: /section=timeline|\/home$/ },
   { id: 'help', label: 'Help', sectionTestId: 'section-help', urlMatch: /section=help/ },
   { id: 'settings', label: 'Settings', sectionTestId: 'section-settings-general', urlMatch: null },
 ];
