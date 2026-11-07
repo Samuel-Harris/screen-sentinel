@@ -12,6 +12,7 @@ dependencies:
   apm:
     - Samuel-Harris/foundry/packages/default-stack#main
     - Samuel-Harris/foundry/packages/pstack#main
+    - Samuel-Harris/foundry/packages/repo-init#main
   mcp: []
 includes: auto
 scripts: {}

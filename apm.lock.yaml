@@ -5,7 +5,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: default-stack
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.2
   virtual_path: packages/default-stack
@@ -17,18 +17,13 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: pstack
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/pstack
   is_virtual: true
   package_type: apm_package
   deployed_files:
-  - .agents/skills/architect
-  - .agents/skills/architect/SKILL.md
-  - .agents/skills/architect/references/design-red-flags.md
-  - .agents/skills/architect/references/rationale-template.md
-  - .agents/skills/architect/references/runner-prompt.md
   - .agents/skills/arena
   - .agents/skills/arena/SKILL.md
   - .agents/skills/automate-me
@@ -41,8 +36,6 @@ dependencies:
   - .agents/skills/bro/SKILL.md
   - .agents/skills/correct
   - .agents/skills/correct/SKILL.md
-  - .agents/skills/create-formal-verification-skill
-  - .agents/skills/create-formal-verification-skill/SKILL.md
   - .agents/skills/create-verification-skill
   - .agents/skills/create-verification-skill/SKILL.md
   - .agents/skills/create-verification-skill/references/feature-map-example/README.md
@@ -58,10 +51,6 @@ dependencies:
   - .agents/skills/in-your-own-words/SKILL.md
   - .agents/skills/interrogate
   - .agents/skills/interrogate/SKILL.md
-  - .agents/skills/ketchup
-  - .agents/skills/ketchup-video
-  - .agents/skills/ketchup-video/SKILL.md
-  - .agents/skills/ketchup/SKILL.md
   - .agents/skills/maintain-formal-verification-skill
   - .agents/skills/maintain-formal-verification-skill/SKILL.md
   - .agents/skills/maintain-verification-skill
@@ -70,27 +59,6 @@ dependencies:
   - .agents/skills/make-bot-ui/SKILL.md
   - .agents/skills/no-comments
   - .agents/skills/no-comments/SKILL.md
-  - .agents/skills/poteto-help
-  - .agents/skills/poteto-help/SKILL.md
-  - .agents/skills/poteto-help/references/guide/01-setup.md
-  - .agents/skills/poteto-help/references/guide/02-poteto-mode.md
-  - .agents/skills/poteto-help/references/guide/03-understand.md
-  - .agents/skills/poteto-help/references/guide/04-design.md
-  - .agents/skills/poteto-help/references/guide/05-build-and-clean.md
-  - .agents/skills/poteto-help/references/guide/06-verify-and-ship.md
-  - .agents/skills/poteto-help/references/guide/07-overnight.md
-  - .agents/skills/poteto-help/references/guide/08-principles.md
-  - .agents/skills/poteto-help/references/guide/09-make-it-yours.md
-  - .agents/skills/poteto-help/references/guide/10-recipes-and-pitfalls.md
-  - .agents/skills/poteto-help/references/guide/README.md
-  - .agents/skills/poteto-help/references/guide/images/design.jpg
-  - .agents/skills/poteto-help/references/guide/images/overnight.jpg
-  - .agents/skills/poteto-help/references/guide/images/recipes.jpg
-  - .agents/skills/poteto-help/references/guide/images/router.jpg
-  - .agents/skills/poteto-help/references/guide/images/understanding.jpg
-  - .agents/skills/poteto-help/references/guide/images/verification.jpg
-  - .agents/skills/poteto-help/references/prompting.md
-  - .agents/skills/poteto-help/references/recipes.md
   - .agents/skills/poteto-mode
   - .agents/skills/poteto-mode/SKILL.md
   - .agents/skills/poteto-mode/playbooks/authoring-a-skill.md
@@ -128,20 +96,14 @@ dependencies:
   - .agents/skills/poteto-mode/scripts/watch-pr/types.ts
   - .agents/skills/poteto-mode/scripts/watch-pr/watch-pr
   - .agents/skills/poteto-mode/scripts/worktree-audit.sh
-  - .agents/skills/principle-attack-the-premise
-  - .agents/skills/principle-attack-the-premise/SKILL.md
   - .agents/skills/principle-boundary-discipline
   - .agents/skills/principle-boundary-discipline/SKILL.md
-  - .agents/skills/principle-build-the-lever
-  - .agents/skills/principle-build-the-lever/SKILL.md
   - .agents/skills/principle-encode-lessons-in-structure
   - .agents/skills/principle-encode-lessons-in-structure/SKILL.md
   - .agents/skills/principle-exhaust-the-design-space
   - .agents/skills/principle-exhaust-the-design-space/SKILL.md
   - .agents/skills/principle-experience-first
   - .agents/skills/principle-experience-first/SKILL.md
-  - .agents/skills/principle-explain-the-number
-  - .agents/skills/principle-explain-the-number/SKILL.md
   - .agents/skills/principle-fix-root-causes
   - .agents/skills/principle-fix-root-causes/SKILL.md
   - .agents/skills/principle-foundational-thinking
@@ -154,8 +116,6 @@ dependencies:
   - .agents/skills/principle-make-operations-idempotent/SKILL.md
   - .agents/skills/principle-migrate-callers-then-delete-legacy-apis
   - .agents/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md
-  - .agents/skills/principle-minimize-reader-load
-  - .agents/skills/principle-minimize-reader-load/SKILL.md
   - .agents/skills/principle-model-the-domain
   - .agents/skills/principle-model-the-domain/SKILL.md
   - .agents/skills/principle-never-block-on-the-human
@@ -176,14 +136,6 @@ dependencies:
   - .agents/skills/principle-test-behavior-not-implementation/SKILL.md
   - .agents/skills/principle-type-system-discipline
   - .agents/skills/principle-type-system-discipline/SKILL.md
-  - .agents/skills/recall
-  - .agents/skills/recall/SKILL.md
-  - .agents/skills/reflect
-  - .agents/skills/reflect/SKILL.md
-  - .agents/skills/reflect/references/divergent-reviewer.md
-  - .agents/skills/reflect/references/judgment-reviewer.md
-  - .agents/skills/reflect/references/synthesizer.md
-  - .agents/skills/reflect/references/tooling-reviewer.md
   - .agents/skills/setup-pstack
   - .agents/skills/setup-pstack/SKILL.md
   - .agents/skills/sharpen
@@ -435,17 +387,12 @@ dependencies:
   - .cursor/agents/comment-sicko.md
   - .cursor/agents/poteto-agent.md
   deployed_file_hashes:
-    .agents/skills/architect/SKILL.md: sha256:4df6693d760a991f470c2a9611d55ffcdece56cacfc15f7ce778266ed52a76a9
-    .agents/skills/architect/references/design-red-flags.md: sha256:6851acb68728048a9a01038c68654612f184719c84d465500f596cafea48c627
-    .agents/skills/architect/references/rationale-template.md: sha256:73b7ae46a678c9fd40ea968cc1bd5e350eb6583a269f4d79e072964b37f32fc5
-    .agents/skills/architect/references/runner-prompt.md: sha256:10d5a91722b7f9eeef241b566b906b6283513f4367a64796676f801a1d386598
     .agents/skills/arena/SKILL.md: sha256:bd074c6c8d32300b6357019df82bc1c9c0db3bc866c7f00ff4060281e98606c2
     .agents/skills/automate-me/SKILL.md: sha256:827a372678f78cefed0d6a2dfb039fe0f0c5e1d2cf0047587076dc194f315fbb
     .agents/skills/benchmark-checklist/SKILL.md: sha256:9eeba73c2377a31978bd9a02dff5698fe5b3632552a17997d6d819025f77a1cc
     .agents/skills/blast-radius/SKILL.md: sha256:2e10745b97f5862323dcda3b29ca60d56b5c3c98e37020085d26b48efbe0a436
     .agents/skills/bro/SKILL.md: sha256:aa329d0ceeeecb6822a7174ad76bb07a7826a3c52ceb6a588dec4138815084bb
     .agents/skills/correct/SKILL.md: sha256:6ff3f98e79ea83142d0ff01a07e145f128c9472da282a6f7e0e5d72b01fa1e8b
-    .agents/skills/create-formal-verification-skill/SKILL.md: sha256:603177c1f9c067c100711b7ca686d64f25960610cbc97eb0647378560619a21e
     .agents/skills/create-verification-skill/SKILL.md: sha256:a580f8e8e989a3e3a5ae1edfccebd568f971ab24a939e68543c96e73554c4d35
     .agents/skills/create-verification-skill/references/feature-map-example/README.md: sha256:56c52b280cf8caffa9b0a9c78e5db3e0b081e2f2c50132c54b1c62113230315f
     .agents/skills/create-verification-skill/references/feature-map-example/create-note.md: sha256:7dc91f1cca0c192f46eb9f6429f91fdd9b7dec1b8260bb482294dc6d637e6dab
@@ -456,32 +403,10 @@ dependencies:
     .agents/skills/how/references/explorer-prompt.md: sha256:9d1e1c1255dab8b8e34e726974c508725e2338c995622d8ab1b4b23eb3f89b66
     .agents/skills/in-your-own-words/SKILL.md: sha256:fa8ba74e27d7be371dc270ec78bbf816411477d0dfab185356c861ac8dd413ad
     .agents/skills/interrogate/SKILL.md: sha256:9ff58aaecb898d89e56fa74f0996824028fd08f90ef20831d9b7887bc333d1b9
-    .agents/skills/ketchup-video/SKILL.md: sha256:cf91b61399fe85bb70459bb04383855019fabdd0b593d08b405c39fff420d94b
-    .agents/skills/ketchup/SKILL.md: sha256:44293c5d1fd007a6fd496d8468a59e196fa6b703e0d3fae2f99e1ad305b4b6d4
     .agents/skills/maintain-formal-verification-skill/SKILL.md: sha256:0c96f54293542d3818b68754562b338073958781a9684454611dca37592e2d2c
     .agents/skills/maintain-verification-skill/SKILL.md: sha256:162ee05a19dd2ef51d83996f6c7c7bc075d8f2fc8be8c40783fd4a79cff4794d
     .agents/skills/make-bot-ui/SKILL.md: sha256:c90a39889bbd56524c020f614059df9c024bf51f3d7344df7574a6683ed55ba2
     .agents/skills/no-comments/SKILL.md: sha256:7ba544adef66019cb6f346d2486e4a59f22fec284012b9007eeeea37a9dc478b
-    .agents/skills/poteto-help/SKILL.md: sha256:d3880befc6abb949951d120899e3203c299ec4c27832870cd9190eda1fae865e
-    .agents/skills/poteto-help/references/guide/01-setup.md: sha256:55f1c388df64506d14dca0066ecfa07d543cdc729d9ecc16426ce022c15a64da
-    .agents/skills/poteto-help/references/guide/02-poteto-mode.md: sha256:199e499a096dcf575b75acc58f762a30c15a0f0bfc55dada9ae2f42599473561
-    .agents/skills/poteto-help/references/guide/03-understand.md: sha256:da49170a2d6f5e3e955a4a3d220a7917018467aa4efeab9fa91d8aaae534545d
-    .agents/skills/poteto-help/references/guide/04-design.md: sha256:1efe3a3378dc0b992634685b2efb41fd0ecaf9e312d060ce2f953bd90eed4eaf
-    .agents/skills/poteto-help/references/guide/05-build-and-clean.md: sha256:66dcc41e55c4708030c68fb62bfd1b6b2d3312cdb5cef7da7902fe6d95b6263f
-    .agents/skills/poteto-help/references/guide/06-verify-and-ship.md: sha256:e02786ef39e7edf26e8b3188a133772e9beec1d92baaaae1fbe1f2e036f92380
-    .agents/skills/poteto-help/references/guide/07-overnight.md: sha256:39fb3e8c46ea9dcd2fcb50f37a4585dad38f3e6d11c48034d79c0e34eb7b0c5e
-    .agents/skills/poteto-help/references/guide/08-principles.md: sha256:8f6f3688fba73d664c13415bc74b6b25ec2e4338270ee512bec367bba7f835c6
-    .agents/skills/poteto-help/references/guide/09-make-it-yours.md: sha256:87417513b1e1addbae94b3ec193eed42830e09dbe096f77d702db228bc888a31
-    .agents/skills/poteto-help/references/guide/10-recipes-and-pitfalls.md: sha256:8d056a95e0be34dfc577a97f8ced294ffdceb8163dc21bc78a6f89ee8d8cd95c
-    .agents/skills/poteto-help/references/guide/README.md: sha256:8029539535aa01727a63bbdba620e5bef463076f0c20db108c5c0840cbbb9d40
-    .agents/skills/poteto-help/references/guide/images/design.jpg: sha256:b8ed07427f6a0c37dd8ba97961fc0eb5071efeee6c4a230648bdb7547f6f2a8f
-    .agents/skills/poteto-help/references/guide/images/overnight.jpg: sha256:4b4405e4df8925c5b3abbe702f681af0f3b1f5f32271b599f95717f578f1a0c8
-    .agents/skills/poteto-help/references/guide/images/recipes.jpg: sha256:9fa2d51b476635712737795ddef81806efaa0086bb3bfa9f9f45695d9ab0f8e8
-    .agents/skills/poteto-help/references/guide/images/router.jpg: sha256:525843055a4efd2b10acc50a8652fd02b0834ea733a8a2f895c1eb89036017da
-    .agents/skills/poteto-help/references/guide/images/understanding.jpg: sha256:b60587e9a9bbe2550e93be9819cf0cd4acf77d90fac769a0c43d82bd8e34e279
-    .agents/skills/poteto-help/references/guide/images/verification.jpg: sha256:2a76b52007a1cd2866ba67fd47d7d9ef3e1118bb5a09c4665eee8c3f161bd09a
-    .agents/skills/poteto-help/references/prompting.md: sha256:da55d284628a3c84e8e38cb5331775583e517bbde93797fd264be49e523c738a
-    .agents/skills/poteto-help/references/recipes.md: sha256:5323aca73a39a3b607c2bb22cd33551fe893563dfd4b104df838da010e9fc702
     .agents/skills/poteto-mode/SKILL.md: sha256:a2c24f9e7dcf30e3b1c925f5d28d7645913e2dda8ad3d7b0ed0b4f84c0fa3c63
     .agents/skills/poteto-mode/playbooks/authoring-a-skill.md: sha256:91aa29e2724a667861a7ce8e458ee3cbbbcaa620d832c4d0ad99654e850fb284
     .agents/skills/poteto-mode/playbooks/autonomous-run.md: sha256:45a7ea91a9a760ff4656a09169d81e428de059b15ee6841a85a141e5012afa16
@@ -518,20 +443,16 @@ dependencies:
     .agents/skills/poteto-mode/scripts/watch-pr/types.ts: sha256:daa66c56220bae084c18cc6d3b0a2c66c0e72206d298e40973b44ee085ce16d2
     .agents/skills/poteto-mode/scripts/watch-pr/watch-pr: sha256:d955603be6cc0e8b8ffcec722f635192b2261410b1f2929abea94480e47eb5d4
     .agents/skills/poteto-mode/scripts/worktree-audit.sh: sha256:010481a0692d7fb9c222ce7976113f72664b568edc68f23506777a8e599f21d5
-    .agents/skills/principle-attack-the-premise/SKILL.md: sha256:de909589b0b6369680aee9fb1efd6cb76b0764df0ea5055e96023534ad32ab71
     .agents/skills/principle-boundary-discipline/SKILL.md: sha256:ce620a9df50674e113821e22b568dbabfd6236a124f0dcefc56d64a0bdfabcff
-    .agents/skills/principle-build-the-lever/SKILL.md: sha256:48b47feff6a930ae8b1c5e94ea7462378b4957e28c5d7d3d6d3f4878e0377ddd
     .agents/skills/principle-encode-lessons-in-structure/SKILL.md: sha256:3186fc7431b49f8b7dd9869b878fc20225a1104c640756dfdc6f4c10461d631e
     .agents/skills/principle-exhaust-the-design-space/SKILL.md: sha256:2de83d99f93f60ec6313455b0bc9aa9f0bfb93dd59f414f403691322db00d4db
     .agents/skills/principle-experience-first/SKILL.md: sha256:58903529d733b1c1a7c9ccf127d45ef3c7d0d9f0b81164a4dc6b80efe6f2912b
-    .agents/skills/principle-explain-the-number/SKILL.md: sha256:eded672d8c4c07e79055695ec2525639e7d3a80165d75ae3dac1fe3401079ffa
     .agents/skills/principle-fix-root-causes/SKILL.md: sha256:b554cb2f0a6ef9dad8a918cdf0209bc220747edb2605b5447dc6439ef670aea7
     .agents/skills/principle-foundational-thinking/SKILL.md: sha256:113eb90368bdb115262088a695b0ac51e5be185bf03157b7657440276510cedd
     .agents/skills/principle-guard-the-context-window/SKILL.md: sha256:b009d6dc0dac2b5266fdd6f2890dceec920bd87a5a2026b064134295606bcc53
     .agents/skills/principle-laziness-protocol/SKILL.md: sha256:0bccb1f0b1009e0ac0e687b8bfce8b956c595175e37874ce53e2fc370efab792
     .agents/skills/principle-make-operations-idempotent/SKILL.md: sha256:ead9208f9cb0e68dcdbabec0ce3138a8a647d6ce7e5ca1fec71b87e91fdf74e6
     .agents/skills/principle-migrate-callers-then-delete-legacy-apis/SKILL.md: sha256:9a02e9d50d1135e62069fbd496905956c291e22dd64f002c2cd8dfe0071201ab
-    .agents/skills/principle-minimize-reader-load/SKILL.md: sha256:430b46da1cdc4255bb6b43e6cf85eb7c281a5238789800ceecdab13d63450460
     .agents/skills/principle-model-the-domain/SKILL.md: sha256:6cc287efaf809ab3b057a1ca630d62e22d1458070875f2f0d23beb6489b86713
     .agents/skills/principle-never-block-on-the-human/SKILL.md: sha256:05030a7a083c337676f793881b4e93cd218e8f1dd676529f56e6ac1d3efb8d1f
     .agents/skills/principle-outcome-oriented-execution/SKILL.md: sha256:415e6ca95f3cf061ce4f995f55144d2ecb8b6a4a20092da34c87d26da9a0a068
@@ -542,12 +463,6 @@ dependencies:
     .agents/skills/principle-subtract-before-you-add/SKILL.md: sha256:8c93bb9d1a7f38e2ef37655d93f0e790fa59903105af3d500cc8a663ebe45f3f
     .agents/skills/principle-test-behavior-not-implementation/SKILL.md: sha256:760e04a4e09049bb9eabe68c473f0b33fcedd3c64caefaa85c810a0a5fc308be
     .agents/skills/principle-type-system-discipline/SKILL.md: sha256:5cdaf79785e3c12b2592b9469ee8c272143eb86ab7a18d8382197cea5fd30106
-    .agents/skills/recall/SKILL.md: sha256:9cc9934c9e947bc9c7d74ae666abbcc9e54c5310327c4bd21935c4a88df21135
-    .agents/skills/reflect/SKILL.md: sha256:997e11d45ea9037290ba443a96e05cd624f98b57e0f91d74a97b38862564d9ae
-    .agents/skills/reflect/references/divergent-reviewer.md: sha256:b8e12572a40bc742abb2bec5f2c4af9ed46e55a2606afb118dd0a34bdf99dbc7
-    .agents/skills/reflect/references/judgment-reviewer.md: sha256:59c217afa4121c9f04b2a887e3a9f1b612434d0c420cc70d25c638fd3261957a
-    .agents/skills/reflect/references/synthesizer.md: sha256:a0354c534722f7d49aa61e1de2b2e883595c0e3d8f17a87e05fbdf64d92a40cb
-    .agents/skills/reflect/references/tooling-reviewer.md: sha256:5302ed4632ae64b8fabadfc56c63a4586ea1ca2989a1f0d79a0143e69b9ae4ff
     .agents/skills/setup-pstack/SKILL.md: sha256:58d1253f5c8011573afc1a01b7869d4d8b351347a76a72d12c4ba3d27bfbb6aa
     .agents/skills/sharpen/SKILL.md: sha256:563dfc460c605d311e650726288e2f1cbd61eab817db178d6e7e29643e07e7a2
     .agents/skills/show-me-your-work/SKILL.md: sha256:f7d045cc940bb37d4c1ae20b8a31935c269b19b126a64858c0b07a924cf3e7ec
@@ -744,9 +659,83 @@ dependencies:
   declared_license: MIT
 - repo_url: samuel-harris/foundry
   materialization_repo_url: Samuel-Harris/foundry
+  name: repo-init
+  host: github.com
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
+  resolved_ref: main
+  version: 0.1.0
+  virtual_path: packages/repo-init
+  is_virtual: true
+  package_type: apm_package
+  deployed_files:
+  - .agents/skills/monorepo-init
+  - .agents/skills/monorepo-init/SKILL.md
+  - .agents/skills/monorepo-init/references/agents-md.md
+  - .agents/skills/monorepo-init/references/archetypes.md
+  - .agents/skills/monorepo-init/references/decision-framework.md
+  - .agents/skills/monorepo-init/references/python-stack.md
+  - .agents/skills/monorepo-init/references/retrofit.md
+  - .agents/skills/monorepo-init/references/scaffold-components.md
+  - .agents/skills/monorepo-init/references/typescript-stack.md
+  - .agents/skills/terraform-monorepo-init
+  - .agents/skills/terraform-monorepo-init/SKILL.md
+  - .agents/skills/terraform-monorepo-init/references/architecture-and-contracts.md
+  - .agents/skills/terraform-monorepo-init/references/discovery-and-planning.md
+  - .agents/skills/terraform-monorepo-init/references/implementation-and-acceptance.md
+  - .agents/skills/terraform-monorepo-init/references/sources.md
+  - .agents/skills/terraform-monorepo-init/references/validation-and-github.md
+  - .claude/skills/monorepo-init
+  - .claude/skills/monorepo-init/SKILL.md
+  - .claude/skills/monorepo-init/references/agents-md.md
+  - .claude/skills/monorepo-init/references/archetypes.md
+  - .claude/skills/monorepo-init/references/decision-framework.md
+  - .claude/skills/monorepo-init/references/python-stack.md
+  - .claude/skills/monorepo-init/references/retrofit.md
+  - .claude/skills/monorepo-init/references/scaffold-components.md
+  - .claude/skills/monorepo-init/references/typescript-stack.md
+  - .claude/skills/terraform-monorepo-init
+  - .claude/skills/terraform-monorepo-init/SKILL.md
+  - .claude/skills/terraform-monorepo-init/references/architecture-and-contracts.md
+  - .claude/skills/terraform-monorepo-init/references/discovery-and-planning.md
+  - .claude/skills/terraform-monorepo-init/references/implementation-and-acceptance.md
+  - .claude/skills/terraform-monorepo-init/references/sources.md
+  - .claude/skills/terraform-monorepo-init/references/validation-and-github.md
+  deployed_file_hashes:
+    .agents/skills/monorepo-init/SKILL.md: sha256:6df567ed67568c83e0899bd065e9c37bf306cf01f45ca6c292c4e9326e47387f
+    .agents/skills/monorepo-init/references/agents-md.md: sha256:b47336940383a353ebf84e6fbc726ad1db116613e5bb594bc1d89bdd53914d18
+    .agents/skills/monorepo-init/references/archetypes.md: sha256:94ae8fada9b89afb398957ddc2cafa348b196ad3f0dc2a43ad83fda6c79f00f2
+    .agents/skills/monorepo-init/references/decision-framework.md: sha256:61aecace526a9144ee2585350fc99d381e3322df4cd53ae9ce52d2361dfdb1f8
+    .agents/skills/monorepo-init/references/python-stack.md: sha256:23f5b4b04546166e2cd23fbc1dd3b095ad001b103243449927b6b3c74cde38fc
+    .agents/skills/monorepo-init/references/retrofit.md: sha256:6b176bf45d5e08d0fc750d56379b3103d02ebf2191676a2be242e15882b013e5
+    .agents/skills/monorepo-init/references/scaffold-components.md: sha256:458145391eacfa251a68d65ce8d3ff4c5d1ee9479780dba668c3830a6e3ca3ae
+    .agents/skills/monorepo-init/references/typescript-stack.md: sha256:edcc65d5caad06aa5e0ef977e35275fc2444cfdbd71d19dc24e774e069cdf39d
+    .agents/skills/terraform-monorepo-init/SKILL.md: sha256:06a7a76d771cd46b09a074a55d61bdb1fd9ba089549dfe5d94ccae3de05a7b83
+    .agents/skills/terraform-monorepo-init/references/architecture-and-contracts.md: sha256:ed189b20f88c5fb50eba1a1ba47d30e84c521720940bdeb5276b571a05ec665a
+    .agents/skills/terraform-monorepo-init/references/discovery-and-planning.md: sha256:18b2b434f7f8f4183a5c8f98d390fd9ce910a006f16f1c551716e11c3080bf83
+    .agents/skills/terraform-monorepo-init/references/implementation-and-acceptance.md: sha256:8a2448e16889640766893ff8f0e6674619c3b10ed8337204975f1e63a2f404b3
+    .agents/skills/terraform-monorepo-init/references/sources.md: sha256:bec9d7afb97b32032c05830e64130ddc55fa44ece096f8f50481adb7beec990c
+    .agents/skills/terraform-monorepo-init/references/validation-and-github.md: sha256:68bb24522abc717c1fa8484ea242332a643b792a3f8b5bde23f4839088ee7ff1
+    .claude/skills/monorepo-init/SKILL.md: sha256:6df567ed67568c83e0899bd065e9c37bf306cf01f45ca6c292c4e9326e47387f
+    .claude/skills/monorepo-init/references/agents-md.md: sha256:b47336940383a353ebf84e6fbc726ad1db116613e5bb594bc1d89bdd53914d18
+    .claude/skills/monorepo-init/references/archetypes.md: sha256:94ae8fada9b89afb398957ddc2cafa348b196ad3f0dc2a43ad83fda6c79f00f2
+    .claude/skills/monorepo-init/references/decision-framework.md: sha256:61aecace526a9144ee2585350fc99d381e3322df4cd53ae9ce52d2361dfdb1f8
+    .claude/skills/monorepo-init/references/python-stack.md: sha256:23f5b4b04546166e2cd23fbc1dd3b095ad001b103243449927b6b3c74cde38fc
+    .claude/skills/monorepo-init/references/retrofit.md: sha256:6b176bf45d5e08d0fc750d56379b3103d02ebf2191676a2be242e15882b013e5
+    .claude/skills/monorepo-init/references/scaffold-components.md: sha256:458145391eacfa251a68d65ce8d3ff4c5d1ee9479780dba668c3830a6e3ca3ae
+    .claude/skills/monorepo-init/references/typescript-stack.md: sha256:edcc65d5caad06aa5e0ef977e35275fc2444cfdbd71d19dc24e774e069cdf39d
+    .claude/skills/terraform-monorepo-init/SKILL.md: sha256:06a7a76d771cd46b09a074a55d61bdb1fd9ba089549dfe5d94ccae3de05a7b83
+    .claude/skills/terraform-monorepo-init/references/architecture-and-contracts.md: sha256:ed189b20f88c5fb50eba1a1ba47d30e84c521720940bdeb5276b571a05ec665a
+    .claude/skills/terraform-monorepo-init/references/discovery-and-planning.md: sha256:18b2b434f7f8f4183a5c8f98d390fd9ce910a006f16f1c551716e11c3080bf83
+    .claude/skills/terraform-monorepo-init/references/implementation-and-acceptance.md: sha256:8a2448e16889640766893ff8f0e6674619c3b10ed8337204975f1e63a2f404b3
+    .claude/skills/terraform-monorepo-init/references/sources.md: sha256:bec9d7afb97b32032c05830e64130ddc55fa44ece096f8f50481adb7beec990c
+    .claude/skills/terraform-monorepo-init/references/validation-and-github.md: sha256:68bb24522abc717c1fa8484ea242332a643b792a3f8b5bde23f4839088ee7ff1
+  content_hash: sha256:823f4fe085f44713fdf81df11fb57a75bc7bf2d439eac7d7f6e6cdabf7781137
+  declared_license: MIT
+- repo_url: samuel-harris/foundry
+  materialization_repo_url: Samuel-Harris/foundry
   name: coding-style
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.2
   virtual_path: packages/coding-style
@@ -768,9 +757,31 @@ dependencies:
   declared_license: MIT
 - repo_url: samuel-harris/foundry
   materialization_repo_url: Samuel-Harris/foundry
+  name: deep-interview
+  host: github.com
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
+  resolved_ref: main
+  version: 0.1.0
+  virtual_path: packages/deep-interview
+  is_virtual: true
+  depth: 2
+  resolved_by: Samuel-Harris/foundry
+  package_type: apm_package
+  deployed_files:
+  - .agents/skills/deep-interview
+  - .agents/skills/deep-interview/SKILL.md
+  - .claude/skills/deep-interview
+  - .claude/skills/deep-interview/SKILL.md
+  deployed_file_hashes:
+    .agents/skills/deep-interview/SKILL.md: sha256:adee4e91e2f4d157787d89f380f47bf3787f41b0940b5644f85264d07c918326
+    .claude/skills/deep-interview/SKILL.md: sha256:adee4e91e2f4d157787d89f380f47bf3787f41b0940b5644f85264d07c918326
+  content_hash: sha256:a541368115b612ce6a4f019c74c6a08fb3e211906901639741bb0fb7836355c2
+  declared_license: MIT
+- repo_url: samuel-harris/foundry
+  materialization_repo_url: Samuel-Harris/foundry
   name: execution
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/execution
@@ -792,7 +803,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: git-diff
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/git-diff
@@ -826,7 +837,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: planning
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/planning
@@ -856,7 +867,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: pr
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/pr
@@ -890,7 +901,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: repo-maintenance
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/repo-maintenance
@@ -944,7 +955,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: review
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/review
@@ -986,7 +997,7 @@ dependencies:
   materialization_repo_url: Samuel-Harris/foundry
   name: skill-creation
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/skill-creation
@@ -1006,31 +1017,9 @@ dependencies:
   declared_license: MIT
 - repo_url: samuel-harris/foundry
   materialization_repo_url: Samuel-Harris/foundry
-  name: deep-interview
-  host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
-  resolved_ref: main
-  version: 0.1.0
-  virtual_path: packages/deep-interview
-  is_virtual: true
-  depth: 3
-  resolved_by: Samuel-Harris/foundry
-  package_type: apm_package
-  deployed_files:
-  - .agents/skills/deep-interview
-  - .agents/skills/deep-interview/SKILL.md
-  - .claude/skills/deep-interview
-  - .claude/skills/deep-interview/SKILL.md
-  deployed_file_hashes:
-    .agents/skills/deep-interview/SKILL.md: sha256:adee4e91e2f4d157787d89f380f47bf3787f41b0940b5644f85264d07c918326
-    .claude/skills/deep-interview/SKILL.md: sha256:adee4e91e2f4d157787d89f380f47bf3787f41b0940b5644f85264d07c918326
-  content_hash: sha256:a541368115b612ce6a4f019c74c6a08fb3e211906901639741bb0fb7836355c2
-  declared_license: MIT
-- repo_url: samuel-harris/foundry
-  materialization_repo_url: Samuel-Harris/foundry
   name: explore
   host: github.com
-  resolved_commit: 30c4c98f617c0362e3cf501336fc917dd8b142d7
+  resolved_commit: bddca3bf4be39f479af41d2fc1d18fcc4494a456
   resolved_ref: main
   version: 0.1.0
   virtual_path: packages/explore
@@ -1632,6 +1621,87 @@ deployments:
   - samuel-harris/foundry/packages/planning
   active_owner: samuel-harris/foundry/packages/planning
   content_hash: sha256:3dc6566cb0aa69930b815231fb7ab72d932a2f97d5c8d0c1fdb800aa634952cf
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:6df567ed67568c83e0899bd065e9c37bf306cf01f45ca6c292c4e9326e47387f
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/agents-md.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:b47336940383a353ebf84e6fbc726ad1db116613e5bb594bc1d89bdd53914d18
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/archetypes.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:94ae8fada9b89afb398957ddc2cafa348b196ad3f0dc2a43ad83fda6c79f00f2
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/decision-framework.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:61aecace526a9144ee2585350fc99d381e3322df4cd53ae9ce52d2361dfdb1f8
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/python-stack.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:23f5b4b04546166e2cd23fbc1dd3b095ad001b103243449927b6b3c74cde38fc
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/retrofit.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:6b176bf45d5e08d0fc750d56379b3103d02ebf2191676a2be242e15882b013e5
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/scaffold-components.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:458145391eacfa251a68d65ce8d3ff4c5d1ee9479780dba668c3830a6e3ca3ae
+- kind: project-relative
+  target: claude
+  value: .claude/skills/monorepo-init/references/typescript-stack.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:edcc65d5caad06aa5e0ef977e35275fc2444cfdbd71d19dc24e774e069cdf39d
 - kind: project-relative
   target: claude
   value: .claude/skills/no-comments
@@ -2849,6 +2919,69 @@ deployments:
   content_hash: sha256:7f7b005c20cfed77b5e10dc77a623eeae09fccccafc1089ac9614b7a4ee39ece
 - kind: project-relative
   target: claude
+  value: .claude/skills/terraform-monorepo-init
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/terraform-monorepo-init/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:06a7a76d771cd46b09a074a55d61bdb1fd9ba089549dfe5d94ccae3de05a7b83
+- kind: project-relative
+  target: claude
+  value: .claude/skills/terraform-monorepo-init/references/architecture-and-contracts.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:ed189b20f88c5fb50eba1a1ba47d30e84c521720940bdeb5276b571a05ec665a
+- kind: project-relative
+  target: claude
+  value: .claude/skills/terraform-monorepo-init/references/discovery-and-planning.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:18b2b434f7f8f4183a5c8f98d390fd9ce910a006f16f1c551716e11c3080bf83
+- kind: project-relative
+  target: claude
+  value: .claude/skills/terraform-monorepo-init/references/implementation-and-acceptance.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:8a2448e16889640766893ff8f0e6674619c3b10ed8337204975f1e63a2f404b3
+- kind: project-relative
+  target: claude
+  value: .claude/skills/terraform-monorepo-init/references/sources.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:bec9d7afb97b32032c05830e64130ddc55fa44ece096f8f50481adb7beec990c
+- kind: project-relative
+  target: claude
+  value: .claude/skills/terraform-monorepo-init/references/validation-and-github.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:68bb24522abc717c1fa8484ea242332a643b792a3f8b5bde23f4839088ee7ff1
+- kind: project-relative
+  target: claude
   value: .claude/skills/thermo-nuclear-code-quality-review
   runtime: null
   scope: project
@@ -3092,51 +3225,6 @@ deployments:
   content_hash: sha256:9b2d4d61c392267a2bf22d0a54bd970acc4ad5c921ea5925f8e845459df0e29f
 - kind: project-relative
   target: cursor
-  value: .agents/skills/architect
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/architect/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:4df6693d760a991f470c2a9611d55ffcdece56cacfc15f7ce778266ed52a76a9
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/architect/references/design-red-flags.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:6851acb68728048a9a01038c68654612f184719c84d465500f596cafea48c627
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/architect/references/rationale-template.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:73b7ae46a678c9fd40ea968cc1bd5e350eb6583a269f4d79e072964b37f32fc5
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/architect/references/runner-prompt.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:10d5a91722b7f9eeef241b566b906b6283513f4367a64796676f801a1d386598
-- kind: project-relative
-  target: cursor
   value: .agents/skills/arena
   runtime: null
   scope: project
@@ -3279,24 +3367,6 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:6ff3f98e79ea83142d0ff01a07e145f128c9472da282a6f7e0e5d72b01fa1e8b
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/create-formal-verification-skill
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/create-formal-verification-skill/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:603177c1f9c067c100711b7ca686d64f25960610cbc97eb0647378560619a21e
 - kind: project-relative
   target: cursor
   value: .agents/skills/create-verification-skill
@@ -3560,42 +3630,6 @@ deployments:
   content_hash: sha256:9ff58aaecb898d89e56fa74f0996824028fd08f90ef20831d9b7887bc333d1b9
 - kind: project-relative
   target: cursor
-  value: .agents/skills/ketchup
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/ketchup-video
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/ketchup-video/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:cf91b61399fe85bb70459bb04383855019fabdd0b593d08b405c39fff420d94b
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/ketchup/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:44293c5d1fd007a6fd496d8468a59e196fa6b703e0d3fae2f99e1ad305b4b6d4
-- kind: project-relative
-  target: cursor
   value: .agents/skills/maintain-formal-verification-skill
   runtime: null
   scope: project
@@ -3677,6 +3711,87 @@ deployments:
   content_hash: sha256:3dc6566cb0aa69930b815231fb7ab72d932a2f97d5c8d0c1fdb800aa634952cf
 - kind: project-relative
   target: cursor
+  value: .agents/skills/monorepo-init
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: null
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:6df567ed67568c83e0899bd065e9c37bf306cf01f45ca6c292c4e9326e47387f
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/agents-md.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:b47336940383a353ebf84e6fbc726ad1db116613e5bb594bc1d89bdd53914d18
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/archetypes.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:94ae8fada9b89afb398957ddc2cafa348b196ad3f0dc2a43ad83fda6c79f00f2
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/decision-framework.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:61aecace526a9144ee2585350fc99d381e3322df4cd53ae9ce52d2361dfdb1f8
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/python-stack.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:23f5b4b04546166e2cd23fbc1dd3b095ad001b103243449927b6b3c74cde38fc
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/retrofit.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:6b176bf45d5e08d0fc750d56379b3103d02ebf2191676a2be242e15882b013e5
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/scaffold-components.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:458145391eacfa251a68d65ce8d3ff4c5d1ee9479780dba668c3830a6e3ca3ae
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/monorepo-init/references/typescript-stack.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:edcc65d5caad06aa5e0ef977e35275fc2444cfdbd71d19dc24e774e069cdf39d
+- kind: project-relative
+  target: cursor
   value: .agents/skills/no-comments
   runtime: null
   scope: project
@@ -3747,195 +3862,6 @@ deployments:
   - samuel-harris/foundry/packages/repo-maintenance
   active_owner: samuel-harris/foundry/packages/repo-maintenance
   content_hash: sha256:0eef0d85caf2f09391ff7a30b562eefdffe12d12f6eb6e9b9689d23c3292dc64
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:d3880befc6abb949951d120899e3203c299ec4c27832870cd9190eda1fae865e
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/01-setup.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:55f1c388df64506d14dca0066ecfa07d543cdc729d9ecc16426ce022c15a64da
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/02-poteto-mode.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:199e499a096dcf575b75acc58f762a30c15a0f0bfc55dada9ae2f42599473561
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/03-understand.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:da49170a2d6f5e3e955a4a3d220a7917018467aa4efeab9fa91d8aaae534545d
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/04-design.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:1efe3a3378dc0b992634685b2efb41fd0ecaf9e312d060ce2f953bd90eed4eaf
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/05-build-and-clean.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:66dcc41e55c4708030c68fb62bfd1b6b2d3312cdb5cef7da7902fe6d95b6263f
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/06-verify-and-ship.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:e02786ef39e7edf26e8b3188a133772e9beec1d92baaaae1fbe1f2e036f92380
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/07-overnight.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:39fb3e8c46ea9dcd2fcb50f37a4585dad38f3e6d11c48034d79c0e34eb7b0c5e
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/08-principles.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:8f6f3688fba73d664c13415bc74b6b25ec2e4338270ee512bec367bba7f835c6
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/09-make-it-yours.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:87417513b1e1addbae94b3ec193eed42830e09dbe096f77d702db228bc888a31
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/10-recipes-and-pitfalls.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:8d056a95e0be34dfc577a97f8ced294ffdceb8163dc21bc78a6f89ee8d8cd95c
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/README.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:8029539535aa01727a63bbdba620e5bef463076f0c20db108c5c0840cbbb9d40
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/images/design.jpg
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:b8ed07427f6a0c37dd8ba97961fc0eb5071efeee6c4a230648bdb7547f6f2a8f
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/images/overnight.jpg
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:4b4405e4df8925c5b3abbe702f681af0f3b1f5f32271b599f95717f578f1a0c8
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/images/recipes.jpg
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:9fa2d51b476635712737795ddef81806efaa0086bb3bfa9f9f45695d9ab0f8e8
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/images/router.jpg
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:525843055a4efd2b10acc50a8652fd02b0834ea733a8a2f895c1eb89036017da
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/images/understanding.jpg
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:b60587e9a9bbe2550e93be9819cf0cd4acf77d90fac769a0c43d82bd8e34e279
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/guide/images/verification.jpg
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:2a76b52007a1cd2866ba67fd47d7d9ef3e1118bb5a09c4665eee8c3f161bd09a
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/prompting.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:da55d284628a3c84e8e38cb5331775583e517bbde93797fd264be49e523c738a
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/poteto-help/references/recipes.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:5323aca73a39a3b607c2bb22cd33551fe893563dfd4b104df838da010e9fc702
 - kind: project-relative
   target: cursor
   value: .agents/skills/poteto-mode
@@ -4271,24 +4197,6 @@ deployments:
   content_hash: sha256:010481a0692d7fb9c222ce7976113f72664b568edc68f23506777a8e599f21d5
 - kind: project-relative
   target: cursor
-  value: .agents/skills/principle-attack-the-premise
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-attack-the-premise/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:de909589b0b6369680aee9fb1efd6cb76b0764df0ea5055e96023534ad32ab71
-- kind: project-relative
-  target: cursor
   value: .agents/skills/principle-boundary-discipline
   runtime: null
   scope: project
@@ -4305,24 +4213,6 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:ce620a9df50674e113821e22b568dbabfd6236a124f0dcefc56d64a0bdfabcff
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-build-the-lever
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-build-the-lever/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:48b47feff6a930ae8b1c5e94ea7462378b4957e28c5d7d3d6d3f4878e0377ddd
 - kind: project-relative
   target: cursor
   value: .agents/skills/principle-encode-lessons-in-structure
@@ -4377,24 +4267,6 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:58903529d733b1c1a7c9ccf127d45ef3c7d0d9f0b81164a4dc6b80efe6f2912b
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-explain-the-number
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-explain-the-number/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:eded672d8c4c07e79055695ec2525639e7d3a80165d75ae3dac1fe3401079ffa
 - kind: project-relative
   target: cursor
   value: .agents/skills/principle-fix-root-causes
@@ -4503,24 +4375,6 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:9a02e9d50d1135e62069fbd496905956c291e22dd64f002c2cd8dfe0071201ab
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-minimize-reader-load
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/principle-minimize-reader-load/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:430b46da1cdc4255bb6b43e6cf85eb7c281a5238789800ceecdab13d63450460
 - kind: project-relative
   target: cursor
   value: .agents/skills/principle-model-the-domain
@@ -4701,78 +4555,6 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:5cdaf79785e3c12b2592b9469ee8c272143eb86ab7a18d8382197cea5fd30106
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/recall
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/recall/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:9cc9934c9e947bc9c7d74ae666abbcc9e54c5310327c4bd21935c4a88df21135
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/reflect
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: null
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/reflect/SKILL.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:997e11d45ea9037290ba443a96e05cd624f98b57e0f91d74a97b38862564d9ae
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/reflect/references/divergent-reviewer.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:b8e12572a40bc742abb2bec5f2c4af9ed46e55a2606afb118dd0a34bdf99dbc7
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/reflect/references/judgment-reviewer.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:59c217afa4121c9f04b2a887e3a9f1b612434d0c420cc70d25c638fd3261957a
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/reflect/references/synthesizer.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:a0354c534722f7d49aa61e1de2b2e883595c0e3d8f17a87e05fbdf64d92a40cb
-- kind: project-relative
-  target: cursor
-  value: .agents/skills/reflect/references/tooling-reviewer.md
-  runtime: null
-  scope: project
-  owners:
-  - samuel-harris/foundry/packages/pstack
-  active_owner: samuel-harris/foundry/packages/pstack
-  content_hash: sha256:5302ed4632ae64b8fabadfc56c63a4586ea1ca2989a1f0d79a0143e69b9ae4ff
 - kind: project-relative
   target: cursor
   value: .agents/skills/setup-pstack
@@ -5223,6 +5005,69 @@ deployments:
   - samuel-harris/foundry/packages/pstack
   active_owner: samuel-harris/foundry/packages/pstack
   content_hash: sha256:7f7b005c20cfed77b5e10dc77a623eeae09fccccafc1089ac9614b7a4ee39ece
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: null
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:06a7a76d771cd46b09a074a55d61bdb1fd9ba089549dfe5d94ccae3de05a7b83
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init/references/architecture-and-contracts.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:ed189b20f88c5fb50eba1a1ba47d30e84c521720940bdeb5276b571a05ec665a
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init/references/discovery-and-planning.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:18b2b434f7f8f4183a5c8f98d390fd9ce910a006f16f1c551716e11c3080bf83
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init/references/implementation-and-acceptance.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:8a2448e16889640766893ff8f0e6674619c3b10ed8337204975f1e63a2f404b3
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init/references/sources.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:bec9d7afb97b32032c05830e64130ddc55fa44ece096f8f50481adb7beec990c
+- kind: project-relative
+  target: cursor
+  value: .agents/skills/terraform-monorepo-init/references/validation-and-github.md
+  runtime: null
+  scope: project
+  owners:
+  - samuel-harris/foundry/packages/repo-init
+  active_owner: samuel-harris/foundry/packages/repo-init
+  content_hash: sha256:68bb24522abc717c1fa8484ea242332a643b792a3f8b5bde23f4839088ee7ff1
 - kind: project-relative
   target: cursor
   value: .agents/skills/thermo-nuclear-code-quality-review
