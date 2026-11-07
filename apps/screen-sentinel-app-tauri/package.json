@@ -1,5 +1,5 @@
 {
-  "name": "screen-sentinel",
+  "name": "@screen-sentinel/app",
   "private": true,
   "scripts": {
     "dev": "next dev -p 1420",
@@ -122,9 +122,5 @@
     "typescript": "^5.9.3",
     "vitest": "^1.6.1",
     "wdio-video-reporter": "^6.0.0"
-  },
-  "packageManager": "bun@1.3.10",
-  "trustedDependencies": [
-    "@sentry/cli"
-  ]
+  }
 }

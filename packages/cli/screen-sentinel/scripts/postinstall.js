@@ -6,8 +6,13 @@
 const { spawnSync } = require("node:child_process");
 const { existsSync } = require("node:fs");
 const { hostname } = require("node:os");
-const { join } = require("node:path");
+const { join, sep } = require("node:path");
 const https = require("node:https");
+
+const installedFromRegistry = __dirname.split(sep).includes("node_modules");
+if (!installedFromRegistry) {
+  process.exit(0);
+}
 
 function firstEnv(names) {
   for (const name of names) {

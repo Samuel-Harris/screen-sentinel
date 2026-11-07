@@ -1,0 +1,15 @@
+{
+  "name": "@screen-sentinel/source",
+  "private": true,
+  "workspaces": [
+    "apps/screen-sentinel-app-tauri",
+    "packages/screen-sentinel-mcp",
+    "packages/cli",
+    "packages/cli/*",
+    "packages/e2e"
+  ],
+  "packageManager": "bun@1.3.10",
+  "trustedDependencies": [
+    "@sentry/cli"
+  ]
+}

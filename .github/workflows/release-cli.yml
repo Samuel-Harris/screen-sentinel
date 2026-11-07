@@ -622,7 +622,7 @@ jobs:
         run: |
           for pkg in Screen Sentinel screen-sentinel-darwin-arm64 screen-sentinel-darwin-x64 screen-sentinel-linux-x64 screen-sentinel-win32-x64; do
             cd packages/cli/$pkg
-            npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version 2>/dev/null || true
+            npm version ${{ env.VERSION }} --no-git-tag-version --allow-same-version --workspaces=false 2>/dev/null || true
             cd ../../..
           done
           # Update optionalDependencies versions in main package
@@ -649,7 +649,7 @@ jobs:
           for pkg in screen-sentinel-darwin-arm64 screen-sentinel-darwin-x64 screen-sentinel-linux-x64 screen-sentinel-win32-x64; do
             cd packages/cli/$pkg
             err=$(mktemp)
-            if npm publish --access public 2>"$err"; then
+            if npm publish --access public --workspaces=false 2>"$err"; then
               echo "::notice::published $pkg"
             else
               if grep -q "You cannot publish over the previously published versions" "$err"; then
@@ -701,7 +701,7 @@ jobs:
         run: |
           cd packages/cli/screen-sentinel
           err=$(mktemp)
-          if npm publish --access public 2>"$err"; then
+          if npm publish --access public --workspaces=false 2>"$err"; then
             echo "::notice::published main package"
           else
             if grep -q "You cannot publish over the previously published versions" "$err"; then
