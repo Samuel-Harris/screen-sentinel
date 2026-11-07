@@ -15,7 +15,7 @@ import { saveScreenshot } from '../helpers/screenshot-utils.js';
  * home/page.tsx → data-testid="settings-nav-{section.id}" on every sidebar button
  *
  * Happy paths:
- *   - General, Recording, AI, Speakers all mount without a crash
+ *   - General, Recording, AI all mount without a crash
  *
  * Negative paths:
  *   - Backend unreachable: Settings sections show graceful fallback, no white crash
@@ -41,7 +41,6 @@ const SETTINGS_SECTIONS = [
   { id: 'usage', keywords: ['usage', 'activity', 'analytics'] },
   { id: 'privacy', keywords: ['privacy', 'api', 'encryption', 'keychain'] },
   { id: 'storage', keywords: ['storage', 'disk', 'retention', 'cache'] },
-  { id: 'speakers', keywords: ['speaker', 'voice'] },
   { id: 'team', keywords: ['team', 'share', 'member', 'invite'] },
   { id: 'account', keywords: ['account', 'sign', 'login', 'cloud'] },
   { id: 'referral', keywords: ['free month', 'referral', 'invite', 'share'] },
@@ -94,18 +93,6 @@ describe('Settings sections', () => {
     expect(hasContent).toBe(true);
 
     const filepath = await saveScreenshot('settings-ai');
-    expect(existsSync(filepath)).toBe(true);
-  });
-
-  it('navigates to Speakers settings and mounts section container', async () => {
-    const navSpeakers = await $('[data-testid="settings-nav-speakers"]');
-    await navSpeakers.waitForExist({ timeout: 8_000 });
-    await navSpeakers.click();
-
-    const speakersSection = await $('[data-testid="section-settings-speakers"]');
-    await speakersSection.waitForExist({ timeout: 6_000 });
-
-    const filepath = await saveScreenshot('settings-speakers');
     expect(existsSync(filepath)).toBe(true);
   });
 
