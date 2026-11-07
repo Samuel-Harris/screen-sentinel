@@ -83,8 +83,6 @@ pub struct RecordingConfig {
 
     // Misc
     pub use_chinese_mirror: bool,
-    pub analytics_enabled: bool,
-    pub analytics_id: String,
 
     /// Persisted power mode preference ("auto", "performance", "battery_saver").
     /// Restored from settings on startup so the user's choice survives app restarts.
@@ -192,8 +190,6 @@ impl RecordingConfig {
             user_id: settings.effective_user_id().map(|s| s.to_string()),
             video_quality: settings.video_quality.clone(),
             use_chinese_mirror: settings.use_chinese_mirror,
-            analytics_enabled: settings.analytics_enabled,
-            analytics_id: settings.analytics_id.clone(),
             power_mode: settings.power_mode.clone(),
             db_config: settings
                 .device_tier

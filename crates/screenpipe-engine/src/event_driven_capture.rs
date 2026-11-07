@@ -654,7 +654,7 @@ pub async fn event_driven_capture_loop(
     let mut last_elements_cache: HashMap<String, (i64, i64)> = HashMap::new();
     // Debounce consecutive capture errors — log error! once on first failure,
     // then suppress until success. Prevents monitor disconnect from flooding
-    // Sentry with 100k+ identical events.
+    // the log with 100k+ identical lines.
     let mut consecutive_capture_errors: u32 = 0;
     // Whether an HD (high-FPS) session is currently active. Refreshed each
     // tick from the controller snapshot below. When true, content dedup is
@@ -1427,7 +1427,7 @@ pub async fn event_driven_capture_loop(
                         state.mark_captured();
 
                         if consecutive_capture_errors == 1 {
-                            // First failure — log at error level (shows in Sentry)
+                            // First failure — log at error level
                             error!(
                                 "event capture failed (trigger={}, monitor={}): {}",
                                 trigger.as_str(),
@@ -1435,7 +1435,7 @@ pub async fn event_driven_capture_loop(
                                 e
                             );
                         } else if consecutive_capture_errors.is_multiple_of(100) {
-                            // Periodic reminder at warn level (no Sentry flood)
+                            // Periodic reminder at warn level
                             warn!(
                                 "monitor {} capture still failing ({} consecutive errors): {}",
                                 monitor_id, consecutive_capture_errors, e

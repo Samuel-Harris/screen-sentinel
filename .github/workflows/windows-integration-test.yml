@@ -162,7 +162,6 @@ jobs:
         $arguments = @(
           "record",
           "--debug",
-          "--disable-telemetry",
           "--audio-transcription-engine",
           "disabled",
           "--data-dir",
