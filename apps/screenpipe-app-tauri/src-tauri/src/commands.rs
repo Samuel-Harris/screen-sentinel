@@ -5,7 +5,6 @@
 use crate::{
     native_notification, native_shortcut_reminder,
     store::{OnboardingStore, SettingsStore},
-    updates::is_enterprise_build,
     window::{RewindWindowId, ShowRewindWindow},
 };
 use tauri::{Emitter, Manager};
@@ -13,14 +12,9 @@ use tracing::{debug, error, info, warn};
 
 /// Log a `WebviewWindowBuilder::build()` failure with structured context.
 ///
-/// Why: Sentry events for webview build failures currently say only
-/// "failed to create webview: WebView2 error: …". Without knowing which
-/// window was being built (pipe-store, login, notifications, etc.) we
-/// can't triage.
-///
-/// Tracing's `sentry` layer (see `main.rs`) maps structured fields to
-/// Sentry tags, so `webview_label` and `webview_url` become filterable
-/// tags in the Sentry dashboard.
+/// Why: a bare "failed to create webview: WebView2 error: …" does not say
+/// which window was being built (login, notifications, etc.), so the
+/// structured fields carry the label and URL.
 ///
 /// Call at every `WebviewWindowBuilder::build()` error site instead of
 /// a bare `error!(...)`. Return the error unchanged — this function is
@@ -98,58 +92,6 @@ fn native_notif_action_callback_inner(json_ptr: *const std::os::raw::c_char) {
         return;
     }
 
-    // Compound meeting action: open the actual call URL, then route the app to
-    // the live note. This is intentionally separate from generic link/deeplink
-    // handling because meeting-start notifications need both side effects.
-    if action_type == Some("meeting_join") {
-        let meeting_url = parsed
-            .as_ref()
-            .and_then(|v| v.get("url"))
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-        let deeplink_url = parsed
-            .as_ref()
-            .and_then(|v| v.get("deeplink_url").or_else(|| v.get("deeplinkUrl")))
-            .and_then(|v| v.as_str())
-            .map(str::to_string);
-
-        let Some(meeting_url) = meeting_url else {
-            warn!("meeting_join notification action has no url: {}", json);
-            return;
-        };
-
-        let app_clone = app.clone();
-        std::thread::spawn(move || {
-            use tauri_plugin_opener::OpenerExt;
-            if let Err(e) = app_clone.opener().open_url(&meeting_url, None::<&str>) {
-                error!(
-                    "failed to open meeting url '{}' from notification: {}",
-                    meeting_url, e
-                );
-            }
-
-            let Some(deeplink_url) = deeplink_url else {
-                return;
-            };
-            if !is_meeting_deeplink(&deeplink_url) {
-                return;
-            }
-
-            let app_for_show = app_clone.clone();
-            let _ = app_clone.run_on_main_thread(move || {
-                if let Err(e) = (ShowRewindWindow::Home {
-                    page: Some("meetings".to_string()),
-                })
-                .show(&app_for_show)
-                {
-                    error!("failed to show window for meeting_join: {}", e);
-                }
-            });
-            emit_meeting_note_route_with_retries(&app_clone, &deeplink_url);
-        });
-        return;
-    }
-
     // URL-opening actions. Two distinct semantics, explicit types so senders
     // can't conflate them:
     //   "link"      → external URL, opened in the user's default browser
@@ -183,27 +125,14 @@ fn native_notif_action_callback_inner(json_ptr: *const std::os::raw::c_char) {
         let app_clone = app.clone();
         std::thread::spawn(move || {
             if is_in_app {
-                let target = if is_meeting_deeplink(&url) {
-                    ShowRewindWindow::Home {
-                        page: Some("meetings".to_string()),
-                    }
-                } else {
-                    ShowRewindWindow::Main
-                };
-                // Show the target surface first. Meeting links should not flash
-                // Main/timeline before routing into Home -> Meeting notes.
                 let app_for_show = app_clone.clone();
                 let _ = app_clone.run_on_main_thread(move || {
-                    if let Err(e) = target.show(&app_for_show) {
+                    if let Err(e) = ShowRewindWindow::Main.show(&app_for_show) {
                         error!("failed to show window for deeplink: {}", e);
                     }
                 });
-                if is_meeting_deeplink(&url) {
-                    emit_meeting_note_route_with_retries(&app_clone, &url);
-                } else {
-                    std::thread::sleep(std::time::Duration::from_millis(150));
-                    let _ = app_clone.emit("deep-link-received", url);
-                }
+                std::thread::sleep(std::time::Duration::from_millis(150));
+                let _ = app_clone.emit("deep-link-received", url);
             } else {
                 // External URL — hand off to the opener plugin.
                 use tauri_plugin_opener::OpenerExt;
@@ -215,100 +144,14 @@ fn native_notif_action_callback_inner(json_ptr: *const std::os::raw::c_char) {
         return;
     }
 
-    // Everything else (pipe, api, mute, dismiss, auto_dismiss, legacy string
-    // actions) still goes to the JS handler. The overlay window owns those
-    // because they need access to posthog / localforage / chat prefill.
+    // Everything else (api, mute, dismiss, auto_dismiss, legacy string
+    // actions) still goes to the JS handler.
     let _ = app.emit("native-notification-action", &json);
-}
-
-#[cfg(any(target_os = "macos", test))]
-fn is_meeting_deeplink(url: &str) -> bool {
-    url.starts_with("screenpipe://meeting/") || url.starts_with("screenpipe://meeting?")
-}
-
-#[cfg(target_os = "macos")]
-fn parse_meeting_deeplink(url: &str) -> Option<(u64, bool)> {
-    if !is_meeting_deeplink(url) {
-        return None;
-    }
-
-    let (base, query) = url.split_once('?').unwrap_or((url, ""));
-    let path_id = base
-        .strip_prefix("screenpipe://meeting/")
-        .and_then(|rest| rest.split('/').next())
-        .filter(|id| !id.is_empty());
-    let query_id = query.split('&').find_map(|part| {
-        let (key, value) = part.split_once('=')?;
-        (key == "id" && !value.is_empty()).then_some(value)
-    });
-    let meeting_id = path_id.or(query_id)?.parse::<u64>().ok()?;
-    let transcript = query
-        .split('&')
-        .find_map(|part| {
-            let (key, value) = part.split_once('=')?;
-            (key == "live").then_some(value != "0")
-        })
-        .unwrap_or(true);
-
-    Some((meeting_id, transcript))
-}
-
-#[cfg(target_os = "macos")]
-fn emit_meeting_note_route_with_retries(app: &tauri::AppHandle, deeplink_url: &str) {
-    let Some((meeting_id, transcript)) = parse_meeting_deeplink(deeplink_url) else {
-        warn!(
-            "invalid meeting deeplink from notification: {}",
-            deeplink_url
-        );
-        return;
-    };
-
-    let payload = serde_json::json!({
-        "meetingId": meeting_id,
-        "transcript": transcript,
-    });
-    let nav = serde_json::json!({ "url": "/home?section=meetings" });
-
-    // A notification click can cold-open the Home webview. React listeners are
-    // not guaranteed to be mounted when `show()` returns, so a single emit is
-    // lossy. Retry briefly; opening the same meeting note is idempotent and this
-    // makes one user click survive window startup, route changes, and slow dev
-    // builds.
-    for delay_ms in [150_u64, 500, 1200, 2200] {
-        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-        let _ = app.emit("navigate", nav.clone());
-        let _ = app.emit("open-meeting-note", payload.clone());
-    }
 }
 
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
-    use super::{fallback_local_api_config, parse_meeting_deeplink};
-
-    #[test]
-    fn parses_meeting_deeplink_path_id() {
-        assert_eq!(
-            parse_meeting_deeplink("screenpipe://meeting/123"),
-            Some((123, true))
-        );
-    }
-
-    #[test]
-    fn parses_meeting_deeplink_query_id_and_live_flag() {
-        assert_eq!(
-            parse_meeting_deeplink("screenpipe://meeting?id=456&live=0"),
-            Some((456, false))
-        );
-    }
-
-    #[test]
-    fn rejects_invalid_meeting_deeplink() {
-        assert_eq!(
-            parse_meeting_deeplink("screenpipe://meeting/not-a-number"),
-            None
-        );
-        assert_eq!(parse_meeting_deeplink("screenpipe://settings"), None);
-    }
+    use super::fallback_local_api_config;
 
     // Regression for b7dc02415: `get_local_api_config` returned {key: null}
     // during the cold-spawn window between webview load and `spawn_screenpipe`
@@ -371,11 +214,6 @@ fn native_shortcut_action_callback_inner(action_ptr: *const std::os::raw::c_char
                         let _ = ShowRewindWindow::Main.show(&app_for_show);
                     });
                 }
-                "open_chat" => {
-                    let _ = app_clone.run_on_main_thread(move || {
-                        let _ = ShowRewindWindow::Chat.show(&app_for_show);
-                    });
-                }
                 "open_search" => {
                     let _ = app_clone.run_on_main_thread(move || {
                         let _ = (ShowRewindWindow::Search { query: None }).show(&app_for_show);
@@ -386,88 +224,14 @@ fn native_shortcut_action_callback_inner(action_ptr: *const std::os::raw::c_char
                     let _ = app_clone.emit("native-shortcut-close", "");
                     native_shortcut_reminder::hide();
                 }
-                "toggle_meeting" => {
-                    // Directly call the meetings API instead of relying on JS
-                    // (the Main window may not be loaded when using the Swift overlay)
-                    use crate::recording::local_api_context_from_app;
-                    let api = local_api_context_from_app(&app_clone);
-                    let client = reqwest::blocking::Client::new();
-                    let status_req =
-                        api.apply_auth_blocking(client.get(api.url("/meetings/status")));
-                    let status: Option<serde_json::Value> = status_req
-                        .send()
-                        .ok()
-                        .and_then(|r| r.json::<serde_json::Value>().ok());
-                    let is_active = status.as_ref().and_then(|v| v["active"].as_bool());
-                    let stoppable_id = status
-                        .as_ref()
-                        .and_then(|v| v["stoppableMeetingId"].as_i64());
-                    match status {
-                        Some(_) if is_active == Some(true) => {
-                            let req = api.apply_auth_blocking(
-                                client
-                                    .post(api.url("/meetings/stop"))
-                                    .header("Content-Type", "application/json")
-                                    .body(serde_json::json!({ "id": stoppable_id }).to_string()),
-                            );
-                            if req.send().is_ok() {
-                                native_shortcut_reminder::set_meeting_active(false);
-                                let _ = app_clone.emit(
-                                    "native-shortcut-toggle-meeting",
-                                    serde_json::json!({
-                                        "active": false,
-                                        "manualActive": false,
-                                        "activeMeetingId": serde_json::Value::Null,
-                                        "stoppableMeetingId": serde_json::Value::Null,
-                                        "meetingApp": serde_json::Value::Null,
-                                        "detectionSource": serde_json::Value::Null,
-                                    }),
-                                );
-                            }
-                        }
-                        Some(_) if is_active == Some(false) => {
-                            let req = api.apply_auth_blocking(
-                                client
-                                    .post(api.url("/meetings/start"))
-                                    .header("Content-Type", "application/json")
-                                    .body(r#"{"app":"manual"}"#),
-                            );
-                            if let Ok(res) = req.send() {
-                                let meeting = res.json::<serde_json::Value>().ok();
-                                native_shortcut_reminder::set_meeting_active(true);
-                                let _ = app_clone.emit(
-                                    "native-shortcut-toggle-meeting",
-                                    serde_json::json!({
-                                        "active": true,
-                                        "manualActive": true,
-                                        "activeMeetingId": meeting.as_ref().and_then(|v| v["id"].as_i64()),
-                                        "stoppableMeetingId": meeting.as_ref().and_then(|v| v["id"].as_i64()),
-                                        "meetingApp": meeting.as_ref().and_then(|v| v["meeting_app"].as_str()),
-                                        "detectionSource": meeting.as_ref().and_then(|v| v["detection_source"].as_str()).unwrap_or("manual"),
-                                    }),
-                                );
-                            }
-                        }
-                        _ => {
-                            warn!("failed to check meeting status");
-                        }
-                    }
-                }
                 _ => {}
             }
         });
     }
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn is_enterprise_build_cmd(app_handle: tauri::AppHandle) -> bool {
-    is_enterprise_build(&app_handle)
-}
-
 /// Return the macOS bundle identifier of the running app
-/// (e.g. `screenpi.pe`, `screenpi.pe.beta`, `screenpi.pe.dev`,
-/// `screenpi.pe.enterprise`). The onboarding stuck-screen surfaces this so
+/// (e.g. `screenpi.pe`, `screenpi.pe.beta`, `screenpi.pe.dev`). The onboarding stuck-screen surfaces this so
 /// users who switched build channels (prod ↔ beta ↔ dev) can see they're
 /// looking at a *different* TCC record from the one they may have already
 /// granted under a sibling bundle id.
@@ -572,295 +336,6 @@ fn persist_api_auth_key_to_settings(
     Ok(())
 }
 
-/// Toggle the "Cloud audio + video + image analysis" capability
-/// in the screenpipe-api skill that Pi installs on every run.
-///
-/// Mechanism: the screenpipe-core `Pi::ensure_screenpipe_skill` reads
-/// `~/.screenpipe/cloud_media_analysis.disabled` at install time and
-/// conditionally appends the Gemma 4 E4B confidential-enclave section
-/// to `<project>/.pi/skills/screenpipe-api/SKILL.md`. Default (no
-/// marker) = enabled. This command just creates or removes the marker.
-///
-/// Why a marker file instead of editing the rendered skill: Pi rewrites
-/// the rendered skill from a compiled-in template on every run, so any
-/// post-install edits get overwritten on the next pipe execution. The
-/// only stable seam is at install time.
-///
-/// Idempotent. Effect takes hold on the next Pi run (next pipe
-/// execution or new pi-chat session).
-#[tauri::command]
-#[specta::specta]
-pub fn set_cloud_media_analysis_skill(enabled: bool) -> Result<(), String> {
-    let home = dirs::home_dir().ok_or_else(|| "no home directory".to_string())?;
-    let dir = home.join(".screenpipe");
-    let marker = dir.join("cloud_media_analysis.disabled");
-
-    if enabled {
-        // Default = enabled. Remove any marker file from a prior opt-out.
-        if marker.exists() {
-            std::fs::remove_file(&marker)
-                .map_err(|e| format!("remove {}: {e}", marker.display()))?;
-        }
-    } else {
-        std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {e}", dir.display()))?;
-        std::fs::write(
-            &marker,
-            "Opt-out marker — Pi will install the screenpipe-api skill \
-             without the Gemma 4 E4B confidential-enclave block. \
-             Delete this file (or toggle in Settings → Privacy) to \
-             re-enable cloud audio/video/image analysis.\n",
-        )
-        .map_err(|e| format!("write {}: {e}", marker.display()))?;
-    }
-    info!(
-        "cloud media analysis {} (marker: {})",
-        if enabled { "enabled" } else { "disabled" },
-        marker.display()
-    );
-    Ok(())
-}
-
-/// Read the enterprise license key from `enterprise.json`.
-/// Checks in order:
-/// 1. Next to executable (pushed via Intune/MDM to Program Files / .app bundle)
-/// 2. `~/.screenpipe/enterprise.json` (entered manually by employee via in-app prompt)
-/// Returns None if no file is found or is invalid.
-#[tauri::command]
-#[specta::specta]
-pub fn get_enterprise_license_key() -> Option<String> {
-    // Try MDM-deployed location first (next to executable)
-    if let Some(key) = read_enterprise_key_from_exe_dir() {
-        return Some(key);
-    }
-
-    // Fallback: ~/.screenpipe/enterprise.json (manually entered by employee)
-    let user_path = screenpipe_core::paths::default_screenpipe_data_dir().join("enterprise.json");
-    if user_path.exists() {
-        info!(
-            "enterprise: checking user config at {}",
-            user_path.display()
-        );
-        return read_enterprise_key_from_path(&user_path);
-    }
-
-    info!("enterprise: no enterprise.json found in any location");
-    None
-}
-
-fn read_enterprise_key_from_exe_dir() -> Option<String> {
-    let exe = match std::env::current_exe() {
-        Ok(e) => e,
-        Err(e) => {
-            warn!("enterprise: failed to get current_exe: {}", e);
-            return None;
-        }
-    };
-    let exe_dir = exe.parent()?;
-
-    let config_path = exe_dir.join("enterprise.json");
-
-    #[cfg(target_os = "macos")]
-    let config_path = if config_path.exists() {
-        config_path
-    } else {
-        exe_dir.join("../Resources/enterprise.json")
-    };
-
-    if !config_path.exists() {
-        info!(
-            "enterprise: no enterprise.json at {}",
-            config_path.display()
-        );
-        return None;
-    }
-
-    read_enterprise_key_from_path(&config_path)
-}
-
-fn read_enterprise_key_from_path(path: &std::path::Path) -> Option<String> {
-    info!("enterprise: found enterprise.json at {}", path.display());
-
-    let contents = match std::fs::read_to_string(path) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("enterprise: failed to read {}: {}", path.display(), e);
-            return None;
-        }
-    };
-    let parsed: serde_json::Value = match serde_json::from_str(&contents) {
-        Ok(v) => v,
-        Err(e) => {
-            error!("enterprise: failed to parse enterprise.json: {}", e);
-            return None;
-        }
-    };
-    let key = parsed
-        .get("license_key")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    match &key {
-        Some(k) => info!(
-            "enterprise: license key loaded ({}...)",
-            &k[..k.len().min(8)]
-        ),
-        None => warn!("enterprise: enterprise.json missing 'license_key' field"),
-    }
-
-    key
-}
-
-/// Save the enterprise license key to `~/.screenpipe/enterprise.json`.
-/// Used by the in-app prompt when enterprise.json is not deployed via MDM.
-#[tauri::command]
-#[specta::specta]
-pub fn save_enterprise_license_key(license_key: String) -> Result<(), String> {
-    let dir = screenpipe_core::paths::default_screenpipe_data_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create dir: {}", e))?;
-
-    let path = dir.join("enterprise.json");
-    let mut json = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
-    json["license_key"] = serde_json::Value::String(license_key);
-    std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap())
-        .map_err(|e| format!("failed to write {}: {}", path.display(), e))?;
-
-    info!("enterprise: license key saved to {}", path.display());
-    Ok(())
-}
-
-/// Read the enterprise admin API token (`team_api_token`) from
-/// `~/.screenpipe/enterprise.json`. Returns None when the file is
-/// missing, malformed, or the field is empty.
-///
-/// Used by the Settings → Enterprise → Admin API token card to render
-/// "configured" state without round-tripping the plaintext value through
-/// the React state. The token itself is treated as a secret: the
-/// frontend only learns "yes there's a value" via this getter, never
-/// gets the value back.
-#[tauri::command]
-#[specta::specta]
-pub fn get_enterprise_team_api_token() -> Option<String> {
-    let path = screenpipe_core::paths::default_screenpipe_data_dir().join("enterprise.json");
-    let raw = std::fs::read_to_string(&path).ok()?;
-    let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
-    parsed
-        .get("team_api_token")
-        .and_then(|t| t.as_str())
-        .filter(|s| !s.is_empty())
-        .map(String::from)
-}
-
-/// Read the user's screenpipe cloud session JWT from `~/.screenpipe/
-/// auth.json`. Returns None when the file is missing, malformed, or the
-/// token field is empty.
-///
-/// The settings store (`store.bin → user.token`) is the canonical
-/// runtime cache for this token but is only populated after a fresh
-/// in-app sign-in. `auth.json` is the durable on-disk copy written by
-/// the pi-agent configuration flow — it survives store resets and dev-
-/// mode launches where the in-memory user object hasn't been hydrated
-/// yet. Used by the enterprise-policy hook to send the Bearer header
-/// even when the in-app user object is still null.
-#[tauri::command]
-#[specta::specta]
-pub fn get_cloud_token() -> Option<String> {
-    let path = screenpipe_core::paths::default_screenpipe_data_dir().join("auth.json");
-    let raw = std::fs::read_to_string(&path).ok()?;
-    let parsed: serde_json::Value = serde_json::from_str(&raw).ok()?;
-    parsed
-        .get("token")
-        .and_then(|t| t.as_str())
-        .filter(|s| !s.is_empty())
-        .map(String::from)
-}
-
-/// Push a fresh cloud-auth token into the running sidecar.
-///
-/// The frontend invokes this on every sign-in (after `loadUser` writes
-/// `settings.user`) and on sign-out (passing `None`). Without it, the
-/// `Server.cloud_token` and `PiExecutor.user_token` captured at engine
-/// boot would be permanent for the lifetime of the sidecar process —
-/// users who signed in AFTER the engine started would stay on the
-/// gateway's anonymous tier (allowed_models = haiku/gemini only) on
-/// every pipe run, surfacing as `403 "model_not_allowed"` for any
-/// Sonnet/Opus preset even with an active Pro subscription. Logout +
-/// log-in from the webview alone does NOT restart the sidecar, which
-/// is why the previous user-facing workaround was "fully quit the
-/// app from the tray."
-///
-/// Both the local `/v1/chat/completions` proxy and the pi-agent's
-/// `models.json` apiKey share the same `Arc<ArcSwap<Option<String>>>`,
-/// so one write here updates both readers on the next pipe run.
-#[tauri::command]
-#[specta::specta]
-pub async fn set_cloud_token(
-    token: Option<String>,
-    state: tauri::State<'_, crate::recording::RecordingState>,
-) -> Result<(), String> {
-    let normalized = token.filter(|t| !t.is_empty());
-    state.cloud_token.store(std::sync::Arc::new(normalized));
-    Ok(())
-}
-
-/// Persist the user's enterprise admin status + team API token so the
-/// pi-agent's `screenpipe-team` skill knows whether to install itself.
-///
-/// Called by the frontend right after a policy fetch confirms admin
-/// role. Storing this alongside the license key in `enterprise.json`
-/// keeps everything pi-agent needs in one file the skill can read
-/// without a Tauri round-trip.
-///
-/// All fields are optional so callers can update one at a time —
-/// e.g. revoke admin without wiping the cached team token, or refresh
-/// just the token after a rotation. To FORCE a field to null, pass
-/// an empty string for strings or `false` for `is_admin`/`license_active`.
-#[tauri::command]
-#[specta::specta]
-pub fn save_enterprise_team_config(
-    is_admin: Option<bool>,
-    license_active: Option<bool>,
-    team_api_token: Option<String>,
-) -> Result<(), String> {
-    let dir = screenpipe_core::paths::default_screenpipe_data_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create dir: {}", e))?;
-
-    let path = dir.join("enterprise.json");
-    let mut json = std::fs::read_to_string(&path)
-        .ok()
-        .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
-
-    if let Some(v) = is_admin {
-        json["is_admin"] = serde_json::Value::Bool(v);
-    }
-    if let Some(v) = license_active {
-        json["license_active"] = serde_json::Value::Bool(v);
-    }
-    let token_set = team_api_token.is_some();
-    if let Some(t) = team_api_token {
-        json["team_api_token"] = if t.is_empty() {
-            serde_json::Value::Null
-        } else {
-            serde_json::Value::String(t)
-        };
-    }
-
-    std::fs::write(&path, serde_json::to_string_pretty(&json).unwrap())
-        .map_err(|e| format!("failed to write {}: {}", path.display(), e))?;
-
-    info!(
-        "enterprise: team config saved to {} (is_admin set: {}, license_active set: {}, token set: {})",
-        path.display(),
-        is_admin.is_some(),
-        license_active.is_some(),
-        token_set
-    );
-    Ok(())
-}
-
 #[tauri::command]
 #[specta::specta]
 pub fn write_browser_log(level: String, message: String) {
@@ -935,11 +410,6 @@ pub fn set_tray_health_icon(app_handle: tauri::AppHandle) {
 #[specta::specta]
 pub fn show_main_window(app_handle: tauri::AppHandle) {
     info!("show_main_window called");
-    if crate::enterprise_policy::is_app_ui_hidden() {
-        info!("enterprise: suppressing main window in hidden UI mode");
-        return;
-    }
-
     set_main_close_in_progress(false);
     let window_to_show = ShowRewindWindow::Main;
 
@@ -1046,171 +516,6 @@ pub fn e2e_shortcut_reminder_visible(app_handle: tauri::AppHandle) -> bool {
         .get_webview_window("shortcut-reminder")
         .and_then(|window| window.is_visible().ok())
         .unwrap_or(false)
-}
-
-#[derive(serde::Serialize, specta::Type)]
-pub struct E2eAgentStreamResult {
-    pub emitted_deltas: u32,
-    pub emit_ms: u64,
-}
-
-const E2E_AGENT_STREAM_BATCH_DELTAS: u32 = 10;
-const E2E_AGENT_STREAM_BATCH_DELAY_MS: u64 = 40;
-
-/// E2E helper: emit a deterministic chat stream from the Rust side.
-///
-/// This keeps chat performance tests close to production's Pi stdout path:
-/// one backend command starts the stream, then the app emits `agent_event`
-/// envelopes into the WebView. Tests avoid the extra WebView→Rust→WebView
-/// bridge hop that would come from calling `plugin:event|emit` for every token.
-#[tauri::command]
-#[specta::specta]
-pub async fn e2e_emit_agent_stream(
-    app_handle: tauri::AppHandle,
-    session_id: String,
-    delta_count: u32,
-) -> Result<E2eAgentStreamResult, String> {
-    if !cfg!(feature = "e2e") {
-        return Err("e2e_emit_agent_stream is only available in e2e builds".to_string());
-    }
-
-    let start = std::time::Instant::now();
-    let emit_event = |event: serde_json::Value| -> Result<(), String> {
-        app_handle
-            .emit(
-                "agent_event",
-                serde_json::json!({
-                    "source": "pi",
-                    "sessionId": &session_id,
-                    "event": event,
-                }),
-            )
-            .map_err(|e| e.to_string())
-    };
-
-    emit_event(serde_json::json!({
-        "type": "message_start",
-        "message": { "role": "assistant" },
-    }))?;
-
-    let mut pending_delta = String::new();
-    for i in 0..delta_count {
-        pending_delta.push_str(&format!("token-{} ", i));
-        if (i + 1) % E2E_AGENT_STREAM_BATCH_DELTAS == 0 || i + 1 == delta_count {
-            let delta = std::mem::take(&mut pending_delta);
-            emit_event(serde_json::json!({
-                "type": "message_update",
-                "assistantMessageEvent": {
-                    "type": "text_delta",
-                    "delta": delta,
-                },
-            }))?;
-            if i + 1 < delta_count {
-                tokio::time::sleep(std::time::Duration::from_millis(
-                    E2E_AGENT_STREAM_BATCH_DELAY_MS,
-                ))
-                .await;
-            } else {
-                tokio::task::yield_now().await;
-            }
-        }
-    }
-
-    emit_event(serde_json::json!({ "type": "agent_end" }))?;
-
-    Ok(E2eAgentStreamResult {
-        emitted_deltas: delta_count,
-        emit_ms: start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
-    })
-}
-
-/// E2E helper for the scheduled-pipe path: feed synthetic pipe stdout
-/// through the same Rust-side callback adapter production uses, then let the
-/// frontend's default pipe handlers record it as a completed pipe run.
-#[tauri::command]
-#[specta::specta]
-pub async fn e2e_emit_pipe_stream(
-    app_handle: tauri::AppHandle,
-    pipe_name: String,
-    execution_id: i64,
-    delta_count: u32,
-) -> Result<E2eAgentStreamResult, String> {
-    if !cfg!(feature = "e2e") {
-        return Err("e2e_emit_pipe_stream is only available in e2e builds".to_string());
-    }
-
-    let pipe_name = if pipe_name.trim().is_empty() {
-        "e2e-pipe".to_string()
-    } else {
-        pipe_name
-    };
-    let start = std::time::Instant::now();
-    let emitter = crate::agent_event_emitter::PipeAgentEventEmitter::new(app_handle);
-    tokio::spawn(async move {
-        let emit_line = |event: serde_json::Value| -> Result<(), String> {
-            let line = serde_json::to_string(&event).map_err(|e| e.to_string())?;
-            emitter.emit_line(&pipe_name, execution_id, &line);
-            Ok(())
-        };
-
-        if let Err(e) = emit_line(serde_json::json!({
-            "type": "message_start",
-            "message": { "role": "assistant" },
-        })) {
-            warn!("e2e pipe stream failed to emit message_start: {}", e);
-            return;
-        }
-
-        let mut full_text = String::new();
-        for i in 0..delta_count {
-            let token = format!("pipe-token-{} ", i);
-            full_text.push_str(&token);
-            if let Err(e) = emit_line(serde_json::json!({
-                "type": "message_update",
-                "assistantMessageEvent": {
-                    "type": "text_delta",
-                    "delta": token,
-                },
-            })) {
-                warn!("e2e pipe stream failed to emit text_delta: {}", e);
-                return;
-            }
-            if (i + 1) % 40 == 0 && i + 1 < delta_count {
-                tokio::time::sleep(std::time::Duration::from_millis(60)).await;
-            }
-        }
-
-        if let Err(e) = emit_line(serde_json::json!({
-            "type": "agent_end",
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": "Time range: 2026-01-01T00:00:00Z to 2026-01-01T00:05:00Z\nExecute the pipe now."
-                        }
-                    ]
-                },
-                {
-                    "role": "assistant",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": full_text
-                        }
-                    ]
-                }
-            ]
-        })) {
-            warn!("e2e pipe stream failed to emit agent_end: {}", e);
-        }
-    });
-
-    Ok(E2eAgentStreamResult {
-        emitted_deltas: delta_count,
-        emit_ms: start.elapsed().as_millis().min(u128::from(u64::MAX)) as u64,
-    })
 }
 
 /// Enable click-through mode on the main overlay window (Windows only)
@@ -1363,83 +668,6 @@ pub fn update_show_screenpipe_shortcut(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn open_pipe_window(
-    app_handle: tauri::AppHandle,
-    port: u16,
-    title: String,
-) -> Result<(), String> {
-    // Close existing window if it exists
-    if let Some(existing_window) = app_handle.get_webview_window(&title) {
-        if let Err(e) = existing_window.destroy() {
-            error!("failed to destroy existing window: {}", e);
-        }
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    }
-
-    let url = format!("http://localhost:{}", port);
-    #[allow(unused_mut)]
-    let mut builder = tauri::WebviewWindowBuilder::new(
-        &app_handle,
-        &title,
-        tauri::WebviewUrl::External(url.parse().unwrap()),
-    )
-    .title(title.clone())
-    .inner_size(1200.0, 850.0)
-    .min_inner_size(600.0, 400.0)
-    .focused(true)
-    .fullscreen(false);
-
-    #[cfg(target_os = "macos")]
-    {
-        builder = builder.hidden_title(true);
-    }
-
-    let window = match builder.build().map(crate::window::finalize_webview_window) {
-        Ok(window) => window,
-        Err(e) => {
-            log_webview_build_failure(&title, &url, &e);
-            return Err(format!("failed to create window: {}", e));
-        }
-    };
-
-    // flag to prevent infinite loop
-    let is_closing = std::sync::Arc::new(std::sync::Mutex::new(false));
-    let is_closing_clone = std::sync::Arc::clone(&is_closing);
-
-    // event listener for the window close event
-    let window_clone = window.clone();
-    window.on_window_event(move |event| {
-        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-            let mut is_closing = is_closing_clone.lock().unwrap_or_else(|e| e.into_inner());
-            if *is_closing {
-                return;
-            }
-            *is_closing = true;
-            if window_clone.is_fullscreen().unwrap_or(false) {
-                let _ = window_clone.destroy();
-            } else {
-                api.prevent_close();
-                let _ = window_clone.close();
-            }
-        }
-    });
-
-    // Only try to manipulate window if creation succeeded
-    if let Err(e) = window.set_focus() {
-        error!("failed to set window focus: {}", e);
-    }
-    if let Err(e) = window.show() {
-        error!("failed to show window: {}", e);
-    }
-
-    #[cfg(target_os = "macos")]
-    crate::window::reset_to_regular_and_refresh_tray(&app_handle);
-
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub async fn get_disk_usage(
     _app_handle: tauri::AppHandle,
     force_refresh: Option<bool>,
@@ -1547,76 +775,17 @@ pub async fn open_login_window(app_handle: tauri::AppHandle) -> Result<(), Strin
     }
 }
 
-/// Open Google Calendar OAuth inside an in-app WebView.
-/// Same pattern as `open_login_window` — intercepts the screenpipe:// deep-link
-/// redirect so we don't rely on Safari custom-scheme support.
-#[allow(dead_code)] // invoked via Tauri IPC, not direct Rust calls
-#[tauri::command]
-#[specta::specta]
-pub async fn open_google_calendar_auth_window(
-    app_handle: tauri::AppHandle,
-    auth_url: String,
-) -> Result<(), String> {
-    use tauri::{WebviewUrl, WebviewWindowBuilder};
-
-    let label = "google-calendar-auth";
-
-    // If already open, just focus it
-    if let Some(w) = app_handle.get_webview_window(label) {
-        let _ = w.show();
-        let _ = w.set_focus();
-        return Ok(());
-    }
-
-    let app_for_nav = app_handle.clone();
-
-    let parsed_url = auth_url.parse().map_err(|e| format!("invalid url: {e}"))?;
-    let mut builder =
-        WebviewWindowBuilder::new(&app_handle, label, WebviewUrl::External(parsed_url))
-            .title("connect google calendar")
-            .inner_size(500.0, 700.0)
-            .focused(true);
-
-    #[cfg(target_os = "macos")]
-    {
-        builder = builder.hidden_title(true);
-    }
-
-    builder = builder.on_navigation(move |url| {
-        if url.scheme() == "screenpipe" {
-            info!("google calendar auth window intercepted deep link: {}", url);
-            let _ = app_for_nav.emit("deep-link-received", url.to_string());
-            if let Some(w) = app_for_nav.get_webview_window("google-calendar-auth") {
-                let _ = w.close();
-            }
-            false // block navigation to custom scheme
-        } else {
-            true // allow all https navigations (Google OAuth, etc.)
-        }
-    });
-    builder
-        .build()
-        .map(crate::window::finalize_webview_window)
-        .map_err(|e| {
-            log_webview_build_failure(label, &auth_url, &e);
-            e.to_string()
-        })?;
-
-    Ok(())
-}
-
 #[tauri::command]
 #[specta::specta]
 pub async fn show_window(
     app_handle: tauri::AppHandle,
     window: ShowRewindWindow,
 ) -> Result<(), String> {
-    // Close Main window when opening other windows, EXCEPT for Chat and Search
-    // Chat overlays on top of Main (level 1002 vs 1001)
+    // Close Main window when opening other windows, EXCEPT for Search
     let window_id = window.id();
     if !matches!(
         window_id,
-        RewindWindowId::Main | RewindWindowId::Chat | RewindWindowId::Search
+        RewindWindowId::Main | RewindWindowId::Search
     ) {
         // Hide Main without restoring the previous frontmost app — we're
         // transitioning to another screenpipe window so focus should stay
@@ -2215,14 +1384,6 @@ fn shortcut_reminder_payload(
         )),
     );
     map.insert(
-        "chat".to_string(),
-        serde_json::Value::String(shortcut_reminder_label(
-            &settings.show_chat_shortcut,
-            "showChatShortcut",
-            &settings.disabled_shortcuts,
-        )),
-    );
-    map.insert(
         "search".to_string(),
         serde_json::Value::String(shortcut_reminder_label(
             &settings.search_shortcut,
@@ -2309,20 +1470,13 @@ pub async fn show_shortcut_reminder(
                 let guard = state.server.lock().await;
                 if let Some(ref core) = *guard {
                     let mut metrics_ws_url = format!("ws://127.0.0.1:{}/ws/metrics", core.port);
-                    let mut events_ws_url =
-                        format!("ws://127.0.0.1:{}/ws/meeting-status", core.port);
                     if let Some(ref key) = core.local_api_key {
                         let enc = urlencoding::encode(key);
                         metrics_ws_url = format!("{}?token={}", metrics_ws_url, enc);
-                        events_ws_url = format!("{}?token={}", events_ws_url, enc);
                     }
                     map.insert(
                         "metrics_ws_url".to_string(),
                         serde_json::json!(metrics_ws_url),
-                    );
-                    map.insert(
-                        "events_ws_url".to_string(),
-                        serde_json::json!(events_ws_url),
                     );
                 }
             }
@@ -2595,7 +1749,7 @@ pub async fn show_notification_panel(
         if native_notification::is_available() {
             info!("Using native SwiftUI notification panel");
             if native_notification::show(&payload) {
-                // Emit event so the main window can save notification history + PostHog analytics
+                // Emit event so the main window can save notification history
                 // (the webview panel page does this in JS, but we bypass it with native)
                 let _ = app_handle.emit("native-notification-shown", &payload);
                 return Ok(());
@@ -2918,7 +2072,7 @@ static MAIN_CLOSE_IN_PROGRESS: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 /// Unregister window-specific shortcuts when main window is hidden.
-/// Only unregisters Escape and arrow keys. Global shortcuts (search, show, chat)
+/// Only unregisters Escape and arrow keys. Global shortcuts (search, show)
 /// are NOT touched here — they must persist across window show/hide cycles.
 #[tauri::command]
 #[specta::specta]

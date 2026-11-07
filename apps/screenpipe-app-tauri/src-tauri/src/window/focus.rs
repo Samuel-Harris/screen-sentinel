@@ -94,7 +94,7 @@ pub fn clear_frontmost_app() {
 
 /// Check if our own app (screenpipe) is still the active macOS application.
 /// When the overlay panel loses focus to another screenpipe window (Settings,
-/// Chat, Search), NSApp.isActive remains true. When focus goes to an external
+/// Search), NSApp.isActive remains true. When focus goes to an external
 /// app, it becomes false. This lets us decide whether to restore the previous
 /// frontmost app or just clear it.
 #[cfg(target_os = "macos")]
@@ -112,7 +112,7 @@ fn is_own_app_still_active() -> bool {
 
 /// Conditionally restore or clear the saved frontmost app.
 /// If our own app is still active (focus moved to another screenpipe window
-/// like Settings), we just clear without restoring — otherwise Settings/Chat
+/// like Settings), we just clear without restoring — otherwise Settings
 /// would lose keyboard focus. Also skip restoring if any screenpipe window
 /// (like Settings) is still open — during workspace swipes the app
 /// deactivates briefly but we don't want to pull another app to the front.
@@ -126,11 +126,11 @@ pub(crate) fn restore_frontmost_app_if_external_with_app(app: Option<&AppHandle>
         return;
     }
 
-    // Check if Settings, Chat, or Search windows exist in Tauri's registry.
+    // Check if Settings or Search windows exist in Tauri's registry.
     // These are regular windows (not panels) that may be on another Space —
     // we don't want to activate a previous app and bury them.
     if let Some(app) = app {
-        let non_panel_labels = ["home", "chat", "search"];
+        let non_panel_labels = ["home", "search"];
         for label in &non_panel_labels {
             if app.get_webview_window(label).is_some() {
                 info!(
