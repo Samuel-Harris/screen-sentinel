@@ -1,5 +1,5 @@
-[workspace]
-
+# tauri-helper e25ff1d (local-crates/tauri_helper_core/src/lib.rs:13) searches upward for a
+# Cargo.toml whose text contains "[workspace]" and uses it as the crate root. This line stops it here.
 [package]
 name = "screen-sentinel-app"
 version = "2.5.28"
@@ -232,41 +232,3 @@ tempfile = "3"
 # screen-sentinel-redact: workspace dep added for async PII reconciliation (PR #3188);
 # wiring lands in a follow-up. Cargo compiles it for the workspace either way.
 ignored = ["tauri-utils", "screen-sentinel-redact"]
-
-[patch.crates-io]
-# macOS tray menus can outlive the Rust `Menu` that created them while the
-# native menu is open. This fork stores an Rc<MenuChild> on NSMenuItem instead
-# of a raw pointer so stale AppKit items keep their Rust click data alive.
-# Pinned by commit (not branch) for reproducible builds; drop once
-# upstream tauri-apps/muda#361 merges and ships in a released muda.
-muda = { git = "https://github.com/divanshu-go/muda", rev = "9dc5de53e84040a63c9a5423b669ec892de8a671" }
-
-[profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
-strip = true
-
-# Fast local release builds: cargo build --profile release-dev
-[profile.release-dev]
-inherits = "release"
-lto = "thin"
-codegen-units = 16
-incremental = true
-
-# Maximum-speed local builds for updater e2e harness — no optimization, fastest compile.
-# Trades runtime perf and binary size for compile speed.
-[profile.release-local]
-inherits = "release"
-lto = false
-codegen-units = 16
-incremental = true
-opt-level = 1
-debug = false
-
-# Faster dev builds
-[profile.dev]
-opt-level = 0
-
-[profile.dev.package."*"]
-opt-level = 2
