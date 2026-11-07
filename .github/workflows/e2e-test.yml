@@ -264,7 +264,9 @@ jobs:
 
   linux-e2e-test:
     name: Linux E2E Tests
-    runs-on: ubuntu-latest
+    # Ubuntu 26.04 (ubuntu-latest since October 2026) ships no
+    # webkit2gtk-driver package, which tauri-driver needs on Linux.
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
