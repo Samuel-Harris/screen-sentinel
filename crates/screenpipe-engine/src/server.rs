@@ -8,7 +8,6 @@ use oasgen::Server;
 use chrono::{DateTime, Utc};
 use screenpipe_db::DatabaseManager;
 
-use screenpipe_audio::audio_manager::AudioManager;
 use screenpipe_core::sync::SyncServiceHandle;
 use tracing::{debug, error, info};
 
@@ -17,10 +16,6 @@ use crate::{
     hot_frame_cache::HotFrameCache,
     routes::{
         activity_summary::get_activity_summary,
-        audio::{
-            api_list_audio_devices, audio_device_status, start_audio, start_audio_device,
-            stop_audio, stop_audio_device,
-        },
         content::{
             add_tags, add_to_database, execute_raw_sql, get_tags_batch, merge_frames_handler,
             remove_tags, validate_media_handler,
@@ -31,36 +26,20 @@ use crate::{
             storage_preview_handler,
         },
         elements::{get_frame_elements, search_elements},
+        export::export_handler,
         frames::{
             get_frame_context, get_frame_data, get_frame_metadata, get_frame_text_data,
             get_next_valid_frame, run_frame_ocr,
         },
-        health::{
-            api_list_monitors, api_vision_status, audio_metrics_handler, health_check,
-            vision_metrics_handler,
-        },
-        meetings::{
-            bulk_delete_meetings_handler, delete_meeting_handler, export_handler,
-            get_meeting_handler, get_meeting_transcript_handler, list_meetings_handler,
-            meeting_status_handler, merge_meetings_handler, split_meeting_handler,
-            start_meeting_handler, stop_meeting_handler, update_meeting_handler,
-        },
+        health::{api_list_monitors, api_vision_status, health_check, vision_metrics_handler},
         memories::{
             create_memory_handler, delete_memory_handler, get_memory_handler,
             list_memories_handler, list_memory_tags_handler, sync_external_memories_handler,
             update_memory_handler,
         },
-        retranscribe::retranscribe_meeting_handler,
         search::{keyword_search_handler, search},
-        speakers::{
-            delete_speaker_handler, get_similar_speakers_handler, get_unnamed_speakers_handler,
-            mark_as_hallucination_handler, merge_speakers_handler, reassign_speaker_handler,
-            search_speakers_handler, undo_speaker_reassign_handler, update_speaker_handler,
-        },
         streaming::stream_frames_handler,
-        websocket::{
-            ws_events_handler, ws_health_handler, ws_meeting_status_handler, ws_metrics_handler,
-        },
+        websocket::{ws_events_handler, ws_health_handler, ws_metrics_handler},
     },
     sync_api::{self, SyncState},
     video_cache::FrameCache,
@@ -128,11 +107,9 @@ pub type SearchCache = MokaCache<u64, Arc<SearchResponse>>;
 
 pub struct AppState {
     pub db: Arc<DatabaseManager>,
-    pub audio_manager: Arc<AudioManager>,
     pub app_start_time: DateTime<Utc>,
     pub screenpipe_dir: PathBuf,
     pub vision_disabled: bool,
-    pub audio_disabled: bool,
     pub frame_cache: Option<Arc<FrameCache>>,
     pub frame_image_cache: Option<Arc<Mutex<FrameImageCache>>>,
     /// Counter for active WebSocket connections to prevent resource exhaustion
@@ -158,8 +135,6 @@ pub struct AppState {
     pub pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     /// Vision pipeline metrics (shared across all monitors)
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
-    /// Audio pipeline metrics (shared across all devices)
-    pub audio_metrics: Arc<screenpipe_audio::metrics::AudioPipelineMetrics>,
     /// Limits concurrent ffmpeg frame extractions to prevent CPU thrashing
     /// when many thumbnails are requested in parallel (e.g., search results).
     pub frame_extraction_semaphore: Arc<tokio::sync::Semaphore>,
@@ -175,8 +150,6 @@ pub struct AppState {
     pub retention_state: crate::retention::RetentionState,
     /// Vault lock manager — encrypts data at rest when locked
     pub vault: screenpipe_vault::VaultManager,
-    /// Active manually-started meeting id (set via POST /meetings/start, cleared via POST /meetings/stop)
-    pub manual_meeting: Arc<tokio::sync::RwLock<Option<i64>>>,
     /// Browser extension bridge — relays JS eval requests to the connected extension
     pub browser_bridge: Arc<crate::routes::browser::BrowserBridge>,
     /// Registry of every browser the agent can drive — user's real browser via
@@ -210,16 +183,13 @@ pub struct AppState {
 pub struct SCServer {
     db: Arc<DatabaseManager>,
     addr: SocketAddr,
-    audio_manager: Arc<AudioManager>,
     screenpipe_dir: PathBuf,
     vision_disabled: bool,
-    audio_disabled: bool,
     use_pii_removal: bool,
     sync_handle: Option<Arc<SyncServiceHandle>>,
     video_quality: String,
     pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
-    pub audio_metrics: Arc<screenpipe_audio::metrics::AudioPipelineMetrics>,
     /// Shared hot frame cache — set this before starting the server so AppState uses it.
     pub hot_frame_cache: Option<Arc<HotFrameCache>>,
     /// Power manager handle — set this before starting to enable /power endpoints.
@@ -227,8 +197,6 @@ pub struct SCServer {
     /// Shared pipe permission token registry — set before starting so PipeManager can use it.
     pub pipe_permissions:
         Arc<DashMap<String, Arc<screenpipe_core::pipes::permissions::PipePermissions>>>,
-    /// Shared manual meeting lock — pass in from binary so persister and server share the same state.
-    pub manual_meeting: Option<Arc<tokio::sync::RwLock<Option<i64>>>>,
     /// Owned browser instance — set by the desktop shell so it can attach an
     /// OwnedWebviewHandle once the Tauri WebviewWindow is created. If unset,
     /// the engine creates a default unattached instance and owned-browser
@@ -276,29 +244,22 @@ impl SCServer {
         addr: SocketAddr,
         screenpipe_dir: PathBuf,
         vision_disabled: bool,
-        audio_disabled: bool,
-        audio_manager: Arc<AudioManager>,
         use_pii_removal: bool,
         video_quality: String,
     ) -> Self {
-        let audio_metrics = audio_manager.metrics.clone();
         SCServer {
             db,
             addr,
             screenpipe_dir,
             vision_disabled,
-            audio_disabled,
-            audio_manager,
             use_pii_removal,
             sync_handle: None,
             video_quality,
             pipe_manager: None,
             vision_metrics: Arc::new(screenpipe_screen::PipelineMetrics::new()),
-            audio_metrics,
             hot_frame_cache: None,
             power_manager: None,
             pipe_permissions: Arc::new(DashMap::new()),
-            manual_meeting: None,
             owned_browser: None,
             api_auth: false,
             api_auth_key: None,
@@ -452,61 +413,9 @@ impl SCServer {
             }
         });
 
-        // Spawn periodic audio pipeline metrics reporter (every 60 seconds)
-        let audio_metrics_for_posthog = self.audio_metrics.clone();
-        let audio_manager_for_posthog = self.audio_manager.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
-            loop {
-                interval.tick().await;
-                let snap = audio_metrics_for_posthog.snapshot();
-                // Only report if the pipeline has processed any chunks
-                if snap.chunks_sent > 0 || snap.vad_rejected > 0 {
-                    let devices: Vec<String> = audio_manager_for_posthog
-                        .current_devices()
-                        .iter()
-                        .map(|d| d.to_string())
-                        .collect();
-                    let device_count = devices.len();
-                    analytics::capture_event_nonblocking(
-                        "audio_pipeline_health",
-                        json!({
-                            "uptime_secs": snap.uptime_secs,
-                            "chunks_sent": snap.chunks_sent,
-                            "chunks_received": snap.chunks_received,
-                            "chunks_channel_full": snap.chunks_channel_full,
-                            "stream_timeouts": snap.stream_timeouts,
-                            "process_errors": snap.process_errors,
-                            "vad_passed": snap.vad_passed,
-                            "vad_rejected": snap.vad_rejected,
-                            "avg_speech_ratio": snap.avg_speech_ratio,
-                            "vad_passthrough_rate": snap.vad_passthrough_rate,
-                            "transcriptions_completed": snap.transcriptions_completed,
-                            "transcriptions_empty": snap.transcriptions_empty,
-                            "transcription_errors": snap.transcription_errors,
-                            "db_inserted": snap.db_inserted,
-                            "db_duplicates_blocked": snap.db_duplicates_blocked,
-                            "db_overlaps_trimmed": snap.db_overlaps_trimmed,
-                            "total_words": snap.total_words,
-                            "words_per_minute": snap.words_per_minute,
-                            "audio_level_rms": snap.audio_level_rms,
-                            "segments_deferred": snap.segments_deferred,
-                            "segments_batch_processed": snap.segments_batch_processed,
-                            "batch_pause_events": snap.batch_pause_events,
-                            "batch_resume_events": snap.batch_resume_events,
-                            "audio_devices": devices,
-                            "audio_device_count": device_count,
-                        }),
-                    );
-                }
-            }
-        });
-
         // Use pre-set hot frame cache or create a new one, then warm from DB.
         // Spawn warm_from_db in the background — the cache starts empty but fills
         // within seconds. This avoids blocking server start for 40+ seconds on large DBs.
-        // WS clients that connect before warm completes will see frames without audio
-        // initially, then audio appears as the cache populates.
         let hot_frame_cache = self
             .hot_frame_cache
             .clone()
@@ -525,11 +434,9 @@ impl SCServer {
 
         let app_state = Arc::new(AppState {
             db: self.db.clone(),
-            audio_manager: self.audio_manager.clone(),
             app_start_time: Utc::now(),
             screenpipe_dir: self.screenpipe_dir.clone(),
             vision_disabled: self.vision_disabled,
-            audio_disabled: self.audio_disabled,
             frame_cache: match FrameCache::new(
                 self.screenpipe_dir.clone().join("data"),
                 self.db.clone(),
@@ -565,7 +472,6 @@ impl SCServer {
             api_request_count: api_request_count.clone(),
             pipe_manager: self.pipe_manager.clone(),
             vision_metrics: self.vision_metrics.clone(),
-            audio_metrics: self.audio_metrics.clone(),
             // Allow up to 3 concurrent ffmpeg extractions. Beyond this, requests
             // queue rather than thrashing CPU with 15+ parallel ffmpeg processes
             // (typical when search results load all thumbnails at once).
@@ -578,10 +484,6 @@ impl SCServer {
             retention_state: crate::retention::RetentionState::new(),
             pipe_permissions: self.pipe_permissions.clone(),
             vault: screenpipe_vault::VaultManager::new(self.screenpipe_dir.clone()),
-            manual_meeting: self
-                .manual_meeting
-                .clone()
-                .unwrap_or_else(|| Arc::new(tokio::sync::RwLock::new(None))),
             browser_bridge: crate::routes::browser::BrowserBridge::new(),
             browser_registry: screenpipe_connect::connections::browser::BrowserRegistry::new(),
             // Reuse the desktop-shell-supplied owned browser if present so its
@@ -632,7 +534,6 @@ impl SCServer {
             ]);
         let server = Server::axum()
             .get("/search", search)
-            .get("/audio/list", api_list_audio_devices)
             .get("/vision/list", api_list_monitors)
             .post("/tags/vision/batch", get_tags_batch)
             .post("/tags/:content_type/:id", add_tags)
@@ -648,30 +549,8 @@ impl SCServer {
             .get("/health", health_check)
             .post("/raw_sql", execute_raw_sql)
             .post("/add", add_to_database)
-            .get("/speakers/unnamed", get_unnamed_speakers_handler)
-            .post("/speakers/update", update_speaker_handler)
-            .get("/speakers/search", search_speakers_handler)
-            .post("/speakers/delete", delete_speaker_handler)
-            .post("/speakers/hallucination", mark_as_hallucination_handler)
-            .post("/speakers/merge", merge_speakers_handler)
-            .get("/speakers/similar", get_similar_speakers_handler)
-            .post("/speakers/reassign", reassign_speaker_handler)
-            .post("/speakers/undo-reassign", undo_speaker_reassign_handler)
-            .get("/meetings", list_meetings_handler)
-            .get("/meetings/status", meeting_status_handler)
-            .post("/meetings/merge", merge_meetings_handler)
-            // General export: meeting_id XOR start/end → MP4 (frames + synced audio).
             // HTTP twin of the `screenpipe export` CLI; used by the MCP export-video tool.
             .post("/export", export_handler)
-            .post("/meetings/bulk-delete", bulk_delete_meetings_handler)
-            .post("/meetings/start", start_meeting_handler)
-            .post("/meetings/stop", stop_meeting_handler)
-            .get("/meetings/:id/transcript", get_meeting_transcript_handler)
-            .get("/meetings/:id", get_meeting_handler)
-            .delete("/meetings/:id", delete_meeting_handler)
-            .put("/meetings/:id", update_meeting_handler)
-            .post("/meetings/:id/retranscribe", retranscribe_meeting_handler)
-            .post("/meetings/:id/split", split_meeting_handler)
             .post("/memories", create_memory_handler)
             .get("/memories", list_memories_handler)
             .get("/memories/tags", list_memory_tags_handler)
@@ -681,12 +560,7 @@ impl SCServer {
             .delete("/memories/:id", delete_memory_handler)
             .post("/experimental/frames/merge", merge_frames_handler)
             .get("/experimental/validate/media", validate_media_handler)
-            .post("/audio/start", start_audio)
-            .post("/audio/stop", stop_audio)
             .get("/search/keyword", keyword_search_handler)
-            .post("/audio/device/start", start_audio_device)
-            .post("/audio/device/stop", stop_audio_device)
-            .get("/audio/device/status", audio_device_status)
             .get("/elements", search_elements)
             .get("/frames/:frame_id/elements", get_frame_elements)
             .get("/activity-summary", get_activity_summary)
@@ -737,16 +611,14 @@ impl SCServer {
             .merge(server.into_router())
             // Vision status endpoint (not in OpenAPI spec — no State param)
             .route("/vision/status", get(api_vision_status))
-            // Vision/audio pipeline metrics (not in OpenAPI spec — external types)
+            // Vision pipeline metrics (not in OpenAPI spec — external types)
             .route("/vision/metrics", get(vision_metrics_handler))
-            .route("/audio/metrics", get(audio_metrics_handler))
-            // HD recording — bound sessions (meeting / timer / prewarm-pending),
-            // no indefinite mode. Every session has a natural end condition.
+            // HD recording — timer-bound sessions, no indefinite mode.
             // GET    /capture/hd            → current snapshot
-            // POST   /capture/hd/start      → { boundTo: "meeting"|"timer"|"prewarm_pending", meetingId?, durationSecs? }
+            // POST   /capture/hd/start      → { durationSecs }
             // POST   /capture/hd/stop       → clear active session
             // POST   /capture/hd/extend     → { additionalSecs } push expires_at back
-            // POST   /capture/hd/settings   → { defaultMode?, intervalMs? }
+            // POST   /capture/hd/settings   → { intervalMs? }
             .route("/capture/hd", get(crate::routes::capture::get_hd))
             .route(
                 "/capture/hd/start",
@@ -763,26 +635,6 @@ impl SCServer {
             .route(
                 "/capture/hd/settings",
                 axum::routing::post(crate::routes::capture::update_hd_settings),
-            )
-            // Retranscribe/transcribe (not in OpenAPI spec — opaque Response / multipart)
-            .route(
-                "/audio/reconciliation/backlog",
-                get(crate::routes::retranscribe::audio_reconciliation_backlog_handler),
-            )
-            .route(
-                "/audio/reconciliation/backlog/:audio_chunk_id",
-                axum::routing::delete(
-                    crate::routes::retranscribe::drop_audio_reconciliation_chunk_handler,
-                ),
-            )
-            .route(
-                "/audio/retranscribe",
-                axum::routing::post(crate::routes::retranscribe::retranscribe_handler),
-            )
-            .route(
-                "/v1/audio/transcriptions",
-                axum::routing::post(crate::routes::transcribe::transcribe_handler)
-                    .layer(axum::extract::DefaultBodyLimit::max(250 * 1024 * 1024)), // 250MB
             )
             // Local proxy → api.screenpipe.com/v1/chat/completions. Lets the
             // pi-agent's bash do cloud media analysis without ever seeing the
@@ -967,7 +819,6 @@ impl SCServer {
             .route("/stream/frames", get(stream_frames_handler))
             .route("/ws/events", get(ws_events_handler))
             .route("/ws/health", get(ws_health_handler))
-            .route("/ws/meeting-status", get(ws_meeting_status_handler))
             .route("/ws/metrics", get(ws_metrics_handler))
             // Browser extension bridge — DEPRECATED top-level paths.
             // Canonical paths now live under /connections/browser/* (see connections_api.rs).
@@ -1060,7 +911,6 @@ impl SCServer {
                             let path = req.uri().path();
                             if path == "/health"
                                 || path == "/ws/health"
-                                || path == "/audio/device/status"
                                 || path == "/connections/oauth/callback"
                                 || (path.starts_with("/mcp-servers/")
                                     && path.ends_with("/oauth/callback"))

@@ -62,8 +62,6 @@ async fn test_concurrent_ocr_searches_dont_starve_pool() {
                     None,
                     None,
                     None,
-                    None, // no max_length — worst case
-                    None,
                     None,
                     None,
                     None,
@@ -79,14 +77,14 @@ async fn test_concurrent_ocr_searches_dont_starve_pool() {
     }
 
     // While OCR searches are running, try a lightweight write-like operation
-    // (read from pool to simulate what audio/vision captures do)
+    // (read from pool to simulate what vision captures do)
     let db_write = db.clone();
     let write_task = tokio::spawn(async move {
         // Wait a bit for searches to start
         tokio::time::sleep(Duration::from_millis(100)).await;
         let start = Instant::now();
-        // Simple query that mimics what audio insert does (acquire a connection)
-        let result = sqlx::query("SELECT COUNT(*) FROM audio_chunks LIMIT 1")
+        // Simple query that mimics what a capture insert does (acquire a connection)
+        let result = sqlx::query("SELECT COUNT(*) FROM video_chunks LIMIT 1")
             .fetch_one(&db_write.pool)
             .await;
         let elapsed = start.elapsed();
@@ -155,8 +153,6 @@ async fn test_search_completes_within_timeout() {
             0,
             Some(one_hour_ago),
             Some(now),
-            None,
-            None,
             None,
             None,
             None,

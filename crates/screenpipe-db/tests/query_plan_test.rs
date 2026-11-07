@@ -171,38 +171,6 @@ mod query_plan_tests {
     }
 
     #[tokio::test]
-    async fn test_search_audio_with_time_range_uses_index() {
-        let db = setup_test_db().await;
-
-        let plan = explain(
-            &db,
-            r#"SELECT
-                audio_transcriptions.id,
-                audio_transcriptions.transcription,
-                audio_transcriptions.timestamp,
-                audio_chunks.file_path,
-                audio_transcriptions.device
-            FROM audio_transcriptions
-            JOIN audio_chunks ON audio_transcriptions.audio_chunk_id = audio_chunks.id
-            WHERE audio_transcriptions.timestamp >= '2020-01-01'
-              AND audio_transcriptions.timestamp <= '2030-01-01'
-            ORDER BY audio_transcriptions.timestamp DESC
-            LIMIT 20 OFFSET 0"#,
-        )
-        .await;
-
-        assert_uses_index(&plan, "search_audio_time_range");
-        let audio_scanned = plan
-            .iter()
-            .any(|l| l.contains("SCAN TABLE audio_transcriptions"));
-        assert!(
-            !audio_scanned,
-            "search_audio_time_range: audio_transcriptions scanned.\nPlan:\n{}",
-            plan.join("\n")
-        );
-    }
-
-    #[tokio::test]
     async fn test_search_accessibility_with_time_range_uses_index() {
         let db = setup_test_db().await;
 
@@ -263,36 +231,6 @@ mod query_plan_tests {
         assert!(
             !frames_scanned,
             "timeline frames query scans frames table.\nPlan:\n{}",
-            plan.join("\n")
-        );
-    }
-
-    #[tokio::test]
-    async fn test_timeline_audio_query_uses_index() {
-        let db = setup_test_db().await;
-
-        let plan = explain(
-            &db,
-            r#"SELECT
-                at.timestamp, at.transcription, at.device as audio_device,
-                at.is_input_device, ac.file_path as audio_path,
-                ac.id as audio_chunk_id, at.start_time, at.end_time,
-                at.speaker_id, s.name as speaker_name
-            FROM audio_transcriptions at
-            JOIN audio_chunks ac ON at.audio_chunk_id = ac.id
-            LEFT JOIN speakers s ON at.speaker_id = s.id
-            WHERE at.timestamp >= '2020-01-01' AND at.timestamp <= '2030-01-01'
-            ORDER BY at.timestamp DESC
-            LIMIT 10000"#,
-        )
-        .await;
-
-        let audio_scanned = plan
-            .iter()
-            .any(|l| l.contains("SCAN TABLE audio_transcriptions"));
-        assert!(
-            !audio_scanned,
-            "timeline audio query scans audio_transcriptions.\nPlan:\n{}",
             plan.join("\n")
         );
     }
@@ -555,50 +493,5 @@ mod query_plan_tests {
             "COUNT ocr query scans frames table.\nPlan:\n{}",
             plan.join("\n")
         );
-    }
-
-    #[tokio::test]
-    async fn test_count_audio_with_time_range_uses_index() {
-        let db = setup_test_db().await;
-
-        let plan = explain(
-            &db,
-            r#"SELECT COUNT(DISTINCT audio_transcriptions.id)
-            FROM audio_transcriptions
-            WHERE audio_transcriptions.timestamp >= '2020-01-01'
-              AND audio_transcriptions.timestamp <= '2030-01-01'"#,
-        )
-        .await;
-
-        let scanned = plan
-            .iter()
-            .any(|l| l.contains("SCAN TABLE audio_transcriptions"));
-        assert!(
-            !scanned,
-            "COUNT audio query scans audio_transcriptions.\nPlan:\n{}",
-            plan.join("\n")
-        );
-    }
-
-    // ──────────────────────────────────────────────────────────
-    // Dedup query (runs before every audio insert)
-    // ──────────────────────────────────────────────────────────
-
-    #[tokio::test]
-    async fn test_audio_dedup_query_uses_index() {
-        let db = setup_test_db().await;
-
-        // This is the cross-device dedup check from has_similar_recent_transcription
-        let plan = explain(
-            &db,
-            r#"SELECT transcription FROM audio_transcriptions
-            WHERE timestamp >= datetime('now', '-10 seconds')
-            ORDER BY timestamp DESC
-            LIMIT 20"#,
-        )
-        .await;
-
-        assert_uses_index(&plan, "audio_dedup");
-        assert_no_table_scan(&plan, "audio_dedup");
     }
 }

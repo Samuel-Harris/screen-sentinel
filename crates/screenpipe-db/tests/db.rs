@@ -8,8 +8,7 @@ mod tests {
 
     use chrono::Utc;
     use screenpipe_db::{
-        AudioDevice, ContentType, DatabaseManager, DeviceType, Frame, OcrEngine, SearchResult,
-        TagContentType,
+        ContentType, DatabaseManager, Frame, OcrEngine, SearchResult, TagContentType,
     };
 
     async fn setup_test_db() -> DatabaseManager {
@@ -34,6 +33,20 @@ mod tests {
         }
 
         db
+    }
+
+    #[tokio::test]
+    async fn fresh_db_has_no_audio_meeting_or_speaker_tables() {
+        let db = setup_test_db().await;
+        let leftovers: Vec<(String,)> = sqlx::query_as(
+            "SELECT name FROM sqlite_master
+             WHERE name LIKE '%audio%' OR name LIKE '%speaker%' OR name LIKE '%meeting%'
+                OR name LIKE '%transcri%' OR name LIKE '%diarization%'",
+        )
+        .fetch_all(&db.pool)
+        .await
+        .unwrap();
+        assert!(leftovers.is_empty(), "left behind: {leftovers:?}");
     }
 
     #[tokio::test]
@@ -82,8 +95,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -96,7 +107,7 @@ mod tests {
         }
     }
 
-    /// `search_with_tags` restricts OCR/audio results to captures carrying ALL
+    /// `search_with_tags` restricts OCR results to captures carrying ALL
     /// of the given tags (intersection), an empty slice disables the filter,
     /// and `count_search_results_with_tags` agrees so pagination stays correct.
     #[tokio::test]
@@ -124,8 +135,6 @@ mod tests {
                 ContentType::OCR,
                 100,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -204,8 +213,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 &["project:atlas".to_string()],
             )
             .await
@@ -236,119 +243,10 @@ mod tests {
             None,
             None,
             None,
-            None,
-            None,
             tags,
         )
         .await
         .unwrap()
-    }
-
-    /// Audio chunks filter by tag, `content_type=all` unions tagged screen +
-    /// audio (cross-modal), tag matching is exact (not substring), and content
-    /// types without a tag table return nothing.
-    #[tokio::test]
-    async fn test_tag_filter_audio_and_cross_modal() {
-        let db = setup_test_db().await;
-        db.insert_video_chunk("v.mp4", "dev").await.unwrap();
-
-        let device = AudioDevice {
-            name: "test".to_string(),
-            device_type: DeviceType::Output,
-        };
-
-        // Tagged screen frame.
-        let f = db
-            .insert_frame("dev", None, None, Some("app"), Some(""), false, None)
-            .await
-            .unwrap();
-        db.insert_ocr_text(f, "frame text", "", Arc::new(OcrEngine::Tesseract))
-            .await
-            .unwrap();
-        db.add_tags(f, TagContentType::Vision, vec!["person:ada".to_string()])
-            .await
-            .unwrap();
-
-        // Frame tagged with a near-miss tag (proves exact, not substring).
-        let f_adam = db
-            .insert_frame("dev", None, None, Some("app2"), Some(""), false, None)
-            .await
-            .unwrap();
-        db.insert_ocr_text(f_adam, "near miss", "", Arc::new(OcrEngine::Tesseract))
-            .await
-            .unwrap();
-        db.add_tags(
-            f_adam,
-            TagContentType::Vision,
-            vec!["person:adam".to_string()],
-        )
-        .await
-        .unwrap();
-
-        // Tagged audio chunk + an untagged one.
-        let ac = db.insert_audio_chunk("a.mp4", None).await.unwrap();
-        db.insert_audio_transcription(ac, "audio text", 0, "", &device, None, None, None, None)
-            .await
-            .unwrap();
-        db.add_tags(ac, TagContentType::Audio, vec!["person:ada".to_string()])
-            .await
-            .unwrap();
-        let ac2 = db.insert_audio_chunk("a2.mp4", None).await.unwrap();
-        db.insert_audio_transcription(ac2, "other audio", 0, "", &device, None, None, None, None)
-            .await
-            .unwrap();
-
-        // Audio-only, by tag → just the tagged chunk.
-        let audio = search_ct(&db, ContentType::Audio, &["person:ada".to_string()]).await;
-        assert_eq!(audio.len(), 1);
-        assert!(matches!(&audio[0], SearchResult::Audio(a) if a.audio_chunk_id == ac));
-
-        // Exact match, not substring: person:ada must not match person:adam.
-        let ada_ocr = search_ct(&db, ContentType::OCR, &["person:ada".to_string()]).await;
-        assert_eq!(ada_ocr.len(), 1);
-        assert!(matches!(&ada_ocr[0], SearchResult::OCR(o) if o.frame_id == f));
-
-        // content_type=all unions the tagged frame and the tagged audio, and
-        // excludes the person:adam frame and the untagged audio.
-        let all = search_ct(&db, ContentType::All, &["person:ada".to_string()]).await;
-        assert_eq!(all.len(), 2);
-        assert!(all
-            .iter()
-            .any(|r| matches!(r, SearchResult::OCR(o) if o.frame_id == f)));
-        assert!(all
-            .iter()
-            .any(|r| matches!(r, SearchResult::Audio(a) if a.audio_chunk_id == ac)));
-
-        // Input has no tag table → empty under a tag filter.
-        assert_eq!(
-            search_ct(&db, ContentType::Input, &["person:ada".to_string()])
-                .await
-                .len(),
-            0
-        );
-
-        // Count agrees with the cross-modal result set.
-        let total = db
-            .count_search_results_with_tags(
-                "",
-                ContentType::All,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                &["person:ada".to_string()],
-            )
-            .await
-            .unwrap();
-        assert_eq!(total, 2);
     }
 
     /// Memories filter by their JSON tags through the same interface
@@ -447,8 +345,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 &["project:atlas".to_string()],
             )
             .await
@@ -475,198 +371,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 &["project:atlas".to_string()],
             )
             .await
             .unwrap();
         assert_eq!(n, 2);
-    }
-
-    #[tokio::test]
-    async fn test_recent_output_audio_detects_deferred_output_chunk() {
-        let db = setup_test_db().await;
-
-        db.insert_audio_chunk("System Audio (output)_recent.mp4", Some(Utc::now()))
-            .await
-            .unwrap();
-
-        assert!(db.has_recent_output_audio(30).await.unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_recent_output_audio_ignores_input_chunk() {
-        let db = setup_test_db().await;
-
-        db.insert_audio_chunk("AirPods (input)_recent.mp4", Some(Utc::now()))
-            .await
-            .unwrap();
-
-        assert!(!db.has_recent_output_audio(30).await.unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_insert_and_search_audio() {
-        let db = setup_test_db().await;
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "Hello from audio",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        let em_results = db
-            .search(
-                "audio",
-                ContentType::Audio,
-                100,
-                0,
-                None,
-                None,
-                Some("test"),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(em_results.len(), 0);
-
-        let results = db
-            .search(
-                "audio",
-                ContentType::Audio,
-                100,
-                0,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(results.len(), 1);
-        if let SearchResult::Audio(audio_result) = &results[0] {
-            assert_eq!(audio_result.transcription, "Hello from audio");
-            assert_eq!(audio_result.file_path, "test_audio.mp4");
-        } else {
-            panic!("Expected Audio result");
-        }
-    }
-
-    #[tokio::test]
-    async fn test_update_and_search_audio() {
-        let db = setup_test_db().await;
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "Hello from audio",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        let a = db
-            .update_audio_transcription(audio_chunk_id, "This is a test.")
-            .await
-            .unwrap();
-
-        assert_eq!(a, 1);
-
-        let em_results = db
-            .search(
-                "",
-                ContentType::Audio,
-                100,
-                0,
-                None,
-                None,
-                Some("app"),
-                Some("window"),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(em_results.len(), 0);
-
-        let results = db
-            .search(
-                "",
-                ContentType::Audio,
-                100,
-                0,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(results.len(), 1);
-        if let SearchResult::Audio(audio_result) = &results[0] {
-            assert_eq!(audio_result.transcription, "This is a test.");
-            assert_eq!(audio_result.file_path, "test_audio.mp4");
-        } else {
-            panic!("Expected Audio result");
-        }
     }
 
     #[tokio::test]
@@ -718,25 +427,6 @@ mod tests {
         .unwrap();
         println!("Frames FTS data: {:?}", fts_data);
 
-        // Insert Audio data
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "Hello from audio",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
         let one_result = db
             .search(
                 "Hello",
@@ -746,8 +436,6 @@ mod tests {
                 None,
                 None,
                 Some("test"),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -780,24 +468,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
-        assert_eq!(results.len(), 2);
-
-        let ocr_count = results
-            .iter()
-            .filter(|r| matches!(r, SearchResult::OCR(_)))
-            .count();
-        let audio_count = results
-            .iter()
-            .filter(|r| matches!(r, SearchResult::Audio(_)))
-            .count();
-
-        assert_eq!(ocr_count, 1);
-        assert_eq!(audio_count, 1);
+        assert_eq!(results.len(), 1);
+        assert!(matches!(results[0], SearchResult::OCR(_)));
     }
 
     #[tokio::test]
@@ -828,25 +503,6 @@ mod tests {
             "Hello from OCR 1",
             "",
             Arc::new(OcrEngine::Tesseract),
-        )
-        .await
-        .unwrap();
-
-        // Insert first audio data
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "Hello from audio 1",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
         )
         .await
         .unwrap();
@@ -910,73 +566,6 @@ mod tests {
                 .unwrap();
         println!("Frames FTS data: {:?}", frame_fts_data);
 
-        let insert_result = db
-            .insert_audio_transcription(
-                audio_chunk_id,
-                "Hello from audio 2",
-                1,
-                "",
-                &AudioDevice {
-                    name: "test".to_string(),
-                    device_type: DeviceType::Output,
-                },
-                None,
-                None,
-                None,
-                None,
-            )
-            .await;
-        println!("Second audio insert result: {:?}", insert_result);
-
-        let raw_transcriptions: Vec<(String, Option<i64>)> =
-            sqlx::query_as("SELECT transcription, speaker_id FROM audio_transcriptions")
-                .fetch_all(&db.pool)
-                .await
-                .unwrap();
-        println!("Raw transcriptions in DB: {:?}", raw_transcriptions);
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
-
-        // After inserting both audio transcriptions, let's check all audio entries
-        let all_audio = db
-            .search_audio(
-                "",
-                100,
-                0,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                &[],
-            )
-            .await
-            .unwrap();
-        println!("All audio entries: {:?}", all_audio);
-
-        // Then try specific search
-        let audio_results = db
-            .search_audio(
-                "2",
-                100,
-                0,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                &[],
-            )
-            .await
-            .unwrap();
-        println!("Audio results for '2': {:?}", audio_results);
-
         let end_time = Utc::now();
 
         // Debug OCR search with time range
@@ -988,8 +577,6 @@ mod tests {
                 0,
                 Some(start_time),
                 Some(end_time),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -1026,13 +613,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
         println!("Full time range results: {:?}", results);
-        assert_eq!(results.len(), 4, "Expected 4 results for full time range");
+        assert_eq!(results.len(), 2, "Expected 2 results for full time range");
 
         // Test search with limited time range
         let results = db
@@ -1053,17 +638,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
         println!("Limited time range results: {:?}", results);
-        assert_eq!(
-            results.len(),
-            2,
-            "Expected 2 results for limited time range"
-        );
+        assert_eq!(results.len(), 1, "Expected 1 result for limited time range");
 
         // Test search with OCR content type and time range
         let results = db
@@ -1074,34 +653,6 @@ mod tests {
                 0,
                 Some(start_time),
                 Some(end_time),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        assert_eq!(results.len(), 2);
-
-        // Test search with Audio content type and time range
-        let results = db
-            .search(
-                "Hello",
-                ContentType::Audio,
-                100,
-                0,
-                Some(start_time),
-                Some(end_time),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -1150,25 +701,6 @@ mod tests {
         .await
         .unwrap();
 
-        // Insert first audio data
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "Hello from audio 1",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
         // Capture mid_time after inserting half of the data
         let mid_time = Utc::now();
 
@@ -1197,28 +729,6 @@ mod tests {
         .await
         .unwrap();
 
-        let audio_chunk_id2 = db
-            .insert_audio_chunk("test_audio2.mp4", None)
-            .await
-            .unwrap();
-
-        db.insert_audio_transcription(
-            audio_chunk_id2,
-            "Hello from audio 2",
-            1,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
         let end_time = Utc::now();
 
         // Test search with limited time range
@@ -1240,28 +750,20 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
 
         println!("Limited time range results: {:?}", results);
-        assert_eq!(
-            results.len(),
-            2,
-            "Expected 2 results for limited time range"
-        );
+        assert_eq!(results.len(), 1, "Expected 1 result for limited time range");
 
-        // Test count with Audio content type and time range
+        // Test count with OCR content type and time range
         let count = db
             .count_search_results(
                 "Hello",
-                ContentType::Audio,
+                ContentType::OCR,
                 Some(start_time),
                 Some(end_time),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -1274,444 +776,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(count, 2);
-    }
-
-    #[tokio::test]
-    async fn test_insert_and_search_speaker() {
-        let db = setup_test_db().await;
-
-        let mut speaker_ids = Vec::new();
-        for i in 0..5 {
-            let sample_embedding = vec![0.1 * (i as f32 + 1.0); 512];
-            let speaker = db.insert_speaker(&sample_embedding).await.unwrap();
-            speaker_ids.push(speaker.id);
-        }
-        let speaker_id = speaker_ids[0];
-        assert_eq!(speaker_id, 1);
-
-        let sample_embedding = vec![0.1; 512];
-        let speaker = db
-            .get_speaker_from_embedding(&sample_embedding)
-            .await
-            .unwrap();
-        assert_eq!(speaker.unwrap().id, 1);
-    }
-
-    #[tokio::test]
-    async fn test_update_speaker_metadata() {
-        let db = setup_test_db().await;
-
-        let sample_embedding = vec![0.1; 512];
-        let speaker = db.insert_speaker(&sample_embedding).await.unwrap();
-        assert_eq!(speaker.id, 1);
-
-        db.update_speaker_metadata(speaker.id, "test metadata")
-            .await
-            .unwrap();
-
-        // Add verification
-        let speaker = db.get_speaker_by_id(speaker.id).await.unwrap();
-        assert_eq!(speaker.metadata, "test metadata");
-    }
-
-    #[tokio::test]
-    async fn test_get_speaker_by_id() {
-        let db = setup_test_db().await;
-
-        let sample_embedding = vec![0.1; 512];
-        let speaker = db.insert_speaker(&sample_embedding).await.unwrap();
-        assert_eq!(speaker.id, 1);
-
-        let speaker = db.get_speaker_by_id(speaker.id).await.unwrap();
-        assert_eq!(speaker.id, 1);
-    }
-
-    #[tokio::test]
-    async fn test_update_speaker_name() {
-        let db = setup_test_db().await;
-
-        let sample_embedding = vec![0.1; 512];
-        let speaker = db.insert_speaker(&sample_embedding).await.unwrap();
-        assert_eq!(speaker.id, 1);
-
-        db.update_speaker_name(speaker.id, "test name")
-            .await
-            .unwrap();
-
-        let speaker = db.get_speaker_by_id(speaker.id).await.unwrap();
-
-        println!("Speaker: {:?}", speaker);
-        assert_eq!(speaker.name, "test name");
-    }
-
-    #[tokio::test]
-    async fn test_get_unnamed_speakers() {
-        let db = setup_test_db().await;
-
-        // insert n audio chunks for each speaker
-        // Transcription text must be very different per insert to avoid cross-device dedup
-        // (85% similarity threshold within 45s window)
-        let transcriptions: Vec<Vec<&str>> = vec![
-            vec!["the quick brown fox jumps over the lazy dog"],
-            vec![
-                "quantum computing revolutionizes cryptography today",
-                "blockchain networks secure digital transactions worldwide",
-            ],
-            vec![
-                "artificial intelligence transforms healthcare diagnostics rapidly",
-                "machine learning models predict weather patterns accurately",
-                "neural networks process natural language understanding efficiently",
-            ],
-        ];
-        for (n, speaker_transcriptions) in transcriptions.iter().enumerate() {
-            let speaker = db.insert_speaker(&vec![n as f32; 512]).await.unwrap();
-            for (i, transcription) in speaker_transcriptions.iter().enumerate() {
-                let audio_chunk_id = db
-                    .insert_audio_chunk(&format!("audio{}{}", n, i), None)
-                    .await
-                    .unwrap();
-                db.insert_audio_transcription(
-                    audio_chunk_id,
-                    transcription,
-                    0,
-                    "",
-                    &AudioDevice {
-                        name: "test".to_string(),
-                        device_type: DeviceType::Output,
-                    },
-                    Some(speaker.id),
-                    None,
-                    None,
-                    None,
-                )
-                .await
-                .unwrap();
-            }
-        }
-
-        // insert a speaker with a name
-        let speaker = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        db.update_speaker_name(speaker.id, "test name")
-            .await
-            .unwrap();
-
-        // Get unnamed speakers
-        let unnamed_speakers = db.get_unnamed_speakers(10, 0, None).await.unwrap();
-
-        assert_eq!(unnamed_speakers.len(), 3, "Should find 3 unnamed speakers");
-
-        let speaker_3 = &unnamed_speakers[0];
-        assert_eq!(speaker_3.id, 3);
-        assert!(speaker_3.name.is_empty());
-
-        // speaker 2 should be next
-        let speaker_2 = &unnamed_speakers[1];
-        assert_eq!(speaker_2.id, 2);
-        assert!(speaker_2.name.is_empty());
-
-        // speaker 1 should be last
-        let speaker_1 = &unnamed_speakers[2];
-        assert_eq!(speaker_1.id, 1);
-        assert!(speaker_1.name.is_empty());
-
-        let metadata: serde_json::Value =
-            serde_json::from_str(&speaker_3.metadata).expect("Metadata should be valid JSON");
-
-        let audio_samples = metadata["audio_samples"]
-            .as_array()
-            .expect("Audio Samples should be an array");
-
-        println!("Audio samples: {:?}", audio_samples);
-
-        assert_eq!(audio_samples.len(), 3);
-    }
-
-    #[tokio::test]
-    async fn test_get_unnamed_speakers_with_speaker_ids() {
-        let db = setup_test_db().await;
-
-        // insert n audio chunks for each speaker
-        // Transcription text must be very different per insert to avoid cross-device dedup
-        let transcriptions_ids: Vec<Vec<&str>> = vec![
-            vec!["penguins waddle across frozen antarctic landscapes gracefully"],
-            vec![
-                "volcanic eruptions reshape island geography dramatically overnight",
-                "tectonic plates shift beneath ocean floors continuously",
-            ],
-            vec![
-                "photosynthesis converts sunlight into chemical energy storage",
-                "mitochondria generate cellular power through oxidative processes",
-                "ribosomes assemble protein chains from messenger templates",
-            ],
-        ];
-        for (n, speaker_transcriptions) in transcriptions_ids.iter().enumerate() {
-            let speaker = db.insert_speaker(&vec![n as f32; 512]).await.unwrap();
-            for (i, transcription) in speaker_transcriptions.iter().enumerate() {
-                let audio_chunk_id = db
-                    .insert_audio_chunk(&format!("audio_ids_{}{}", n, i), None)
-                    .await
-                    .unwrap();
-                db.insert_audio_transcription(
-                    audio_chunk_id,
-                    transcription,
-                    0,
-                    "",
-                    &AudioDevice {
-                        name: "test".to_string(),
-                        device_type: DeviceType::Output,
-                    },
-                    Some(speaker.id),
-                    None,
-                    None,
-                    None,
-                )
-                .await
-                .unwrap();
-            }
-        }
-
-        // insert a speaker with a name
-        let speaker = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        db.update_speaker_name(speaker.id, "test name")
-            .await
-            .unwrap();
-
-        // Get unnamed speakers
-        let unnamed_speakers = db
-            .get_unnamed_speakers(10, 0, Some(vec![speaker.id, 1, 2, 3]))
-            .await
-            .unwrap();
-
-        assert_eq!(unnamed_speakers.len(), 3, "Should find 3 unnamed speakers");
-        // ensure the order is correct
-        assert_eq!(unnamed_speakers[0].id, 3);
-        assert_eq!(unnamed_speakers[1].id, 2);
-        assert_eq!(unnamed_speakers[2].id, 1);
-    }
-
-    #[tokio::test]
-    async fn test_merge_speakers() {
-        let db = setup_test_db().await;
-
-        let speaker_1 = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        db.update_speaker_name(speaker_1.id, "speaker 1")
-            .await
-            .unwrap();
-        let speaker_2 = db.insert_speaker(&vec![0.2; 512]).await.unwrap();
-        db.update_speaker_name(speaker_2.id, "speaker 2")
-            .await
-            .unwrap();
-
-        // for each speaker, insert 2 audio chunks
-        for speaker in [speaker_1.clone(), speaker_2.clone()] {
-            for i in 0..2 {
-                let audio_chunk_id = db
-                    .insert_audio_chunk(&format!("audio{}{}", speaker.id, i), None)
-                    .await
-                    .unwrap();
-
-                // insert audio transcription
-                db.insert_audio_transcription(
-                    audio_chunk_id,
-                    "test transcription",
-                    0,
-                    "",
-                    &AudioDevice {
-                        name: "test".to_string(),
-                        device_type: DeviceType::Output,
-                    },
-                    Some(speaker.id),
-                    None,
-                    None,
-                    None,
-                )
-                .await
-                .unwrap();
-            }
-        }
-
-        db.merge_speakers(speaker_1.id, speaker_2.id).await.unwrap();
-
-        let speakers = db.search_speakers("").await.unwrap();
-        assert_eq!(speakers.len(), 1);
-        assert_eq!(speakers[0].name, "speaker 1");
-    }
-
-    #[tokio::test]
-    async fn test_search_speakers() {
-        let db = setup_test_db().await;
-
-        let speaker = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        db.update_speaker_name(speaker.id, "test name")
-            .await
-            .unwrap();
-
-        let speakers = db.search_speakers("test").await.unwrap();
-        assert_eq!(speakers.len(), 1);
-        assert_eq!(speakers[0].name, "test name");
-    }
-
-    #[tokio::test]
-    async fn test_delete_speaker() {
-        let db = setup_test_db().await;
-
-        let speaker = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "test transcription",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            Some(speaker.id),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        db.delete_speaker(speaker.id).await.unwrap();
-
-        let speakers = db.search_speakers("").await.unwrap();
-        assert_eq!(speakers.len(), 0);
-
-        // Directly verify the orphaned chunk row was deleted
-        assert!(
-            !db.audio_chunk_exists(audio_chunk_id).await.unwrap(),
-            "orphaned audio_chunk row should be deleted"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_delete_speaker_shared_chunk_preserved() {
-        let db = setup_test_db().await;
-
-        let speaker_a = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        let speaker_b = db.insert_speaker(&vec![0.2; 512]).await.unwrap();
-
-        // Both speakers reference the same audio chunk
-        let shared_chunk_id = db.insert_audio_chunk("shared.mp4", None).await.unwrap();
-        let device = AudioDevice {
-            name: "test".to_string(),
-            device_type: DeviceType::Output,
-        };
-        db.insert_audio_transcription(
-            shared_chunk_id,
-            "speaker a says hello",
-            0,
-            "",
-            &device,
-            Some(speaker_a.id),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-        db.insert_audio_transcription(
-            shared_chunk_id,
-            "speaker b says goodbye",
-            1,
-            "",
-            &device,
-            Some(speaker_b.id),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        // Delete speaker_a -- shared chunk must survive
-        db.delete_speaker(speaker_a.id).await.unwrap();
-
-        assert!(
-            db.audio_chunk_exists(shared_chunk_id).await.unwrap(),
-            "shared chunk still referenced by speaker_b must not be deleted"
-        );
-
-        // Delete speaker_b -- now the chunk is orphaned and should be removed
-        db.delete_speaker(speaker_b.id).await.unwrap();
-
-        assert!(
-            !db.audio_chunk_exists(shared_chunk_id).await.unwrap(),
-            "chunk should be deleted once all referencing transcriptions are gone"
-        );
-    }
-
-    #[tokio::test]
-    async fn test_mark_speaker_as_hallucination() {
-        let db = setup_test_db().await;
-
-        let speaker = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        db.mark_speaker_as_hallucination(speaker.id).await.unwrap();
-
-        let speakers = db.search_speakers("").await.unwrap();
-        assert_eq!(speakers.len(), 0);
-    }
-
-    #[tokio::test]
-    async fn test_get_similar_speakers() {
-        let db = setup_test_db().await;
-
-        // Create first speaker with audio data
-        let speaker = db.insert_speaker(&vec![0.1; 512]).await.unwrap();
-        db.update_speaker_name(speaker.id, "test name")
-            .await
-            .unwrap();
-        let audio_chunk_id = db
-            .insert_audio_chunk("test_audio1.mp4", None)
-            .await
-            .unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "similar speakers test transcription one",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            Some(speaker.id),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        // Create second speaker with audio data
-        let speaker2 = db.insert_speaker(&vec![0.2; 512]).await.unwrap();
-        db.update_speaker_name(speaker2.id, "name").await.unwrap();
-        let audio_chunk_id2 = db
-            .insert_audio_chunk("test_audio2.mp4", None)
-            .await
-            .unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id2,
-            "similar speakers test transcription two",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            Some(speaker2.id),
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
-        let similar_speakers = db.get_similar_speakers(speaker.id, 10).await.unwrap();
-        assert_eq!(similar_speakers.len(), 1);
-        assert_eq!(similar_speakers[0].id, speaker2.id);
     }
 
     #[tokio::test]
@@ -1781,9 +845,7 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 Some("test_video"),
-                None,
                 None,
                 None,
                 None,
@@ -1812,9 +874,7 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 Some("non_existent"),
-                None,
                 None,
                 None,
                 None,
@@ -1843,9 +903,7 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
                 Some("test_video"),
-                None,
                 None,
                 None,
                 None,
@@ -1866,8 +924,6 @@ mod tests {
             .count_search_results(
                 "Hello",
                 ContentType::OCR,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -1915,25 +971,6 @@ mod tests {
         .await
         .unwrap();
 
-        // Insert Audio data
-        let audio_chunk_id = db.insert_audio_chunk("test_audio.mp4", None).await.unwrap();
-        db.insert_audio_transcription(
-            audio_chunk_id,
-            "Hello from audio",
-            0,
-            "",
-            &AudioDevice {
-                name: "test".to_string(),
-                device_type: DeviceType::Output,
-            },
-            None,
-            None,
-            None,
-            None,
-        )
-        .await
-        .unwrap();
-
         // Insert accessibility data
         db.insert_accessibility_text("test_app", "test_window", "Hello from UI", None)
             .await
@@ -1954,15 +991,10 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
-        assert_eq!(
-            count, 3,
-            "Should count OCR, Audio, and Accessibility results"
-        );
+        assert_eq!(count, 2, "Should count OCR and Accessibility results");
 
         // Test count with specific app filter
         let count = db
@@ -1972,8 +1004,6 @@ mod tests {
                 None,
                 None,
                 Some("test_app"),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -2004,8 +1034,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2016,9 +1044,9 @@ mod tests {
     async fn test_dropped_tx_rolls_back_and_returns_connection() {
         let db = setup_test_db().await;
 
-        // Insert an audio chunk via a committed transaction (baseline)
+        // Insert a video chunk via a committed transaction (baseline)
         let chunk_id = db
-            .insert_audio_chunk("rollback_test.mp4", None)
+            .insert_video_chunk("rollback_test.mp4", "test_device")
             .await
             .unwrap();
         assert!(chunk_id > 0);
@@ -2027,7 +1055,7 @@ mod tests {
         // The Drop impl should rollback and return the connection to the pool.
         {
             let mut tx = db.begin_immediate_with_retry().await.unwrap();
-            sqlx::query("INSERT INTO audio_chunks (file_path, timestamp) VALUES ('should_not_exist.mp4', datetime('now'))")
+            sqlx::query("INSERT INTO video_chunks (file_path, device_name) VALUES ('should_not_exist.mp4', 'test_device')")
                 .execute(&mut **tx.conn())
                 .await
                 .unwrap();
@@ -2036,7 +1064,7 @@ mod tests {
 
         // Verify the uncommitted row was rolled back
         let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM audio_chunks WHERE file_path = 'should_not_exist.mp4'",
+            "SELECT COUNT(*) FROM video_chunks WHERE file_path = 'should_not_exist.mp4'",
         )
         .fetch_one(&db.pool)
         .await
@@ -2047,7 +1075,7 @@ mod tests {
         // If the connection was leaked (detached), the pool would eventually exhaust.
         for i in 0..5 {
             let id = db
-                .insert_audio_chunk(&format!("pool_health_{}.mp4", i), None)
+                .insert_video_chunk(&format!("pool_health_{}.mp4", i), "test_device")
                 .await
                 .unwrap();
             assert!(id > 0, "Pool should still be healthy after rollback");
@@ -2085,8 +1113,6 @@ mod tests {
                 ContentType::Accessibility,
                 100,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -2196,8 +1222,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2212,8 +1236,6 @@ mod tests {
                 0,
                 Some(mid),
                 Some(after),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -2271,8 +1293,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2301,8 +1321,6 @@ mod tests {
                 ContentType::Accessibility,
                 100,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -2349,8 +1367,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2385,8 +1401,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2407,15 +1421,13 @@ mod tests {
             .await
             .unwrap();
 
-        // All = OCR + Audio + Accessibility, empty query bypasses FTS
+        // All = OCR + Accessibility, empty query bypasses FTS
         let results = db
             .search(
                 "",
                 ContentType::All,
                 100,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -2472,8 +1484,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2514,8 +1524,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -2528,8 +1536,6 @@ mod tests {
             .count_search_results(
                 "nonexistent",
                 ContentType::Accessibility,
-                None,
-                None,
                 None,
                 None,
                 None,

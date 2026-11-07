@@ -22,7 +22,7 @@ pub struct DeleteTimeRangeRequest {
     pub start: DateTime<Utc>,
     #[serde(deserialize_with = "super::time::deserialize_flexible_datetime")]
     pub end: DateTime<Utc>,
-    /// When true, also delete local-only mp4/wav files that haven't been
+    /// When true, also delete local-only mp4 files that haven't been
     /// uploaded to cloud yet. The default (`false`) preserves the original
     /// cloud-archive-aware behavior used by sync flows.
     #[serde(default)]
@@ -33,13 +33,10 @@ pub struct DeleteTimeRangeRequest {
 pub struct DeleteTimeRangeResponse {
     pub frames_deleted: u64,
     pub ocr_deleted: u64,
-    pub audio_transcriptions_deleted: u64,
-    pub audio_chunks_deleted: u64,
     pub video_chunks_deleted: u64,
     pub accessibility_deleted: u64,
     pub ui_events_deleted: u64,
     pub video_files_deleted: u64,
-    pub audio_files_deleted: u64,
 }
 
 #[oasgen]
@@ -78,14 +75,6 @@ pub(crate) async fn delete_time_range_handler(
         }
     }
 
-    let mut audio_files_deleted: u64 = 0;
-    for path in &result.audio_files {
-        match std::fs::remove_file(path) {
-            Ok(_) => audio_files_deleted += 1,
-            Err(e) => warn!("failed to delete audio file {}: {}", path, e),
-        }
-    }
-
     // Delete uploaded snapshot files from disk
     for path in &result.snapshot_files {
         if let Err(e) = std::fs::remove_file(path) {
@@ -105,13 +94,10 @@ pub(crate) async fn delete_time_range_handler(
     Ok(JsonResponse(DeleteTimeRangeResponse {
         frames_deleted: result.frames_deleted,
         ocr_deleted: result.ocr_deleted,
-        audio_transcriptions_deleted: result.audio_transcriptions_deleted,
-        audio_chunks_deleted: result.audio_chunks_deleted,
         video_chunks_deleted: result.video_chunks_deleted,
         accessibility_deleted: result.accessibility_deleted,
         ui_events_deleted: result.ui_events_deleted,
         video_files_deleted,
-        audio_files_deleted,
     }))
 }
 
@@ -126,15 +112,13 @@ pub struct EvictMediaRequest {
 #[derive(Serialize, OaSchema)]
 pub struct EvictMediaResponse {
     pub video_chunks_evicted: u64,
-    pub audio_chunks_evicted: u64,
     pub snapshots_evicted: u64,
     pub video_files_deleted: u64,
-    pub audio_files_deleted: u64,
     pub snapshot_files_deleted: u64,
     pub bytes_freed: u64,
 }
 
-/// POST /data/evict-media — reclaim mp4/wav/jpeg files in a time range
+/// POST /data/evict-media — reclaim mp4/jpeg files in a time range
 /// while keeping DB rows intact. Search and timeline still work; playback
 /// for that period shows a "media evicted" placeholder.
 #[oasgen]
@@ -180,25 +164,6 @@ pub(crate) async fn evict_media_handler(
         }
     }
 
-    let mut audio_files_deleted: u64 = 0;
-    for path in &result.audio_files {
-        match std::fs::metadata(path) {
-            Ok(meta) => {
-                let size = meta.len();
-                match std::fs::remove_file(path) {
-                    Ok(_) => {
-                        audio_files_deleted += 1;
-                        bytes_freed = bytes_freed.saturating_add(size);
-                    }
-                    Err(e) => warn!("failed to evict audio file {}: {}", path, e),
-                }
-            }
-            Err(_) => {
-                let _ = std::fs::remove_file(path);
-            }
-        }
-    }
-
     let mut snapshot_files_deleted: u64 = 0;
     for path in &result.snapshot_files {
         match std::fs::metadata(path) {
@@ -224,10 +189,8 @@ pub(crate) async fn evict_media_handler(
 
     Ok(JsonResponse(EvictMediaResponse {
         video_chunks_evicted: result.video_chunks_evicted,
-        audio_chunks_evicted: result.audio_chunks_evicted,
         snapshots_evicted: result.snapshots_evicted,
         video_files_deleted,
-        audio_files_deleted,
         snapshot_files_deleted,
         bytes_freed,
     }))
@@ -306,7 +269,6 @@ pub(crate) async fn storage_preview_handler(
 pub struct DeviceStorageEntry {
     pub machine_id: String,
     pub frames: i64,
-    pub audio_chunks: i64,
 }
 
 /// Get record counts per synced device.
@@ -324,11 +286,7 @@ pub(crate) async fn device_storage_handler(
     Ok(JsonResponse(
         counts
             .into_iter()
-            .map(|(machine_id, frames, audio_chunks)| DeviceStorageEntry {
-                machine_id,
-                frames,
-                audio_chunks,
-            })
+            .map(|(machine_id, frames)| DeviceStorageEntry { machine_id, frames })
             .collect(),
     ))
 }
@@ -365,23 +323,17 @@ pub(crate) async fn delete_device_data_handler(
         })?;
 
     info!(
-        "deleted device data for {}: frames={}, ocr={}, audio={}",
-        payload.machine_id,
-        result.frames_deleted,
-        result.ocr_deleted,
-        result.audio_transcriptions_deleted
+        "deleted device data for {}: frames={}, ocr={}",
+        payload.machine_id, result.frames_deleted, result.ocr_deleted
     );
 
     Ok(JsonResponse(DeleteTimeRangeResponse {
         frames_deleted: result.frames_deleted,
         ocr_deleted: result.ocr_deleted,
-        audio_transcriptions_deleted: result.audio_transcriptions_deleted,
-        audio_chunks_deleted: result.audio_chunks_deleted,
         video_chunks_deleted: result.video_chunks_deleted,
         accessibility_deleted: result.accessibility_deleted,
         ui_events_deleted: result.ui_events_deleted,
         video_files_deleted: 0,
-        audio_files_deleted: 0,
     }))
 }
 

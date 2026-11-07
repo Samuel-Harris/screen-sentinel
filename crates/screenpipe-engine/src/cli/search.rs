@@ -64,11 +64,9 @@ pub async fn handle_search_command(args: &SearchArgs) -> anyhow::Result<()> {
             args.window.as_deref(),
             args.min_length,
             args.max_length,
-            None, // speaker_ids — exposed via --speaker (name) only
             args.frame_name.as_deref(),
             args.browser_url.as_deref(),
             focused,
-            args.speaker.as_deref(),
             args.device_name.as_deref(),
             args.machine_id.as_deref(),
             on_screen,
@@ -80,7 +78,6 @@ pub async fn handle_search_command(args: &SearchArgs) -> anyhow::Result<()> {
         .iter()
         .filter(|r| match r {
             SearchResult::OCR(ocr) => !is_screenpipe_app(&ocr.app_name),
-            SearchResult::Audio(_) => true,
             SearchResult::UI(ui) => !is_screenpipe_app(&ui.app_name),
             SearchResult::Input(input) => input
                 .app_name
@@ -106,12 +103,11 @@ fn parse_content_type(s: &str) -> Result<ContentType, String> {
     match s.to_lowercase().as_str() {
         "all" => Ok(ContentType::All),
         "ocr" => Ok(ContentType::OCR),
-        "audio" => Ok(ContentType::Audio),
         "accessibility" | "a11y" => Ok(ContentType::Accessibility),
         "input" => Ok(ContentType::Input),
         "memory" => Ok(ContentType::Memory),
         other => Err(format!(
-            "unknown content type '{}' — expected one of: all, ocr, audio, accessibility, input, memory",
+            "unknown content type '{}' — expected one of: all, ocr, accessibility, input, memory",
             other
         )),
     }
@@ -141,21 +137,6 @@ fn print_text(items: &[ContentItem]) {
                     c.window_name,
                     c.frame_id,
                     one_line(&c.text)
-                );
-            }
-            ContentItem::Audio(c) => {
-                let who = c
-                    .speaker
-                    .as_ref()
-                    .map(|s| s.name.clone())
-                    .or_else(|| c.speaker_label.clone())
-                    .unwrap_or_else(|| "unknown".to_string());
-                println!(
-                    "[{}] audio · {} · chunk {}\n  {}",
-                    c.timestamp.to_rfc3339(),
-                    who,
-                    c.chunk_id,
-                    one_line(&c.transcription)
                 );
             }
             ContentItem::UI(c) => {

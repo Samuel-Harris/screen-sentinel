@@ -4,8 +4,8 @@
 
 //! One agent-safe activity bundle.
 //!
-//! Returns app/window/audio activity plus recording health, memories,
-//! bounded screen+audio snippets, and an empty-state diagnosis (`data_status`,
+//! Returns app/window activity plus recording health, memories,
+//! bounded screen snippets, and an empty-state diagnosis (`data_status`,
 //! `query_status`, `guidance`). Everything except the always-present status
 //! fields can be turned off per-request with `include_*=false` query params.
 //!
@@ -49,12 +49,12 @@ pub struct ActivitySummaryQuery {
     #[serde(default)]
     pub app_name: Option<String>,
 
-    /// Optional keyword. When set, filters memories and screen/audio snippets
+    /// Optional keyword. When set, filters memories and screen snippets
     /// and drives `query_status`. Leave empty for a broad activity bundle.
     #[serde(default)]
     pub q: Option<String>,
 
-    /// Include recording health (last frame/audio timestamps, counts, recent
+    /// Include recording health (last frame timestamp, counts, recent
     /// capture flag). Default: true. Disable to skip one cheap SQL call.
     #[serde(default = "default_true")]
     pub include_recording: bool,
@@ -62,8 +62,8 @@ pub struct ActivitySummaryQuery {
     /// `q`). Default: true.
     #[serde(default = "default_true")]
     pub include_memories: bool,
-    /// Include bounded, deduped screen+audio snippets. Default: true. Screen
-    /// snippets are reused from `key_texts` (no second a11y scan).
+    /// Include bounded, deduped screen snippets. Default: true. Snippets are
+    /// reused from `key_texts` (no second a11y scan).
     #[serde(default = "default_true")]
     pub include_snippets: bool,
     /// Include `data_status`/`query_status`-driven next-query guidance.
@@ -71,7 +71,7 @@ pub struct ActivitySummaryQuery {
     #[serde(default = "default_true")]
     pub include_guidance: bool,
 
-    /// Cap on combined screen+audio snippets returned. Default 8, max 12.
+    /// Cap on screen snippets returned. Default 8, max 12.
     #[serde(default = "default_max_snippets")]
     pub max_snippets: u32,
     /// Cap on characters per snippet. Default 500, clamped to 160..=1200.
@@ -124,28 +124,6 @@ pub struct KeyText {
 }
 
 #[derive(Serialize, OaSchema)]
-pub struct AudioSegment {
-    pub transcription: String,
-    pub speaker: String,
-    pub device: String,
-    pub timestamp: String,
-}
-
-#[derive(Serialize, OaSchema)]
-pub struct SpeakerSummary {
-    pub name: String,
-    pub segment_count: i64,
-}
-
-#[derive(Serialize, OaSchema)]
-pub struct AudioSummary {
-    pub segment_count: i64,
-    pub speakers: Vec<SpeakerSummary>,
-    /// Top transcriptions with actual text (sorted by length, most substantial first)
-    pub top_transcriptions: Vec<AudioSegment>,
-}
-
-#[derive(Serialize, OaSchema)]
 pub struct TimeRange {
     pub start: String,
     pub end: String,
@@ -164,10 +142,8 @@ pub struct EditedFile {
 #[derive(Serialize, OaSchema)]
 pub struct RecordingStatus {
     pub last_frame_at: Option<String>,
-    pub last_audio_at: Option<String>,
     pub frames_in_range: i64,
-    pub audio_segments_in_range: i64,
-    /// True if either capture stream produced data in the last 10 minutes.
+    /// True if screen capture produced data in the last 10 minutes.
     pub recent_capture: bool,
 }
 
@@ -183,12 +159,11 @@ pub struct ActivityMemory {
 
 #[derive(Serialize, OaSchema)]
 pub struct ActivitySnippet {
-    /// "screen" | "audio"
+    /// Always "screen".
     pub source: String,
     pub text: String,
     pub app_name: Option<String>,
     pub window_name: Option<String>,
-    pub speaker: Option<String>,
     pub timestamp: String,
 }
 
@@ -212,7 +187,6 @@ pub struct ActivitySummaryResponse {
     /// equivalent capture.
     #[serde(default)]
     pub edited_files: Vec<EditedFile>,
-    pub audio_summary: AudioSummary,
     pub total_frames: i64,
     /// Authoritative total active screen time (minutes) over the WHOLE range —
     /// every app, not just the top 20, with idle gaps (frames > IDLE_CAP_SECS
@@ -232,7 +206,7 @@ pub struct ActivitySummaryResponse {
     /// Omitted when `include_memories=false`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub memories: Option<Vec<ActivityMemory>>,
-    /// Bounded, deduped screen+audio excerpts. Omitted when `include_snippets=false`.
+    /// Bounded, deduped screen excerpts. Omitted when `include_snippets=false`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippets: Option<Vec<ActivitySnippet>>,
     /// Empty-state diagnosis + next-query hint. Omitted when `include_guidance=false`.
@@ -245,7 +219,7 @@ pub struct ActivitySummaryResponse {
 /// Rich activity summary for a time range, with optional agent-context fields.
 ///
 /// By default returns: app usage, window/tab activity, sampled screen text,
-/// edited files, audio summary, recording health, memories, bounded snippets,
+/// edited files, recording health, memories, bounded snippets,
 /// and a `data_status`/`query_status`/`guidance` triple so agents can tell
 /// "nothing was recorded" apart from "query didn't match".
 ///
@@ -271,10 +245,10 @@ pub async fn get_activity_summary(
 
     let summary_core = collect_summary_core(&state.db, &query, &start, &end).await;
 
-    // Run optional sidecars in parallel — each is best-effort; failures
+    // Run optional DB sidecars in parallel — each is best-effort; failures
     // degrade to None rather than blowing up the whole response.
     let memory_query = query.q.as_deref().map(str::trim).filter(|q| !q.is_empty());
-    let (recording_opt, memories_opt, snippets_opt) = tokio::join!(
+    let (recording_opt, memories_opt) = tokio::join!(
         async {
             if query.include_recording {
                 load_recording_status(&state.db, &start, &end, query.app_name.as_deref())
@@ -294,18 +268,11 @@ pub async fn get_activity_summary(
             } else {
                 None
             }
-        },
-        async {
-            if query.include_snippets {
-                load_snippets(&state.db, &query, &summary_core.key_texts, &start, &end)
-                    .await
-                    .map_err(|e| error!("activity summary: snippets failed: {}", e))
-                    .ok()
-            } else {
-                None
-            }
         }
     );
+    let snippets_opt = query
+        .include_snippets
+        .then(|| load_snippets(&query, &summary_core.key_texts));
 
     let snippets_for_status = snippets_opt.as_deref().unwrap_or(&[]);
     let memories_for_status = memories_opt.as_deref().unwrap_or(&[]);
@@ -329,7 +296,6 @@ pub async fn get_activity_summary(
         windows: summary_core.windows,
         key_texts: summary_core.key_texts,
         edited_files: summary_core.edited_files,
-        audio_summary: summary_core.audio_summary,
         total_frames: summary_core.total_frames,
         total_active_minutes: summary_core.total_active_minutes,
         time_range: TimeRange { start, end },
@@ -349,7 +315,6 @@ struct SummaryCore {
     windows: Vec<WindowActivity>,
     key_texts: Vec<KeyText>,
     edited_files: Vec<EditedFile>,
-    audio_summary: AudioSummary,
     total_frames: i64,
     total_active_minutes: f64,
 }
@@ -436,30 +401,6 @@ async fn collect_summary_core(
          ORDER BY timestamp DESC LIMIT 20"
     );
 
-    let audio_speakers_query = format!(
-        "SELECT COALESCE(s.name, 'Unknown') as speaker_name, COUNT(*) as segment_count \
-         FROM audio_transcriptions at \
-         LEFT JOIN speakers s ON at.speaker_id = s.id \
-         WHERE at.timestamp BETWEEN '{start}' AND '{end}' \
-         GROUP BY at.speaker_id ORDER BY 2 DESC LIMIT 10"
-    );
-
-    // Top transcriptions by length — the AI summary prompt uses these as
-    // "notable quotes." Full transcript is fetched separately via /search.
-    let audio_transcripts_query = format!(
-        "SELECT at.transcription, \
-         COALESCE(s.name, 'Unknown') as speaker, \
-         at.device, \
-         at.timestamp \
-         FROM audio_transcriptions at \
-         LEFT JOIN speakers s ON at.speaker_id = s.id \
-         WHERE at.timestamp BETWEEN '{start}' AND '{end}' \
-         AND TRIM(at.transcription) != '' \
-         AND LENGTH(at.transcription) > 5 \
-         ORDER BY LENGTH(at.transcription) DESC LIMIT 20"
-    );
-
-    // Cap at 50 paths — a 1000-file workspace would be noise anyway.
     let edited_files_query = format!(
         "SELECT document_path AS path, COUNT(*) AS frame_count \
          FROM frames \
@@ -483,20 +424,10 @@ async fn collect_summary_core(
          ORDER BY timestamp"
     );
 
-    let (
-        apps_result,
-        windows_result,
-        texts_result,
-        audio_speakers_result,
-        audio_transcripts_result,
-        edited_files_result,
-        active_ts_result,
-    ) = tokio::join!(
+    let (apps_result, windows_result, texts_result, edited_files_result, active_ts_result) = tokio::join!(
         db.execute_raw_sql(&apps_query),
         db.execute_raw_sql(&windows_query),
         db.execute_raw_sql(&texts_query),
-        db.execute_raw_sql(&audio_speakers_query),
-        db.execute_raw_sql(&audio_transcripts_query),
         db.execute_raw_sql(&edited_files_query),
         db.execute_raw_sql(&active_ts_query),
     );
@@ -564,42 +495,6 @@ async fn collect_summary_core(
         error!("activity summary: texts query failed: {}", e);
     }
 
-    let mut speakers = Vec::new();
-    let mut total_segments: i64 = 0;
-    if let Ok(rows) = audio_speakers_result {
-        if let Some(arr) = rows.as_array() {
-            for row in arr {
-                let segment_count = row
-                    .get("segment_count")
-                    .and_then(|v| v.as_i64())
-                    .unwrap_or(0);
-                total_segments += segment_count;
-                speakers.push(SpeakerSummary {
-                    name: str_field(row, "speaker_name"),
-                    segment_count,
-                });
-            }
-        }
-    } else if let Err(e) = &audio_speakers_result {
-        error!("activity summary: audio speakers query failed: {}", e);
-    }
-
-    let mut top_transcriptions = Vec::new();
-    if let Ok(rows) = audio_transcripts_result {
-        if let Some(arr) = rows.as_array() {
-            for row in arr {
-                top_transcriptions.push(AudioSegment {
-                    transcription: str_field(row, "transcription"),
-                    speaker: str_field(row, "speaker"),
-                    device: str_field(row, "device"),
-                    timestamp: str_field(row, "timestamp"),
-                });
-            }
-        }
-    } else if let Err(e) = &audio_transcripts_result {
-        error!("activity summary: audio transcripts query failed: {}", e);
-    }
-
     let mut edited_files: Vec<EditedFile> = Vec::new();
     if let Ok(rows) = edited_files_result {
         if let Some(arr) = rows.as_array() {
@@ -638,11 +533,6 @@ async fn collect_summary_core(
         windows,
         key_texts,
         edited_files,
-        audio_summary: AudioSummary {
-            segment_count: total_segments,
-            speakers,
-            top_transcriptions,
-        },
         total_frames,
         total_active_minutes,
     }
@@ -664,11 +554,8 @@ async fn load_recording_status(
     let query = format!(
         "SELECT \
          (SELECT MAX(timestamp) FROM frames) AS last_frame_at, \
-         (SELECT MAX(timestamp) FROM audio_transcriptions) AS last_audio_at, \
          (SELECT COUNT(*) FROM frames WHERE timestamp BETWEEN '{start}' AND '{end}'{app_filter}) AS frames_in_range, \
-         (SELECT COUNT(*) FROM audio_transcriptions WHERE timestamp BETWEEN '{start}' AND '{end}') AS audio_segments_in_range, \
-         (SELECT ROUND((JULIANDAY('{now}') - JULIANDAY(MAX(timestamp))) * 86400) FROM frames) AS seconds_since_last_frame, \
-         (SELECT ROUND((JULIANDAY('{now}') - JULIANDAY(MAX(timestamp))) * 86400) FROM audio_transcriptions) AS seconds_since_last_audio"
+         (SELECT ROUND((JULIANDAY('{now}') - JULIANDAY(MAX(timestamp))) * 86400) FROM frames) AS seconds_since_last_frame"
     );
 
     let rows = db
@@ -681,18 +568,11 @@ async fn load_recording_status(
         .cloned()
         .unwrap_or_default();
     let frame_age = row.get("seconds_since_last_frame").and_then(value_i64);
-    let audio_age = row.get("seconds_since_last_audio").and_then(value_i64);
-    let recent_capture = frame_age.is_some_and(|s| (0..=600).contains(&s))
-        || audio_age.is_some_and(|s| (0..=600).contains(&s));
+    let recent_capture = frame_age.is_some_and(|s| (0..=600).contains(&s));
 
     Ok(RecordingStatus {
         last_frame_at: str_opt(&row, "last_frame_at"),
-        last_audio_at: str_opt(&row, "last_audio_at"),
         frames_in_range: row.get("frames_in_range").and_then(value_i64).unwrap_or(0),
-        audio_segments_in_range: row
-            .get("audio_segments_in_range")
-            .and_then(value_i64)
-            .unwrap_or(0),
         recent_capture,
     })
 }
@@ -740,43 +620,15 @@ async fn load_memories(
 
 // ---------- snippets ----------
 
-async fn load_snippets(
-    db: &DatabaseManager,
-    query: &ActivitySummaryQuery,
-    key_texts: &[KeyText],
-    start: &str,
-    end: &str,
-) -> Result<Vec<ActivitySnippet>, String> {
+fn load_snippets(query: &ActivitySummaryQuery, key_texts: &[KeyText]) -> Vec<ActivitySnippet> {
     if query.max_snippets == 0 {
-        return Ok(Vec::new());
+        return Vec::new();
     }
 
     let max_snippets = query.max_snippets.min(12);
     let max_snippet_chars = query.max_snippet_chars.clamp(160, 1200);
-    let screen_limit = max_snippets.div_ceil(2).max(1);
-    let audio_limit = (max_snippets - screen_limit).max(1);
     let query_text = query.q.as_deref().map(str::trim).filter(|q| !q.is_empty());
     let query_text_lower = query_text.map(|q| q.to_lowercase());
-
-    let audio_text_filter = query_text
-        .map(|q| {
-            format!(
-                " AND at.transcription LIKE '%{}%' ESCAPE '\\'",
-                sql_like_escape(q)
-            )
-        })
-        .unwrap_or_default();
-
-    let audio_query = format!(
-        "SELECT at.transcription, COALESCE(s.name, 'Unknown') AS speaker, at.timestamp \
-         FROM audio_transcriptions at \
-         LEFT JOIN speakers s ON at.speaker_id = s.id \
-         WHERE at.timestamp BETWEEN '{start}' AND '{end}'{audio_text_filter} \
-         AND TRIM(at.transcription) != '' \
-         AND LENGTH(at.transcription) > 5 \
-         ORDER BY at.timestamp DESC \
-         LIMIT {audio_limit}"
-    );
 
     let mut snippets = Vec::new();
     for key_text in key_texts {
@@ -797,38 +649,17 @@ async fn load_snippets(
                 text: truncate_text(text, max_snippet_chars),
                 app_name: Some(key_text.app_name.clone()).filter(|s| !s.is_empty()),
                 window_name: Some(key_text.window_name.clone()).filter(|s| !s.is_empty()),
-                speaker: None,
                 timestamp: key_text.timestamp.clone(),
             },
         );
-        if snippets.len() >= screen_limit as usize {
+        if snippets.len() >= max_snippets as usize {
             break;
-        }
-    }
-
-    let audio_rows = db
-        .execute_raw_sql(&audio_query)
-        .await
-        .map_err(|e| e.to_string())?;
-    if let Some(rows) = audio_rows.as_array() {
-        for row in rows {
-            push_snippet(
-                &mut snippets,
-                ActivitySnippet {
-                    source: "audio".to_string(),
-                    text: truncate_text(&str_field(row, "transcription"), max_snippet_chars),
-                    app_name: None,
-                    window_name: None,
-                    speaker: str_opt(row, "speaker"),
-                    timestamp: str_field(row, "timestamp"),
-                },
-            );
         }
     }
 
     snippets.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     snippets.truncate(max_snippets as usize);
-    Ok(snippets)
+    snippets
 }
 
 fn push_snippet(snippets: &mut Vec<ActivitySnippet>, snippet: ActivitySnippet) {
@@ -852,14 +683,12 @@ fn compute_data_status(
     recording: Option<&RecordingStatus>,
     snippets: &[ActivitySnippet],
 ) -> String {
-    if summary.total_frames > 0 || summary.audio_summary.segment_count > 0 || !snippets.is_empty() {
+    if summary.total_frames > 0 || !snippets.is_empty() {
         return "ok".to_string();
     }
     match recording {
         None => "unknown".to_string(),
-        Some(r) if r.last_frame_at.is_none() && r.last_audio_at.is_none() => {
-            "not_recording".to_string()
-        }
+        Some(r) if r.last_frame_at.is_none() => "not_recording".to_string(),
         Some(r) if r.recent_capture => "empty_but_recording".to_string(),
         Some(_) => "no_capture_in_range".to_string(),
     }
@@ -890,7 +719,7 @@ fn build_guidance(
         searched_endpoints.push("/memories".to_string());
     }
     if query.include_snippets {
-        searched_endpoints.push("bounded screen/audio snippets".to_string());
+        searched_endpoints.push("bounded screen snippets".to_string());
     }
     if query.include_recording {
         searched_endpoints.push("recording health".to_string());
@@ -923,9 +752,8 @@ fn next_best_query(
         ),
         "no_capture_in_range" => {
             let last_frame = recording.and_then(|r| r.last_frame_at.as_deref()).unwrap_or("never");
-            let last_audio = recording.and_then(|r| r.last_audio_at.as_deref()).unwrap_or("never");
             Some(format!(
-                "no captures in this range. last frame: {last_frame}; last audio: {last_audio}. try a range around the latest timestamp."
+                "no captures in this range. last frame: {last_frame}. try a range around the latest timestamp."
             ))
         }
         "not_recording" => Some(
@@ -942,14 +770,6 @@ fn next_best_query(
 
 fn sql_escape(value: &str) -> String {
     value.replace('\'', "''")
-}
-
-fn sql_like_escape(value: &str) -> String {
-    value
-        .replace('\\', "\\\\")
-        .replace('\'', "''")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
 }
 
 fn str_field(row: &Value, key: &str) -> String {
@@ -1024,7 +844,6 @@ mod tests {
             text: text.to_string(),
             app_name: None,
             window_name: None,
-            speaker: None,
             timestamp: ts.to_string(),
         }
     }
@@ -1046,11 +865,6 @@ mod tests {
             windows: vec![],
             key_texts: vec![],
             edited_files: vec![],
-            audio_summary: AudioSummary {
-                segment_count: 0,
-                speakers: vec![],
-                top_transcriptions: vec![],
-            },
             total_frames: 0,
             total_active_minutes: 0.0,
         }
@@ -1062,11 +876,6 @@ mod tests {
             windows: vec![],
             key_texts: vec![],
             edited_files: vec![],
-            audio_summary: AudioSummary {
-                segment_count: 0,
-                speakers: vec![],
-                top_transcriptions: vec![],
-            },
             total_frames: 42,
             total_active_minutes: 0.0,
         }
@@ -1075,9 +884,7 @@ mod tests {
     fn recording_with_recent(recent: bool) -> RecordingStatus {
         RecordingStatus {
             last_frame_at: Some("2026-05-20T00:00:00Z".to_string()),
-            last_audio_at: Some("2026-05-20T00:00:00Z".to_string()),
             frames_in_range: 0,
-            audio_segments_in_range: 0,
             recent_capture: recent,
         }
     }
@@ -1085,9 +892,7 @@ mod tests {
     fn recording_none() -> RecordingStatus {
         RecordingStatus {
             last_frame_at: None,
-            last_audio_at: None,
             frames_in_range: 0,
-            audio_segments_in_range: 0,
             recent_capture: false,
         }
     }
@@ -1171,18 +976,6 @@ mod tests {
     #[test]
     fn sql_escape_single_quotes() {
         assert_eq!(sql_escape("o'brien"), "o''brien");
-    }
-
-    #[test]
-    fn sql_like_escape_meta_chars() {
-        // Order matters: backslash first, then % and _.
-        let escaped = sql_like_escape("100%_off\\now");
-        assert_eq!(escaped, "100\\%\\_off\\\\now");
-    }
-
-    #[test]
-    fn sql_like_escape_quotes() {
-        assert_eq!(sql_like_escape("it's"), "it''s");
     }
 
     // ---- snippet dedupe ----
@@ -1345,12 +1138,10 @@ mod tests {
     }
 
     #[test]
-    fn guidance_no_capture_in_range_quotes_last_timestamps() {
+    fn guidance_no_capture_in_range_quotes_last_frame_timestamp() {
         let rec = RecordingStatus {
             last_frame_at: Some("2026-05-19T22:00:00Z".to_string()),
-            last_audio_at: Some("2026-05-19T22:30:00Z".to_string()),
             frames_in_range: 0,
-            audio_segments_in_range: 0,
             recent_capture: false,
         };
         let g = build_guidance(
@@ -1361,7 +1152,6 @@ mod tests {
         );
         let hint = g.next_best_query.unwrap();
         assert!(hint.contains("2026-05-19T22:00:00Z"));
-        assert!(hint.contains("2026-05-19T22:30:00Z"));
     }
 
     #[test]
@@ -1394,7 +1184,7 @@ mod db_tests {
     //! Integration tests for the activity-summary SQL, run against a real
     //! (migrated, temp-file) SQLite database. These exercise the frame-gap
     //! duration math end to end: the apps / windows `minutes` columns, the new
-    //! `total_active_minutes`, the idle cap, app/window filtering, the audio /
+    //! `total_active_minutes`, the idle cap, app/window filtering, the
     //! edited-files / key-text queries, plus a performance smoke test on a large
     //! frame set.
     use super::*;
@@ -1657,40 +1447,6 @@ mod db_tests {
     }
 
     #[tokio::test]
-    async fn audio_summary_groups_speakers() {
-        let (db, _d) = fresh_db().await;
-        // audio_transcriptions.audio_chunk_id is a NOT NULL FK (sqlx enables
-        // foreign_keys), so the parent chunk must exist first.
-        db.execute_raw_sql("INSERT INTO audio_chunks (id, file_path) VALUES (1, 'test.wav')")
-            .await
-            .unwrap();
-        db.execute_raw_sql("INSERT INTO speakers (id, name) VALUES (1, 'Alice')")
-            .await
-            .unwrap();
-        for (m, text) in [
-            (0, "hello team this is the weekly sync"),
-            (1, "lets review the roadmap now"),
-        ] {
-            db.execute_raw_sql(&format!(
-                "INSERT INTO audio_transcriptions \
-                 (audio_chunk_id, offset_index, timestamp, transcription, device, speaker_id) \
-                 VALUES (1, {m}, '{DAY} 10:0{m}:00', '{text}', 'mic', 1)"
-            ))
-            .await
-            .unwrap();
-        }
-        let (s, e) = full_range();
-        let core = collect_summary_core(&db, &query(None), &s, &e).await;
-        assert_eq!(core.audio_summary.segment_count, 2);
-        assert!(core
-            .audio_summary
-            .speakers
-            .iter()
-            .any(|sp| sp.name == "Alice"));
-        assert_eq!(core.audio_summary.top_transcriptions.len(), 2);
-    }
-
-    #[tokio::test]
     async fn key_texts_from_accessibility_element() {
         let (db, _d) = fresh_db().await;
         add_frame(
@@ -1730,7 +1486,6 @@ mod db_tests {
             .await
             .expect("recording status");
         assert_eq!(rec.frames_in_range, 3);
-        assert_eq!(rec.audio_segments_in_range, 0);
         assert!(rec.last_frame_at.is_some());
     }
 

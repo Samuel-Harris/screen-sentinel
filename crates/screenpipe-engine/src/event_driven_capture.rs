@@ -418,7 +418,7 @@ pub fn trigger_channel() -> (TriggerSender, TriggerReceiver) {
 /// install or `None` (no change needed). The struct's job is to keep the
 /// pre-override baseline so the eventual restore writes the right value
 /// even if a power-profile update arrived mid-override or the user changed
-/// the meeting interval on the fly.
+/// the HD interval on the fly.
 #[derive(Debug)]
 pub(crate) struct HighFpsBookkeeping {
     active_ms: Option<u64>,
@@ -595,7 +595,7 @@ pub async fn event_driven_capture_loop(
     let mut state = EventDrivenCapture::new(config);
     let mut power_profile_rx = power_profile_rx;
     // High-FPS override: takes ownership of `min_capture_interval_ms` while
-    // active (manual toggle or auto-detected meeting). The reducer forwards
+    // an HD session is active. The reducer forwards
     // power-profile baseline updates so the post-override restore writes the
     // current baseline, not the value live when the override started.
     let mut high_fps = HighFpsBookkeeping::new(state.config.min_capture_interval_ms);
@@ -1006,7 +1006,7 @@ pub async fn event_driven_capture_loop(
         }
 
         // High-FPS override: bumps capture rate while the controller reports
-        // effective (manual toggle on, or auto mode on + meeting detected).
+        // an active HD session.
         // ONE snapshot per tick: reading effective + interval_ms together
         // guarantees the log line and the installed value can't disagree
         // because the controller flipped between two separate atomic loads.
@@ -2713,7 +2713,7 @@ mod tests {
     #[test]
     fn high_fps_enter_then_exit_restores_baseline() {
         let mut o = HighFpsBookkeeping::new(500);
-        // None -> Some: drop to meeting interval.
+        // None -> Some: drop to the HD interval.
         assert_eq!(o.on_controller_state(Some(100), 500), Some(100));
         assert!(o.is_active());
         // Some -> None: restore the baseline that was live when we entered.

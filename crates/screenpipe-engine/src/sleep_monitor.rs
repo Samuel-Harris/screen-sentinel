@@ -91,7 +91,6 @@ pub fn screen_is_locked() -> bool {
 }
 
 /// Set the screen locked state (called from capture loop when lock-screen app detected).
-/// Also updates the shared flag in screenpipe-config so other crates (e.g. audio) can read it.
 pub fn set_screen_locked(locked: bool) {
     SCREEN_IS_LOCKED.store(locked, Ordering::SeqCst);
     screenpipe_config::set_screen_locked(locked);
@@ -392,10 +391,8 @@ pub fn start_sleep_monitor() {
                 return;
             }
             // Display topology changed — invalidate cached SCStream handles
-            // and audio streams (CoreAudio can go silent after display changes)
             #[cfg(target_os = "macos")]
             screenpipe_screen::stream_invalidation::request();
-            screenpipe_audio::stream_invalidation::request();
             // Wake any waiters (e.g. monitor_watcher) so they re-scan the
             // monitor list immediately instead of waiting on a poll timer.
             DISPLAY_RECONFIG_NOTIFY.notify_one();
@@ -513,11 +510,6 @@ fn on_did_wake(handle: &tokio::runtime::Handle) {
     #[cfg(target_os = "macos")]
     screenpipe_screen::stream_invalidation::request();
 
-    // Invalidate audio streams so the device monitor force-restarts all
-    // audio devices. CoreAudio streams can go silent after sleep/wake
-    // without triggering error callbacks.
-    screenpipe_audio::stream_invalidation::request();
-
     // Spawn a task on the captured tokio runtime handle to check recording
     // health after a short delay. We can't use bare tokio::spawn() here
     // because this callback runs on an NSRunLoop thread, not a tokio thread.
@@ -541,31 +533,26 @@ fn on_did_wake(handle: &tokio::runtime::Handle) {
         screenpipe_db::request_write_resume();
 
         // Check if recording is healthy
-        let (audio_healthy, vision_healthy) = check_recording_health().await;
+        let vision_healthy = check_recording_health().await;
 
         capture_event_nonblocking(
             "system_did_wake",
             json!({
                 "platform": "macos",
-                "audio_healthy_after_wake": audio_healthy,
                 "vision_healthy_after_wake": vision_healthy,
                 "check_delay_secs": 5,
             }),
         );
 
-        if !audio_healthy || !vision_healthy {
-            warn!(
-                "Recording degraded after wake: audio={}, vision={}",
-                audio_healthy, vision_healthy
-            );
+        if !vision_healthy {
+            warn!("Recording degraded after wake: vision={}", vision_healthy);
         }
     });
 }
 
-/// Check if audio and vision recording are healthy
-/// Returns (audio_healthy, vision_healthy)
+/// Check if vision recording is healthy
 #[cfg(target_os = "macos")]
-async fn check_recording_health() -> (bool, bool) {
+async fn check_recording_health() -> bool {
     // Try to hit the local health endpoint
     let client = reqwest::Client::new();
 
@@ -581,22 +568,15 @@ async fn check_recording_health() -> (bool, bool) {
                     .get("frame_status")
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
-                let audio_status = json
-                    .get("audio_status")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown");
 
-                let vision_healthy = frame_status == "ok" || frame_status == "healthy";
-                let audio_healthy = audio_status == "ok" || audio_status == "healthy";
-
-                (audio_healthy, vision_healthy)
+                frame_status == "ok" || frame_status == "healthy"
             } else {
-                (false, false)
+                false
             }
         }
         Err(e) => {
             warn!("Failed to check health after wake: {}", e);
-            (false, false)
+            false
         }
     }
 }
@@ -786,14 +766,11 @@ mod tests {
         assert!(is_wake_gap(Duration::from_secs(21), poll));
     }
 
-    /// Verifies that on_did_wake sets the audio stream invalidation flag.
-    /// This is the core of the fix — when macOS fires the wake notification,
-    /// on_did_wake must set both vision AND audio invalidation flags.
+    /// Verifies that on_did_wake sets the vision stream invalidation flag.
     #[cfg(target_os = "macos")]
     #[tokio::test]
-    async fn test_on_did_wake_sets_audio_invalidation() {
+    async fn test_on_did_wake_sets_vision_invalidation() {
         // Clear stale flags
-        let _ = screenpipe_audio::stream_invalidation::take();
         let _ = screenpipe_screen::stream_invalidation::take();
         RECENTLY_WOKE.store(false, Ordering::SeqCst);
 
@@ -805,17 +782,13 @@ mod tests {
             "RECENTLY_WOKE should be set after on_did_wake"
         );
         assert!(
-            screenpipe_audio::stream_invalidation::take(),
-            "Audio stream invalidation flag must be set after wake"
-        );
-        assert!(
             screenpipe_screen::stream_invalidation::take(),
             "Vision stream invalidation flag must be set after wake"
         );
-        // Flags should be cleared after take()
+        // Flag should be cleared after take()
         assert!(
-            !screenpipe_audio::stream_invalidation::take(),
-            "Audio flag should be cleared after take()"
+            !screenpipe_screen::stream_invalidation::take(),
+            "Vision flag should be cleared after take()"
         );
     }
 
