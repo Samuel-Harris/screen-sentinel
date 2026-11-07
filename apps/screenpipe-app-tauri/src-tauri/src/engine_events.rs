@@ -7,18 +7,13 @@
 //! This module owns the connection (reconnect/backoff, ping/pong, URL
 //! construction); it does NOT contain any event-specific logic. Each event
 //! family lives in its own handler module (`engine_events::permission`,
-//! `engine_events::audio_device`, …) so the file named for one concern
+//! `engine_events::power`, …) so the file named for one concern
 //! doesn't grow into a junk drawer.
 //!
 //! To add a new event family: create a sibling handler module with a
 //! `handle_frame(&AppHandle, &Value)` function and add a match arm in
 //! [`dispatch`] below.
-//!
-//! The previous incarnation lived at `permission_events.rs` and grew an
-//! `audio_device_fallback_*` arm — the rename + split makes the seam
-//! explicit.
 
-mod audio_device;
 mod permission;
 mod power;
 
@@ -62,8 +57,8 @@ async fn run(app: AppHandle, server_port: u16, api_key: Option<String>) {
 }
 
 async fn connect(app: &AppHandle, port: u16, api_key: Option<&str>) -> Result<(), String> {
-    // The /ws/events endpoint streams all events (meetings, workflows,
-    // permissions, audio devices, …). We dispatch by event name client-side.
+    // The /ws/events endpoint streams all events (workflows, permissions,
+    // power, …). We dispatch by event name client-side.
     use crate::recording::LocalApiContext;
     let ctx = LocalApiContext {
         port,
@@ -110,7 +105,7 @@ async fn connect(app: &AppHandle, port: u16, api_key: Option<&str>) -> Result<()
 ///
 /// Frame shape: `{ "name": "<event-name>", "data": { … } }`. Unknown event
 /// names are silently ignored — many event families are emitted by the engine
-/// (workflows, meetings, …) that this app doesn't currently consume.
+/// (workflows, …) that this app doesn't currently consume.
 fn dispatch(app: &AppHandle, text: &str) {
     let Ok(frame) = serde_json::from_str::<serde_json::Value>(text) else {
         return;
@@ -120,9 +115,6 @@ fn dispatch(app: &AppHandle, text: &str) {
     match name {
         "permission_lost" | "permission_restored" | "permission_needed" => {
             permission::handle(app, name, &data)
-        }
-        "audio_device_fallback_engaged" | "audio_device_fallback_cleared" => {
-            audio_device::handle(app, name, &data)
         }
         "power_profile_changed" => power::handle(app, name, &data),
         _ => { /* unrelated event — ignore */ }

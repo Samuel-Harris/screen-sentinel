@@ -38,7 +38,6 @@ pub enum RewindWindowId {
     Home,
     Search,
     Onboarding,
-    Chat,
     PermissionRecovery,
 }
 
@@ -51,7 +50,6 @@ impl FromStr for RewindWindowId {
             "home" | "settings" => Ok(RewindWindowId::Home),
             "search" => Ok(RewindWindowId::Search),
             "onboarding" => Ok(RewindWindowId::Onboarding),
-            "chat" => Ok(RewindWindowId::Chat),
             "permission-recovery" => Ok(RewindWindowId::PermissionRecovery),
             _ => Ok(RewindWindowId::Main),
         }
@@ -65,7 +63,6 @@ impl std::fmt::Display for RewindWindowId {
             RewindWindowId::Home => write!(f, "home"),
             RewindWindowId::Search => write!(f, "search"),
             RewindWindowId::Onboarding => write!(f, "onboarding"),
-            RewindWindowId::Chat => write!(f, "chat"),
             RewindWindowId::PermissionRecovery => write!(f, "permission-recovery"),
         }
     }
@@ -78,7 +75,6 @@ impl RewindWindowId {
             RewindWindowId::Home => "home",
             RewindWindowId::Search => "search",
             RewindWindowId::Onboarding => "onboarding",
-            RewindWindowId::Chat => "chat",
             RewindWindowId::PermissionRecovery => "permission-recovery",
         }
     }
@@ -89,7 +85,6 @@ impl RewindWindowId {
             RewindWindowId::Home => "screenpipe",
             RewindWindowId::Search => "search",
             RewindWindowId::Onboarding => "onboarding",
-            RewindWindowId::Chat => "ai chat",
             RewindWindowId::PermissionRecovery => "fix permissions",
         }
     }
@@ -100,7 +95,6 @@ impl RewindWindowId {
             RewindWindowId::Home => (800.0, 600.0),
             RewindWindowId::Search => (400.0, 56.0),
             RewindWindowId::Onboarding => (450.0, 500.0),
-            RewindWindowId::Chat => (600.0, 750.0),
             RewindWindowId::PermissionRecovery => (500.0, 580.0),
         })
     }
@@ -117,7 +111,6 @@ pub enum ShowRewindWindow {
     Home { page: Option<String> },
     Search { query: Option<String> },
     Onboarding,
-    Chat,
     PermissionRecovery,
 }
 
@@ -208,7 +201,6 @@ impl ShowRewindWindow {
             ShowRewindWindow::Home { page: _ } => RewindWindowId::Home,
             ShowRewindWindow::Search { query: _ } => RewindWindowId::Search,
             ShowRewindWindow::Onboarding => RewindWindowId::Onboarding,
-            ShowRewindWindow::Chat => RewindWindowId::Chat,
             ShowRewindWindow::PermissionRecovery => RewindWindowId::PermissionRecovery,
         }
     }
@@ -221,7 +213,6 @@ impl ShowRewindWindow {
                 Some(query.clone().unwrap_or_default().to_string())
             }
             ShowRewindWindow::Onboarding => None,
-            ShowRewindWindow::Chat => None,
             ShowRewindWindow::PermissionRecovery => None,
         }
     }
@@ -404,18 +395,6 @@ impl ShowRewindWindow {
 
     pub fn show(&self, app: &AppHandle) -> tauri::Result<WebviewWindow> {
         let id = self.id();
-        if crate::enterprise_policy::is_app_ui_hidden() && id != RewindWindowId::PermissionRecovery
-        {
-            info!(
-                "enterprise: suppressed {} window in hidden UI mode",
-                id.label()
-            );
-            return Err(tauri::Error::Anyhow(anyhow::anyhow!(
-                "window suppressed by enterprise hidden UI mode: {}",
-                id.label()
-            )));
-        }
-
         let onboarding_store = OnboardingStore::get(app)
             .unwrap_or_else(|_| None)
             .unwrap_or_default();
@@ -592,78 +571,6 @@ impl ShowRewindWindow {
                 }
 
                 return Ok(window);
-            }
-
-            // Chat window needs panel behavior on macOS to show above fullscreen
-            if id.label() == RewindWindowId::Chat.label() {
-                #[cfg(target_os = "macos")]
-                {
-                    // NOTE: Accessory mode removed — it hides dock icon and tray on notched MacBooks
-
-                    let settings = SettingsStore::get(app)
-                        .unwrap_or_default()
-                        .unwrap_or_default();
-                    let capturable =
-                        crate::config::is_e2e_mode() || settings.show_overlay_in_screen_recording;
-                    let chat_on_top = settings.chat_always_on_top;
-                    let app_clone = app.clone();
-                    run_on_main_thread_safe(app, move || {
-                        use objc::{msg_send, sel, sel_impl};
-                        use tauri_nspanel::cocoa::appkit::NSWindowCollectionBehavior;
-
-                        if let Ok(panel) = app_clone.get_webview_panel(RewindWindowId::Chat.label())
-                        {
-                            if chat_on_top {
-                                panel.set_level(1001);
-                                // NonActivatingPanel (128) so clicking doesn't activate app
-                                unsafe {
-                                    let current: i32 = msg_send![&*panel, styleMask];
-                                    panel.set_style_mask(current | 128);
-                                }
-                            } else {
-                                // Normal window level — allow it to go behind other windows
-                                panel.set_level(0);
-                                // Remove NonActivatingPanel bit (128) so it behaves normally
-                                unsafe {
-                                    let current: i32 = msg_send![&*panel, styleMask];
-                                    panel.set_style_mask(current & !128);
-                                }
-                            }
-                            let _: () =
-                                unsafe { msg_send![&*panel, setMovableByWindowBackground: true] };
-                            let sharing: u64 = if capturable { 1 } else { 0 };
-                            let _: () = unsafe { msg_send![&*panel, setSharingType: sharing] };
-                            panel.set_collection_behaviour(
-                                NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace |
-                                NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary
-                            );
-                            panel.order_front_regardless();
-                            panel.make_key_window();
-                            // Set WKWebView as first responder AFTER make_key_window
-                            unsafe {
-                                make_webview_first_responder(&panel);
-                            }
-                            // Remove MoveToActiveSpace now that the panel is shown.
-                            panel.set_collection_behaviour(
-                                NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary
-                            );
-                        }
-                    });
-
-                    return Ok(window);
-                }
-
-                #[cfg(not(target_os = "macos"))]
-                {
-                    let chat_on_top = SettingsStore::get(app)
-                        .unwrap_or_default()
-                        .unwrap_or_default()
-                        .chat_always_on_top;
-                    window.set_always_on_top(chat_on_top).ok();
-                    window.show().ok();
-                    window.set_focus().ok();
-                    return Ok(window);
-                }
             }
 
             info!("showing window: {:?}", id.label());
@@ -856,7 +763,7 @@ impl ShowRewindWindow {
                                             let app2 = app.clone();
                                             let _ = app.run_on_main_thread(move || {
                                                 // Conditional restore: if focus moved to another
-                                                // screenpipe window (Settings, Chat), just clear.
+                                                // screenpipe window (Settings), just clear.
                                                 // Only activate previous external app if our app
                                                 // is no longer active.
                                                 restore_frontmost_app_if_external_with_app(Some(&app2));
@@ -1585,104 +1492,6 @@ impl ShowRewindWindow {
                     .maximizable(false)
                     .focused(true);
                 let window = super::finalize_webview_window(builder.build()?);
-
-                window
-            }
-            ShowRewindWindow::Chat => {
-                let chat_always_on_top = SettingsStore::get(app)
-                    .unwrap_or_default()
-                    .unwrap_or_default()
-                    .chat_always_on_top;
-
-                #[cfg(target_os = "macos")]
-                let window = {
-                    // NOTE: Do NOT switch to Accessory mode here — it hides dock icon
-                    // and tray on notched MacBooks. NSPanel handles fullscreen visibility.
-                    let builder = self
-                        .window_builder(app, "/chat")
-                        .inner_size(650.0, 800.0)
-                        .min_inner_size(500.0, 600.0)
-                        .focused(false)
-                        .visible(false)
-                        .always_on_top(chat_always_on_top)
-                        .hidden_title(true);
-                    let window = super::finalize_webview_window(builder.build()?);
-
-                    // Convert to panel for fullscreen support.
-                    // Only configure level + behaviors here — do NOT activate
-                    // or show. The show_existing path handles that when the
-                    // user presses the shortcut. This matches the main overlay
-                    // creation pattern and avoids focus-stealing on startup
-                    // when the panel is pre-created hidden.
-                    if let Ok(_panel) = window.to_panel() {
-                        info!("Successfully converted chat window to panel");
-
-                        let window_clone = window.clone();
-                        run_on_main_thread_safe(app, move || {
-                            use objc::{msg_send, sel, sel_impl};
-                            use tauri_nspanel::cocoa::appkit::NSWindowCollectionBehavior;
-
-                            if let Ok(panel) = window_clone.to_panel() {
-                                let chat_on_top = SettingsStore::get(window_clone.app_handle())
-                                    .unwrap_or_default()
-                                    .unwrap_or_default()
-                                    .chat_always_on_top;
-
-                                if chat_on_top {
-                                    // Level 1001 to appear above fullscreen apps
-                                    panel.set_level(1001);
-                                    // NonActivatingPanel (128) so clicking the chat doesn't
-                                    // activate the app (which would switch Spaces away from
-                                    // fullscreen apps). Preserve existing style bits.
-                                    unsafe {
-                                        let current: i32 = msg_send![&*panel, styleMask];
-                                        panel.set_style_mask(current | 128);
-                                    }
-                                } else {
-                                    panel.set_level(0);
-                                }
-
-                                // Don't hide when app deactivates
-                                panel.set_hides_on_deactivate(false);
-
-                                // Enable dragging by clicking anywhere on the window background
-                                let _: () = unsafe {
-                                    msg_send![&*panel, setMovableByWindowBackground: true]
-                                };
-
-                                // NSWindowSharingNone=0 hides from screen recorders, NSWindowSharingReadOnly=1 allows capture
-                                let capturable = crate::config::is_e2e_mode()
-                                    || SettingsStore::get(window_clone.app_handle())
-                                        .unwrap_or_default()
-                                        .unwrap_or_default()
-                                        .show_overlay_in_screen_recording;
-                                let sharing: u64 = if capturable { 1 } else { 0 };
-                                let _: () = unsafe { msg_send![&*panel, setSharingType: sharing] };
-
-                                // MoveToActiveSpace so show_existing can pull
-                                // it to any Space (including fullscreen).
-                                panel.set_collection_behaviour(
-                                NSWindowCollectionBehavior::NSWindowCollectionBehaviorMoveToActiveSpace |
-                                NSWindowCollectionBehavior::NSWindowCollectionBehaviorIgnoresCycle |
-                                NSWindowCollectionBehavior::NSWindowCollectionBehaviorFullScreenAuxiliary
-                            );
-                            }
-                        });
-                    }
-
-                    window
-                };
-
-                #[cfg(not(target_os = "macos"))]
-                let window = {
-                    let builder = self
-                        .window_builder(app, "/chat")
-                        .inner_size(650.0, 800.0)
-                        .min_inner_size(500.0, 600.0)
-                        .focused(true)
-                        .always_on_top(chat_always_on_top);
-                    super::finalize_webview_window(builder.build()?)
-                };
 
                 window
             }

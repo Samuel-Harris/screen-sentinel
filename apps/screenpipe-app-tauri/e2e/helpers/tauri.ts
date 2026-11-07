@@ -7,7 +7,6 @@ export type ShowRewindWindow =
   | { Home: { page: string | null } }
   | { Search: { query: string | null } }
   | "Onboarding"
-  | "Chat"
   | "PermissionRecovery";
 
 export type OSPermissionStatus = "notNeeded" | "empty" | "granted" | "denied";

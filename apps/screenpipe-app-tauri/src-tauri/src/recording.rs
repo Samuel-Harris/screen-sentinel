@@ -5,8 +5,8 @@
 //! Tauri commands for managing the screenpipe server and capture session.
 //!
 //! Two independent lifecycles:
-//! - **Server** (DB + HTTP + pipes): started once, lives until app quits.
-//! - **Capture** (vision + audio + UI): can be toggled without restarting the server.
+//! - **Server** (DB + HTTP): started once, lives until app quits.
+//! - **Capture** (vision + UI): can be toggled without restarting the server.
 
 use crate::capture_session::CaptureSession;
 use crate::config;
@@ -17,7 +17,6 @@ use screenpipe_engine::RecordingConfig;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, State};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
@@ -80,24 +79,6 @@ fn require_app_entitlement(store: &SettingsStore) -> Result<(), String> {
     Err("subscription_required: active screenpipe plan required to start recording".to_string())
 }
 
-pub fn notify_audio_engine_fallback(store: &SettingsStore) {
-    if store.recording.disable_audio {
-        return;
-    }
-
-    let resolution = store.audio_engine_resolution();
-    let Some(reason) = resolution.fallback_reason else {
-        return;
-    };
-
-    crate::notifications::client::send_typed(
-        reason.notification_title(),
-        reason.notification_body(),
-        "system",
-        Some(20000),
-    );
-}
-
 pub fn local_api_context_from_app(app: &tauri::AppHandle) -> LocalApiContext {
     if let Some(state) = app.try_state::<RecordingState>() {
         if let Ok(guard) = state.server.try_lock() {
@@ -120,25 +101,13 @@ pub fn local_api_context_from_app(app: &tauri::AppHandle) -> LocalApiContext {
 
 /// Minimum seconds between consecutive stop→spawn cycles.
 const RESTART_COOLDOWN_SECS: u64 = 30;
-const CAPTURE_RESTART_MEETING_REATTACH_WINDOW: Duration = Duration::from_secs(120);
-
-#[derive(Clone, Debug)]
-pub(crate) struct InterruptedMeeting {
-    id: i64,
-    app: String,
-    title: Option<String>,
-    detection_source: String,
-    manual: bool,
-    captured_at: Instant,
-}
-
 /// Two-phase state: server (long-lived) + capture (togglable).
 ///
 /// **Lock ordering**: `capture` may be locked independently (it's self-contained).
 /// When both locks are needed (e.g. `start_capture`), always lock `capture` first,
 /// then `server`. Never hold `server` while waiting on `capture`.
 pub struct RecordingState {
-    /// Long-lived server core (DB, HTTP, pipes). None until first start.
+    /// Long-lived server core (DB, HTTP). None until first start.
     pub server: Arc<Mutex<Option<ServerCore>>>,
     /// Current capture session. None when recording is stopped/paused.
     /// Self-contained — `CaptureSession::stop()` needs no external references.
@@ -152,21 +121,10 @@ pub struct RecordingState {
     /// concurrent calls both pass the is_some() check, both build a
     /// CaptureSession, and the second clobbers the first — dropping the
     /// first runs its shutdown handlers and tears down workers shared with
-    /// the second, surfacing as a PoolClosed cascade and lost audio chunks.
+    /// the second, surfacing as a PoolClosed cascade.
     pub is_starting_capture: Arc<AtomicBool>,
     /// Epoch seconds of last successful spawn — enforces cooldown between restarts
     pub last_spawn_epoch: Arc<AtomicU64>,
-    /// Recently active meeting to revive when capture is immediately restarted.
-    pub(crate) interrupted_meeting: Arc<Mutex<Option<InterruptedMeeting>>>,
-    /// App-scoped cloud-auth token (Clerk JWT). Outlives the Server (which
-    /// is recreated on every recording restart) so that writes from the
-    /// `set_cloud_token` Tauri command — pushed by the frontend on every
-    /// sign-in / sign-out — survive capture toggles. The Server's own
-    /// `cloud_token` field is replaced with this same Arc at start, and
-    /// `PiExecutor` is constructed with `with_shared_user_token(this)`, so
-    /// one update propagates to all three readers (cloud_proxy.rs, the
-    /// pi-agent's models.json apiKey, and any future Tauri-side consumer).
-    pub cloud_token: Arc<arc_swap::ArcSwap<Option<String>>>,
 }
 
 // ---------------------------------------------------------------------------
@@ -184,49 +142,8 @@ pub struct MonitorDevice {
     pub height: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
-#[serde(rename_all = "camelCase")]
-pub struct AudioDeviceInfo {
-    pub name: String,
-    pub is_default: bool,
-}
-
-pub async fn get_available_audio_devices() -> Result<Vec<AudioDeviceInfo>, String> {
-    debug!("Getting available audio devices");
-    let devices = screenpipe_audio::core::device::list_audio_devices()
-        .await
-        .map_err(|e| format!("Failed to list audio devices: {}", e))?;
-
-    let default_input = screenpipe_audio::core::device::default_input_device()
-        .map(|d| d.to_string())
-        .ok();
-    let default_output = screenpipe_audio::core::device::default_output_device()
-        .await
-        .map(|d| d.to_string())
-        .ok();
-
-    let result: Vec<AudioDeviceInfo> = devices
-        .iter()
-        .map(|d| {
-            let name = d.to_string();
-            let is_default =
-                Some(&name) == default_input.as_ref() || Some(&name) == default_output.as_ref();
-            AudioDeviceInfo { name, is_default }
-        })
-        .collect();
-
-    debug!("Found {} audio devices", result.len());
-    Ok(result)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn get_audio_devices() -> Result<Vec<AudioDeviceInfo>, String> {
-    get_available_audio_devices().await
-}
-
 /// Read the current boot phase of the server. Used by the onboarding UI to
-/// show progress ("updating database", "loading pipes", ...) while the HTTP
+/// show progress ("updating database", ...) while the HTTP
 /// server is not yet listening — in particular during long DB migrations
 /// where /health is unreachable.
 #[tauri::command]
@@ -275,7 +192,7 @@ pub async fn get_monitors() -> Result<Vec<MonitorDevice>, String> {
 // ---------------------------------------------------------------------------
 
 /// Stop recording without killing the server.
-/// Pipes, memories, search, and the HTTP API remain accessible.
+/// Memories, search, and the HTTP API remain accessible.
 #[tauri::command]
 #[specta::specta]
 pub async fn stop_capture(
@@ -284,8 +201,6 @@ pub async fn stop_capture(
 ) -> Result<(), String> {
     info!("Stopping capture session (server stays alive)");
 
-    remember_active_meeting_for_capture_restart(&state).await;
-
     let mut capture_guard = state.capture.lock().await;
     if let Some(session) = capture_guard.take() {
         session.stop().await;
@@ -293,97 +208,6 @@ pub async fn stop_capture(
     } else {
         debug!("No capture session running");
     }
-    Ok(())
-}
-
-async fn remember_active_meeting_for_capture_restart(state: &RecordingState) {
-    let server_guard = state.server.lock().await;
-    let Some(server) = server_guard.as_ref() else {
-        return;
-    };
-
-    let manual_id = *server.manual_meeting.read().await;
-    let meeting = match manual_id {
-        Some(id) => server.db.get_active_meeting_by_id(id).await.ok().flatten(),
-        None => server
-            .db
-            .get_most_recent_active_meeting()
-            .await
-            .ok()
-            .flatten(),
-    };
-
-    let Some(meeting) = meeting else {
-        *state.interrupted_meeting.lock().await = None;
-        return;
-    };
-
-    let meeting_id = meeting.id;
-    let interrupted = InterruptedMeeting {
-        id: meeting_id,
-        app: meeting.meeting_app,
-        title: meeting.title,
-        detection_source: meeting.detection_source,
-        manual: manual_id == Some(meeting_id),
-        captured_at: Instant::now(),
-    };
-    info!(
-        "remembering active meeting across capture restart (id={}, app={}, manual={})",
-        interrupted.id, interrupted.app, interrupted.manual
-    );
-    *state.interrupted_meeting.lock().await = Some(interrupted);
-}
-
-async fn restore_interrupted_meeting_for_capture_restart(
-    state: &RecordingState,
-) -> Result<(), String> {
-    let interrupted = {
-        let mut guard = state.interrupted_meeting.lock().await;
-        guard.take()
-    };
-    let Some(interrupted) = interrupted else {
-        return Ok(());
-    };
-
-    if interrupted.captured_at.elapsed() > CAPTURE_RESTART_MEETING_REATTACH_WINDOW {
-        debug!(
-            "skipping stale interrupted meeting restore (id={}, app={})",
-            interrupted.id, interrupted.app
-        );
-        return Ok(());
-    }
-
-    let server_guard = state.server.lock().await;
-    let Some(server) = server_guard.as_ref() else {
-        return Ok(());
-    };
-
-    let already_active = server
-        .db
-        .get_active_meeting_by_id(interrupted.id)
-        .await
-        .map_err(|e| e.to_string())?
-        .is_some();
-    if !already_active {
-        server
-            .db
-            .reopen_meeting(interrupted.id)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
-
-    if interrupted.manual {
-        let mut manual = server.manual_meeting.write().await;
-        *manual = Some(interrupted.id);
-    }
-    if let Some(detector) = server.audio_manager.meeting_detector().await {
-        detector.set_v2_in_meeting(true);
-    }
-
-    info!(
-        "restored active meeting across capture restart (id={}, app={}, source={}, title={:?})",
-        interrupted.id, interrupted.app, interrupted.detection_source, interrupted.title
-    );
     Ok(())
 }
 
@@ -406,8 +230,7 @@ pub async fn start_capture(
     // concurrent calls both pass the `is_some()` check, both build a
     // CaptureSession (~290ms), and the second clobbers the first. Dropping
     // the first runs its shutdown handlers, which tear down workers shared
-    // with the second — surfacing as a PoolClosed cascade and silently lost
-    // audio chunks.
+    // with the second — surfacing as a PoolClosed cascade.
     if state.is_starting_capture.swap(true, Ordering::SeqCst) {
         info!("Capture start already in progress, skipping duplicate");
         return Ok(());
@@ -461,14 +284,12 @@ pub async fn start_capture(
         ));
     }
 
-    restore_interrupted_meeting_for_capture_restart(&state).await?;
-
     let server_guard = state.server.lock().await;
     let server = server_guard
         .as_ref()
         .ok_or_else(|| "Server not running — cannot start capture".to_string())?;
     let config = build_config(&app)?;
-    let session = CaptureSession::start(server, &config, false).await?;
+    let session = CaptureSession::start(server, &config).await?;
     drop(server_guard);
 
     *capture_guard = Some(session);
@@ -482,7 +303,7 @@ pub async fn start_capture(
 // ---------------------------------------------------------------------------
 
 /// Stop capture AND server so the next spawn_screenpipe does a full restart.
-/// Called by "Apply & Restart", audio shortcuts, updates, and rollbacks.
+/// Called by "Apply & Restart", updates, and rollbacks.
 /// The tray toggle uses stop_capture / start_capture to keep the server alive.
 #[tauri::command]
 #[specta::specta]
@@ -494,7 +315,6 @@ pub async fn stop_screenpipe(
 
     // Stop capture first
     {
-        *state.interrupted_meeting.lock().await = None;
         let mut capture_guard = state.capture.lock().await;
         if let Some(session) = capture_guard.take() {
             session.stop().await;
@@ -603,7 +423,7 @@ pub async fn spawn_screenpipe(
     // Now we use boot-phase state as the source of truth:
     //   - "ready" → server is up, we're done
     //   - "error" → initial start failed, safe to take over and retry
-    //   - "migrating_database" / "building_audio" / "starting_pipes" / "starting"
+    //   - "migrating_database" / "starting"
     //     → another thread is making progress, keep waiting no matter how long
     //
     // A 30-minute safety ceiling prevents a wedged start from hanging the app
@@ -663,7 +483,7 @@ pub async fn spawn_screenpipe(
                     }
                 }
                 _ => {
-                    // starting | migrating_database | building_audio | starting_pipes
+                    // starting | migrating_database
                     // — keep waiting, progress is being made.
                 }
             }
@@ -753,7 +573,6 @@ pub async fn spawn_screenpipe(
 
     // Permissions check
     let permissions_check = do_permissions_check(false);
-    let disable_audio = store.recording.disable_audio;
 
     if !permissions_check.screen_recording.permitted() {
         warn!(
@@ -772,17 +591,7 @@ pub async fn spawn_screenpipe(
         );
     }
 
-    if !disable_audio && !permissions_check.microphone.permitted() {
-        warn!(
-            "Microphone permission not granted: {:?}. Audio recording will not work.",
-            permissions_check.microphone
-        );
-    }
-
-    info!(
-        "Permissions OK. Starting server + capture. Audio disabled: {}, mic: {:?}",
-        disable_audio, permissions_check.microphone
-    );
+    info!("Permissions OK. Starting server + capture.");
 
     let (data_dir, fell_back) = config::resolve_data_dir(&store.data_dir);
     if fell_back {
@@ -815,38 +624,10 @@ pub async fn spawn_screenpipe(
         }
     }
 
-    notify_audio_engine_fallback(&store);
     let recording_config = store.to_recording_config(data_dir);
 
     let server_arc = state.server.clone();
     let capture_arc = state.capture.clone();
-    let cloud_token_arc = state.cloud_token.clone();
-
-    // Pipe output callback. Stage 5: legacy `pipe_event` topic dropped.
-    // Every pipe stdout line is emitted on the unified `agent_event`
-    // topic with sessionId `pipe:<name>:<execId>` (see the matching
-    // helper in `apps/screenpipe-app-tauri/lib/events/types.ts`).
-    let app_for_pipe = app.clone();
-    let app_for_owned = app.clone();
-
-    // Owned-browser: create the connect-side instance and kick off the
-    // webview install in the background. The engine starts immediately;
-    // the handle attaches when the WebviewWindow is ready.
-    //
-    // `spawn_install_when_ready` survives tray-only mode by listening for
-    // `window-focused` events instead of giving up after a fixed budget.
-    let owned_browser = screenpipe_connect::connections::browser::OwnedBrowser::default_instance();
-    crate::owned_browser::spawn_install_when_ready(
-        app_for_owned,
-        recording_config.data_dir.clone(),
-        owned_browser.clone(),
-    );
-    let pipe_agent_events = crate::agent_event_emitter::PipeAgentEventEmitter::new(app_for_pipe);
-    let on_pipe_output: Option<screenpipe_core::pipes::OnPipeOutputLine> = Some(
-        std::sync::Arc::new(move |pipe_name: &str, exec_id: i64, line: &str| {
-            pipe_agent_events.emit_line(pipe_name, exec_id, line);
-        }),
-    );
 
     // Oneshot for result
     let (result_tx, result_rx) = tokio::sync::oneshot::channel::<Result<(), String>>();
@@ -872,13 +653,7 @@ pub async fn spawn_screenpipe(
 
             server_runtime.block_on(async move {
                 // Phase 1: Start server
-                let server = match ServerCore::start(
-                    &recording_config,
-                    on_pipe_output,
-                    Some(owned_browser),
-                    cloud_token_arc.clone(),
-                )
-                .await
+                let server = match ServerCore::start(&recording_config).await
                 {
                     Ok(s) => s,
                     Err(e) => {
@@ -889,12 +664,12 @@ pub async fn spawn_screenpipe(
                 };
 
                 // Phase 2: Start capture
-                let capture = match CaptureSession::start(&server, &recording_config, true).await {
+                let capture = match CaptureSession::start(&server, &recording_config).await {
                     Ok(c) => c,
                     Err(e) => {
                         error!("Failed to start capture session: {}", e);
                         // Server started but capture failed — store server anyway
-                        // so pipes/search still work
+                        // so search still works
                         {
                             let mut guard = server_arc.lock().await;
                             *guard = Some(server);
@@ -972,15 +747,13 @@ async fn start_capture_internal(
         return Ok(());
     }
 
-    restore_interrupted_meeting_for_capture_restart(state).await?;
-
     let server_guard = state.server.lock().await;
     let server = server_guard
         .as_ref()
         .ok_or_else(|| "Server not running".to_string())?;
 
     let config = build_config(app)?;
-    let session = CaptureSession::start(server, &config, false).await?;
+    let session = CaptureSession::start(server, &config).await?;
     drop(server_guard);
 
     *capture_guard = Some(session);

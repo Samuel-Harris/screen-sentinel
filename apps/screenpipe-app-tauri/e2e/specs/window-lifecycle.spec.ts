@@ -87,8 +87,10 @@ describe("Window lifecycle", function () {
       await input.waitForExist({ timeout: t(10_000) });
 
       // Verify input is the typing target via click + element-scoped
-      // setValue (same rationale as chat-window.spec.ts — see comment there).
-      // The autofocus contract is covered by the manual TESTING.md checklist.
+      // setValue rather than `document.activeElement` or `browser.keys`:
+      // hosted CI webviews do not consistently grant key-window status in
+      // headless mode. The autofocus contract is covered by the manual
+      // TESTING.md checklist.
       await input.click();
       const probe = `search-focus-${i}-${Date.now()}`;
       await input.setValue(probe);
