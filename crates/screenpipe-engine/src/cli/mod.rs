@@ -303,10 +303,6 @@ pub struct RecordArgs {
     #[arg(long, hide = true)]
     pub auto_destruct_pid: Option<u32>,
 
-    /// Disable telemetry
-    #[arg(long, default_value_t = false)]
-    pub disable_telemetry: bool,
-
     /// Video quality preset: low, balanced, high, max
     #[arg(long, default_value = "balanced")]
     pub video_quality: String,
@@ -492,7 +488,6 @@ pub struct RecordArgSources {
     pub ignored_windows: bool,
     pub included_windows: bool,
     pub ignored_urls: bool,
-    pub disable_telemetry: bool,
     pub video_quality: bool,
     pub pause_on_drm_content: bool,
     pub disable_clipboard_capture: bool,
@@ -525,7 +520,6 @@ impl RecordArgSources {
             ignored_windows: from_command_line(record, "ignored_windows"),
             included_windows: from_command_line(record, "included_windows"),
             ignored_urls: from_command_line(record, "ignored_urls"),
-            disable_telemetry: from_command_line(record, "disable_telemetry"),
             video_quality: from_command_line(record, "video_quality"),
             pause_on_drm_content: from_command_line(record, "pause_on_drm_content"),
             disable_clipboard_capture: from_command_line(record, "disable_clipboard_capture"),
@@ -553,7 +547,6 @@ impl RecordArgSources {
             || self.ignored_windows
             || self.included_windows
             || self.ignored_urls
-            || self.disable_telemetry
             || self.video_quality
             || self.pause_on_drm_content
             || self.disable_clipboard_capture
@@ -697,7 +690,6 @@ impl RecordArgs {
             prioritize_input_latency: self.prioritize_input_latency,
             extraction_thread_priority: self.extraction_thread_priority.clone(),
             pause_extraction_on_input_ms: self.pause_extraction_on_input_ms,
-            analytics_enabled: !self.disable_telemetry,
             ignore_incognito_windows: true,
             pause_on_drm_content: self.pause_on_drm_content,
             disable_clipboard_capture: self.disable_clipboard_capture,
@@ -887,9 +879,6 @@ impl RecordArgs {
         }
         if sources.ignored_urls {
             settings.ignored_urls = self.ignored_urls.clone();
-        }
-        if sources.disable_telemetry {
-            settings.analytics_enabled = !self.disable_telemetry;
         }
         if sources.video_quality {
             settings.video_quality = self.video_quality.clone();

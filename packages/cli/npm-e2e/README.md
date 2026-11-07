@@ -41,7 +41,6 @@ Example (CI-safe, no screen/audio permissions needed):
 bun run screenpipe record \
   --disable-audio \
   --disable-vision \
-  --disable-telemetry \
   --disable-meeting-detector
 ```
 
