@@ -28,16 +28,16 @@ use tracing_oslog::OsLogger;
 use updates::start_update_check;
 use window::ShowRewindWindow;
 
-#[allow(deprecated)]
-mod icons;
 mod capture_session;
 #[allow(deprecated)]
 mod commands;
 mod disk_usage;
+mod engine_events;
+#[allow(deprecated)]
+mod icons;
 mod livetext;
 #[cfg(target_os = "macos")]
 mod livetext_ffi;
-mod engine_events;
 mod monitor_events;
 mod permissions;
 mod recording;
@@ -333,9 +333,13 @@ async fn main() {
     //   3. `rm ~/.screen-sentinel/.db_recovery.lock` — manual
     //
     // See `crates/screen-sentinel-engine/src/cli/db.rs`.
-    if std::env::var("SCREEN_SENTINEL_IGNORE_DB_LOCK").ok().as_deref() != Some("1") {
-        let lock_path =
-            screen_sentinel_core::paths::default_screen_sentinel_data_dir().join(".db_recovery.lock");
+    if std::env::var("SCREEN_SENTINEL_IGNORE_DB_LOCK")
+        .ok()
+        .as_deref()
+        != Some("1")
+    {
+        let lock_path = screen_sentinel_core::paths::default_screen_sentinel_data_dir()
+            .join(".db_recovery.lock");
         if let Ok(metadata) = std::fs::metadata(&lock_path) {
             let stale = metadata
                 .modified()
@@ -651,7 +655,10 @@ async fn main() {
             show_main_window(app_for_closure.clone());
 
             // Forward deep-link URL from args
-            if let Some(url) = args_clone.iter().find(|a| a.starts_with("screen-sentinel://")) {
+            if let Some(url) = args_clone
+                .iter()
+                .find(|a| a.starts_with("screen-sentinel://"))
+            {
                 let _ = app_for_closure.emit("deep-link-received", url.clone());
             }
 
@@ -1280,7 +1287,6 @@ async fn main() {
                         })
                     })
                     .join();
-
                 }
 
                 tauri::RunEvent::WindowEvent {

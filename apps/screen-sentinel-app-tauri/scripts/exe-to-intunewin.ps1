@@ -7,7 +7,7 @@
 # so the app can detect Intune/MDM-managed updates and avoid self-updating.
 # Usage:
 #   .\exe-to-intunewin.ps1
-#     (uses default: src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*setup*.exe)
+#     (uses default: <cargo target dir>\x86_64-pc-windows-msvc\release\bundle\nsis\*setup*.exe)
 #   .\exe-to-intunewin.ps1 -SetupExe "C:\path\to\screen-sentinel-2.50.3-setup.exe"
 #   .\exe-to-intunewin.ps1 -SetupExe "C:\path\to\screen-sentinel-2.50.3-setup.exe" -OutDir "C:\intunewin\out"
 #
@@ -24,7 +24,8 @@ $appRoot = Split-Path $scriptRoot -Parent
 
 # Resolve setup exe
 if ($SetupExe -eq "") {
-    $nsisDir = Join-Path $appRoot "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis"
+    $targetDir = (cargo metadata --format-version 1 --no-deps --manifest-path (Join-Path $appRoot "src-tauri\Cargo.toml") | ConvertFrom-Json).target_directory
+    $nsisDir = Join-Path $targetDir "x86_64-pc-windows-msvc\release\bundle\nsis"
     $exe = Get-ChildItem (Join-Path $nsisDir "*setup*.exe") -ErrorAction SilentlyContinue | Select-Object -First 1
     if (-not $exe) {
         Write-Error "No *setup*.exe found in $nsisDir. Build the enterprise installer first or pass -SetupExe <path>."

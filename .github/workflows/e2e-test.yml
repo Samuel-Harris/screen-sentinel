@@ -109,7 +109,11 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        # The app builds into src-tauri/target while it has its own Cargo
+        # workspace and into the root target once it joins the root one.
+        workspaces: |
+          apps/screen-sentinel-app-tauri/src-tauri
+          . -> target
         shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
@@ -156,7 +160,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ./apps/screen-sentinel-app-tauri/.next
-        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
+        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
         restore-keys: |
           ${{ runner.os }}-next-v2-
 
@@ -182,9 +186,10 @@ jobs:
     # `--no-bundle` skips it.
     - name: Stage ONNX Runtime DLLs next to test binary
       shell: pwsh
+      working-directory: ./apps/screen-sentinel-app-tauri/src-tauri
       run: |
         $src = "${{ github.workspace }}/ort-system-lib/lib"
-        $dst = "${{ github.workspace }}/apps/screen-sentinel-app-tauri/src-tauri/target/debug"
+        $dst = Join-Path (cargo metadata --format-version 1 --no-deps | ConvertFrom-Json).target_directory "debug"
         if (-not (Test-Path $dst)) {
           New-Item -ItemType Directory -Path $dst -Force | Out-Null
         }
@@ -477,7 +482,11 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        # The app builds into src-tauri/target while it has its own Cargo
+        # workspace and into the root target once it joins the root one.
+        workspaces: |
+          apps/screen-sentinel-app-tauri/src-tauri
+          . -> target
         shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
@@ -500,7 +509,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ./apps/screen-sentinel-app-tauri/.next
-        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
+        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
         restore-keys: |
           ${{ runner.os }}-next-v2-
 
@@ -598,7 +607,11 @@ jobs:
       continue-on-error: true
       uses: Swatinem/rust-cache@v2
       with:
-        workspaces: apps/screen-sentinel-app-tauri/src-tauri
+        # The app builds into src-tauri/target while it has its own Cargo
+        # workspace and into the root target once it joins the root one.
+        workspaces: |
+          apps/screen-sentinel-app-tauri/src-tauri
+          . -> target
         shared-key: screen-sentinel-tauri-e2e
         cache-bin: false
 
@@ -626,7 +639,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ./apps/screen-sentinel-app-tauri/.next
-        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
+        key: ${{ runner.os }}-next-v2-${{ hashFiles('apps/screen-sentinel-app-tauri/package.json', 'apps/screen-sentinel-app-tauri/bun.lock', 'bun.lock', 'apps/screen-sentinel-app-tauri/next.config.mjs', 'apps/screen-sentinel-app-tauri/postcss.config.mjs', 'apps/screen-sentinel-app-tauri/app/**', 'apps/screen-sentinel-app-tauri/components/**', 'apps/screen-sentinel-app-tauri/lib/**', 'apps/screen-sentinel-app-tauri/styles/**') }}
         restore-keys: |
           ${{ runner.os }}-next-v2-
 

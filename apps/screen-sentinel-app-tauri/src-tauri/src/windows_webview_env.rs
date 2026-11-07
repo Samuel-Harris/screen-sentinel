@@ -136,7 +136,10 @@ fn choose_user_data_dir() -> Result<(String, PathBuf, String), String> {
 fn ensure_writable_dir(path: &Path) -> Result<(), String> {
     std::fs::create_dir_all(path).map_err(|e| format!("create_dir_all failed: {e}"))?;
 
-    let test_path = path.join(format!(".screen-sentinel-write-test-{}", std::process::id()));
+    let test_path = path.join(format!(
+        ".screen-sentinel-write-test-{}",
+        std::process::id()
+    ));
     std::fs::write(&test_path, b"ok").map_err(|e| format!("write test failed: {e}"))?;
     let _ = std::fs::remove_file(&test_path);
     Ok(())

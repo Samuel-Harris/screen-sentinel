@@ -102,9 +102,13 @@ pub async fn vault_unlock(_app: AppHandle, password: String) -> Result<(), Strin
                     total_bytes: 0,
                     processed_bytes: 0,
                 });
-            if let Err(e) =
-                screen_sentinel_vault::migration::decrypt_data_dir(&screen_sentinel_dir, &data_dir, key, tx)
-                    .await
+            if let Err(e) = screen_sentinel_vault::migration::decrypt_data_dir(
+                &screen_sentinel_dir,
+                &data_dir,
+                key,
+                tx,
+            )
+            .await
             {
                 tracing::error!("background data decrypt failed: {}", e);
             } else {

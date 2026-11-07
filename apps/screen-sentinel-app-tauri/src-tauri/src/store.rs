@@ -657,7 +657,6 @@ pub struct SettingsStore {
     // (`RecordingSettings::disable_timeline`) so the engine can read it too. The
     // frontend JSON key stays `disableTimeline` at the top level via serde
     // flatten — do not add a second field here or serde will conflict.
-
     /// Show restart notifications when vision capture stalls.
     /// Disabled by default for now until the stall detector is more reliable.
     #[serde(rename = "showRestartNotifications", default)]
@@ -1156,7 +1155,8 @@ impl SettingsStore {
         data_dir: std::path::PathBuf,
     ) -> screen_sentinel_engine::RecordingConfig {
         let settings = self.to_recording_settings();
-        let mut config = screen_sentinel_engine::RecordingConfig::from_settings(&settings, data_dir);
+        let mut config =
+            screen_sentinel_engine::RecordingConfig::from_settings(&settings, data_dir);
         // Resolve the API auth key from the seeded cache. The cache is populated
         // asynchronously by `recording::spawn_screen_sentinel` via the shared helper
         // (`screen_sentinel_engine::auth_key::resolve_api_auth_key`) — which is the

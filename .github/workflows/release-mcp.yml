@@ -39,7 +39,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/screen-sentinel-mcp
-        run: npm install
+        run: npm install --workspaces=false
 
       - name: Build
         working-directory: packages/screen-sentinel-mcp

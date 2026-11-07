@@ -678,7 +678,8 @@ pub async fn get_disk_usage(
         _ => screen_sentinel_core::paths::default_screen_sentinel_data_dir(),
     };
 
-    match crate::disk_usage::disk_usage(&screen_sentinel_dir_path, force_refresh.unwrap_or(false)).await
+    match crate::disk_usage::disk_usage(&screen_sentinel_dir_path, force_refresh.unwrap_or(false))
+        .await
     {
         Ok(Some(disk_usage)) => match serde_json::to_value(&disk_usage) {
             Ok(json_value) => Ok(json_value),
@@ -783,10 +784,7 @@ pub async fn show_window(
 ) -> Result<(), String> {
     // Close Main window when opening other windows, EXCEPT for Search
     let window_id = window.id();
-    if !matches!(
-        window_id,
-        RewindWindowId::Main | RewindWindowId::Search
-    ) {
+    if !matches!(window_id, RewindWindowId::Main | RewindWindowId::Search) {
         // Hide Main without restoring the previous frontmost app — we're
         // transitioning to another Screen Sentinel window so focus should stay
         // with us, not bounce to the previous app.
@@ -875,7 +873,8 @@ pub async fn set_window_always_on_top_native(
                 if let raw_window_handle::RawWindowHandle::AppKit(appkit_handle) = handle.as_raw() {
                     use objc::{msg_send, sel, sel_impl};
                     let ns_view = appkit_handle.ns_view.as_ptr() as *mut objc::runtime::Object;
-                    let ns_window: *mut objc::runtime::Object = unsafe { msg_send![ns_view, window] };
+                    let ns_window: *mut objc::runtime::Object =
+                        unsafe { msg_send![ns_view, window] };
                     if !ns_window.is_null() {
                         // NSNormalWindowLevel = 0. NSFloatingWindowLevel = 3.
                         // Floating keeps recovery/onboarding above normal app
@@ -1362,7 +1361,10 @@ fn shortcut_reminder_label(
     setting_key: &str,
     disabled_shortcuts: &[String],
 ) -> String {
-    if disabled_shortcuts.iter().any(|disabled| disabled == setting_key) {
+    if disabled_shortcuts
+        .iter()
+        .any(|disabled| disabled == setting_key)
+    {
         String::new()
     } else if value.trim().is_empty() {
         String::new()
@@ -2510,7 +2512,10 @@ pub async fn list_cache_files() -> Result<Vec<CacheFile>, String> {
         }
 
         // Empty/stale DB files (data.db, screen-sentinel.db, store.sqlite)
-        if matches!(name.as_str(), "data.db" | "screen-sentinel.db" | "store.sqlite") {
+        if matches!(
+            name.as_str(),
+            "data.db" | "screen-sentinel.db" | "store.sqlite"
+        ) {
             let size = path.metadata().map(|m| m.len()).unwrap_or(0);
             if size == 0 {
                 files.push(CacheFile {

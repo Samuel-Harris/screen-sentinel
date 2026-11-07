@@ -143,10 +143,16 @@ impl OSPermissionStatus {
 }
 
 /// Convert core permission status to the Tauri app's OSPermissionStatus
-fn core_to_os_status(status: screen_sentinel_core::permissions::PermissionStatus) -> OSPermissionStatus {
+fn core_to_os_status(
+    status: screen_sentinel_core::permissions::PermissionStatus,
+) -> OSPermissionStatus {
     match status {
-        screen_sentinel_core::permissions::PermissionStatus::NotNeeded => OSPermissionStatus::NotNeeded,
-        screen_sentinel_core::permissions::PermissionStatus::NotDetermined => OSPermissionStatus::Empty,
+        screen_sentinel_core::permissions::PermissionStatus::NotNeeded => {
+            OSPermissionStatus::NotNeeded
+        }
+        screen_sentinel_core::permissions::PermissionStatus::NotDetermined => {
+            OSPermissionStatus::Empty
+        }
         screen_sentinel_core::permissions::PermissionStatus::Granted => OSPermissionStatus::Granted,
         screen_sentinel_core::permissions::PermissionStatus::Denied => OSPermissionStatus::Denied,
     }
@@ -277,7 +283,10 @@ pub async fn check_permission(permission: OSPermission) -> OSPermissionStatus {
 
 #[tauri::command(async)]
 #[specta::specta]
-pub async fn reset_permission(app: tauri::AppHandle, permission: OSPermission) -> Result<(), String> {
+pub async fn reset_permission(
+    app: tauri::AppHandle,
+    permission: OSPermission,
+) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
@@ -304,7 +313,11 @@ pub async fn reset_permission(app: tauri::AppHandle, permission: OSPermission) -
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("tccutil reset {} failed: {}", service, stderr.trim()));
+            return Err(format!(
+                "tccutil reset {} failed: {}",
+                service,
+                stderr.trim()
+            ));
         }
 
         Ok(())

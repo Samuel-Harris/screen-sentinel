@@ -36,6 +36,7 @@ jobs:
           cargo clippy --workspace \
             --exclude screen-sentinel-rfdetr-mlx \
             --exclude screen-sentinel-screen \
+            --exclude screen-sentinel-app \
             --all-targets -- -W clippy::all
 
   optimize:

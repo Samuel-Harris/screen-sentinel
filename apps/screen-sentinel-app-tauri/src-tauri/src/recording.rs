@@ -76,7 +76,10 @@ fn require_app_entitlement(store: &SettingsStore) -> Result<(), String> {
     }
 
     crate::health::set_recording_status(crate::health::RecordingStatus::Paused);
-    Err("subscription_required: active Screen Sentinel plan required to start recording".to_string())
+    Err(
+        "subscription_required: active Screen Sentinel plan required to start recording"
+            .to_string(),
+    )
 }
 
 pub fn local_api_context_from_app(app: &tauri::AppHandle) -> LocalApiContext {
@@ -653,8 +656,7 @@ pub async fn spawn_screen_sentinel(
 
             server_runtime.block_on(async move {
                 // Phase 1: Start server
-                let server = match ServerCore::start(&recording_config).await
-                {
+                let server = match ServerCore::start(&recording_config).await {
                     Ok(s) => s,
                     Err(e) => {
                         error!("Failed to start server core: {}", e);
