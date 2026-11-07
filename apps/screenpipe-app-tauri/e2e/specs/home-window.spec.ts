@@ -8,7 +8,6 @@ import { saveScreenshot } from '../helpers/screenshot-utils.js';
 
 const SECTIONS = [
   { id: 'home', label: 'Home', sectionTestId: 'section-home', urlMatch: /section=home|\/home(\?|$)/ },
-  { id: 'pipes', label: 'Pipes', sectionTestId: 'section-pipes', urlMatch: /section=pipes/ },
   { id: 'timeline', label: 'Timeline', sectionTestId: 'section-timeline', urlMatch: /section=timeline/ },
   { id: 'help', label: 'Help', sectionTestId: 'section-help', urlMatch: /section=help/ },
   { id: 'settings', label: 'Settings', sectionTestId: 'section-settings-general', urlMatch: null },
@@ -19,7 +18,7 @@ describe('Home window', () => {
     await waitForAppReady();
   });
 
-  it('opens Home and clicks through Home, Pipes, Timeline, Help, Settings', async () => {
+  it('opens Home and clicks through Home, Timeline, Help, Settings', async () => {
     await openHomeWindow();
     await browser.pause(1000);
 
@@ -35,12 +34,9 @@ describe('Home window', () => {
       // testid. Section-switch in the home page is async (fires a state
       // update + URL replaceState), and on a slow runner the URL is not
       // updated within the 500ms window we used for chrome-only
-      // sections. Pipes failed the URL assertion both on Linux (post-
-      // Mesa fix) AND on macOS once runner load went up. Both Pipes
-      // and Timeline mount remote-data fetches that delay the activeSection
-      // commit, so they share the longer pause.
-      const postClickPause =
-        id === 'timeline' || id === 'pipes' ? 3000 : 1500;
+      // sections. Timeline mounts remote-data fetches that delay the
+      // activeSection commit, so it gets the longer pause.
+      const postClickPause = id === 'timeline' ? 3000 : 1500;
       await browser.pause(postClickPause);
 
       if (urlMatch) {
@@ -49,15 +45,9 @@ describe('Home window', () => {
       }
 
       const el = await $(`[data-testid="${sectionTestId}"]`);
-      // Sections that fetch remote data on mount (Timeline pulls frames,
-      // Pipes pulls the store catalog from screenpi.pe) need a longer
-      // budget than chrome-only sections — observed on Linux runners
-      // under xvfb where the cold network round-trip alone can eat 8-12s.
-      // Pipes was previously 5s × CI multiplier (10s) and reliably
-      // failed the home-window walkthrough on Linux even after the
-      // GLX/Xvfb fix landed (78ba136b5).
-      const sectionTimeout =
-        id === 'timeline' || id === 'pipes' ? t(20000) : t(5000);
+      // Timeline pulls frames on mount, so it needs a longer budget than
+      // chrome-only sections on slow Linux runners under xvfb.
+      const sectionTimeout = id === 'timeline' ? t(20000) : t(5000);
       await el.waitForExist({ timeout: sectionTimeout });
 
       const filepath = await saveScreenshot(`home-${id}`);

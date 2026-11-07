@@ -325,7 +325,6 @@ pub struct VideoMetadata {
 
 #[derive(OaSchema, Clone, Debug, Default, Serialize, Deserialize)]
 pub enum OcrEngine {
-    Unstructured,
     #[default]
     Tesseract,
     WindowsNative,

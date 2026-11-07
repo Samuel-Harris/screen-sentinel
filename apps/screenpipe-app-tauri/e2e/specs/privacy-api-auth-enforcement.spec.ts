@@ -8,8 +8,8 @@
  * UI surfaces (settings) allow toggling API auth, but the change only takes
  * effect after Apply & Restart restarts the screenpipe backend. This spec
  * asserts the end-to-end behavior:
- *   - auth enabled  -> /connections rejects unauthed requests
- *   - auth disabled -> /connections succeeds without a token
+ *   - auth enabled  -> /search rejects unauthed requests
+ *   - auth disabled -> /search succeeds without a token
  *
  * Uses Node-side fetch via helpers so we don't accidentally authenticate via
  * the webview cookie jar.
@@ -27,6 +27,8 @@ import {
 } from "../helpers/api-utils.js";
 
 const restartSmokeEnabled = process.env.SCREENPIPE_E2E_RESTART_SMOKE === "1";
+// Any route behind the auth middleware works; search answers `{ data: [...] }`.
+const AUTH_PROBE_PATH = "/search?limit=1";
 
 type LocalApiConfig = Awaited<ReturnType<typeof getLocalApiConfig>>;
 
@@ -98,14 +100,14 @@ async function waitForAuthEnabled(
 ): Promise<LocalApiConfig> {
   const deadline = Date.now() + timeoutMs;
   let lastAuth = "unknown";
-  let lastConnections = "unknown";
+  let lastProbe = "unknown";
   while (Date.now() < deadline) {
     const cfg = await getLocalApiConfig().catch(() => null);
     if (cfg) {
       lastAuth = String(cfg.auth_enabled);
       const res = await fetchJson(`http://127.0.0.1:${cfg.port}/health`);
       if (res.ok && cfg.auth_enabled === expected) {
-        const url = `http://127.0.0.1:${cfg.port}/connections`;
+        const url = `http://127.0.0.1:${cfg.port}${AUTH_PROBE_PATH}`;
         const unauthed = await fetchJson(url);
         if (expected) {
           const authed = cfg.key ? await fetchJson(url, authHeaders(cfg.key)) : null;
@@ -113,22 +115,22 @@ async function waitForAuthEnabled(
             !unauthed.ok && unauthed.status >= 400 && unauthed.status < 500;
           const acceptsAuthed = !authed || authed.ok;
           if (rejectsUnauthed && acceptsAuthed) return cfg;
-          lastConnections = `unauthed=${unauthed.status} authed=${authed?.status ?? "no-key"}`;
+          lastProbe = `unauthed=${unauthed.status} authed=${authed?.status ?? "no-key"}`;
         } else {
           if (unauthed.ok) return cfg;
-          lastConnections = `unauthed=${unauthed.status}`;
+          lastProbe = `unauthed=${unauthed.status}`;
         }
       }
     }
     await browser.pause(500);
   }
   throw new Error(
-    `Timed out waiting for auth_enabled=${expected} (last=${lastAuth}, connections=${lastConnections})`,
+    `Timed out waiting for auth_enabled=${expected} (last=${lastAuth}, probe=${lastProbe})`,
   );
 }
 
-async function expectConnectionsAuthBehavior(port: number, key: string | null, authEnabled: boolean) {
-  const url = `http://127.0.0.1:${port}/connections`;
+async function expectSearchAuthBehavior(port: number, key: string | null, authEnabled: boolean) {
+  const url = `http://127.0.0.1:${port}${AUTH_PROBE_PATH}`;
 
   const unauthed = await fetchJson(url);
   if (authEnabled) {
@@ -138,7 +140,7 @@ async function expectConnectionsAuthBehavior(port: number, key: string | null, a
   } else {
     if (!unauthed.ok) {
       throw new Error(
-        `/connections expected unauthed 2xx when auth disabled; status=${unauthed.status} body=${String(unauthed.text).slice(0, 200)} err=${unauthed.error ?? ""}`,
+        `/search expected unauthed 2xx when auth disabled; status=${unauthed.status} body=${String(unauthed.text).slice(0, 200)} err=${unauthed.error ?? ""}`,
       );
     }
     const body = unauthed.body as { data?: unknown };
@@ -148,10 +150,10 @@ async function expectConnectionsAuthBehavior(port: number, key: string | null, a
 
   if (key) {
     const authed = await fetchJson(url, authHeaders(key));
-    expectNoServerError(authed, "/connections authed");
+    expectNoServerError(authed, "/search authed");
     if (!authed.ok) {
       throw new Error(
-        `/connections authed failed status=${authed.status} body=${String(authed.text).slice(0, 200)} err=${authed.error ?? ""}`,
+        `/search authed failed status=${authed.status} body=${String(authed.text).slice(0, 200)} err=${authed.error ?? ""}`,
       );
     }
   }
@@ -195,9 +197,9 @@ describe("Privacy: API auth enforcement", function () {
     }
   });
 
-  it("enforces /connections auth after Apply & Restart toggles the setting", async function () {
+  it("enforces /search auth after Apply & Restart toggles the setting", async function () {
     const cfg = await getLocalApiConfig();
-    await expectConnectionsAuthBehavior(cfg.port, cfg.key, cfg.auth_enabled);
+    await expectSearchAuthBehavior(cfg.port, cfg.key, cfg.auth_enabled);
 
     const flipped = !cfg.auth_enabled;
     const changed = await setApiAuthChecked(flipped);
@@ -214,7 +216,7 @@ describe("Privacy: API auth enforcement", function () {
     expect(updated.auth_enabled).toBe(flipped);
     expect(updated.port).toBe(port);
 
-    await expectConnectionsAuthBehavior(port, updated.key, flipped);
+    await expectSearchAuthBehavior(port, updated.key, flipped);
 
     const filepath = await saveScreenshot(`privacy-api-auth-enforcement-${flipped ? "on" : "off"}`);
     expect(existsSync(filepath)).toBe(true);
