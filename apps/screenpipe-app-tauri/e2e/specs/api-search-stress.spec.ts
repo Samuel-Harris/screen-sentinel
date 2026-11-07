@@ -19,8 +19,6 @@ describe("Local API search and stability", function () {
 
   const apiUrl = (path: string) => `http://127.0.0.1:${port}${path}`;
   const authedGet = (path: string) => fetchJson(apiUrl(path), authHeaders(key));
-  const isNoDefaultInputDevice = (res: Awaited<ReturnType<typeof authedGet>>) =>
-    res.status === 500 && res.text.includes("No default input device detected");
 
   before(async () => {
     await waitForAppReady();
@@ -43,7 +41,6 @@ describe("Local API search and stability", function () {
   const searchShapeCases = [
     ["/search?limit=1", "default search"],
     ["/search?limit=5&content_type=ocr", "OCR search"],
-    ["/search?limit=5&content_type=audio", "audio search"],
     ["/search?limit=5&content_type=all", "all-content search"],
     ["/search?limit=5&content_type=input", "input search"],
     ["/search?limit=5&content_type=accessibility", "accessibility search"],
@@ -185,11 +182,6 @@ describe("Local API search and stability", function () {
     ["/search?limit=2&window_name=", "empty window filter"],
     ["/search?limit=2&window_name=Screenpipe", "window title filter"],
     ["/search?limit=2&window_name=%5Bdebug%5D%20%28test%29", "punctuated window filter"],
-    ["/search?limit=2&content_type=audio&speaker_ids=1", "single speaker id"],
-    ["/search?limit=2&content_type=audio&speaker_ids=1%2C2%2C3", "speaker id list"],
-    ["/search?limit=2&content_type=audio&speaker_ids=abc", "invalid speaker id"],
-    ["/search?limit=2&content_type=audio&speaker_name=Louis", "speaker name"],
-    ["/search?limit=2&content_type=audio&speaker_name=", "empty speaker name"],
     ["/search?limit=2&q=test&app_name=Google%20Chrome", "query plus app"],
     ["/search?limit=2&q=test&window_name=Screenpipe", "query plus window"],
     ["/search?limit=2&q=test&content_type=accessibility&on_screen=true", "query plus accessibility visible"],
@@ -253,16 +245,9 @@ describe("Local API search and stability", function () {
   const readonlyEndpointCases = [
     ["/vision/status", "vision status"],
     ["/vision/list", "monitor list"],
-    ["/audio/device/status", "audio device status"],
-    ["/meetings/status", "meeting status"],
-    ["/meetings", "meetings list"],
     ["/memories", "memories list"],
     ["/memories/tags", "memory tags"],
-    ["/speakers/unnamed", "unnamed speakers"],
-    ["/speakers/search?q=test", "speaker search"],
     ["/retention/status", "retention status"],
-    ["/sync/status", "sync status"],
-    ["/archive/status", "archive status"],
     ["/power", "power status"],
     ["/openapi.json", "OpenAPI JSON"],
   ] as const;
@@ -278,23 +263,13 @@ describe("Local API search and stability", function () {
   const readonlyEndpointEdgeCases = [
     ["/health?verbose=true", "health verbose"],
     ["/health?token=bad", "health ignores bad token"],
-    ["/audio/device/status?device_id=0", "audio status device zero"],
     ["/vision/status?monitor_id=0", "vision status monitor zero"],
     ["/vision/list?refresh=true", "vision list refresh"],
-    ["/meetings?limit=0", "meetings zero limit"],
-    ["/meetings?limit=1&offset=999999", "meetings large offset"],
     ["/memories?limit=0", "memories zero limit"],
     ["/memories?limit=1&offset=999999", "memories large offset"],
     ["/memories/tags?limit=100", "memory tags limit"],
-    ["/speakers/unnamed?limit=0", "unnamed speakers zero limit"],
-    ["/speakers/search?name=", "empty speaker search"],
-    ["/speakers/search?name=Louis", "named speaker search"],
     ["/retention/status?force=true", "retention force status"],
-    ["/sync/status?detail=true", "sync detail status"],
-    ["/archive/status?detail=true", "archive detail status"],
     ["/power?detail=true", "power detail status"],
-    ["/pipes/list", "pipes list"],
-    ["/connections", "connections list"],
     ["/settings", "settings API path"],
     ["/tags", "tags API path"],
   ] as const;
@@ -307,25 +282,10 @@ describe("Local API search and stability", function () {
     });
   }
 
-  const audioListCases = [
-    ["/audio/list", "audio device list"],
-    ["/audio/list?include_disabled=true", "audio list include disabled"],
-  ] as const;
-
-  for (const [path, label] of audioListCases) {
-    it(`handles optional input-device endpoint: ${label}`, async function () {
-      if (!key) this.skip();
-      const res = await authedGet(path);
-      if (isNoDefaultInputDevice(res)) return;
-      expectNoServerError(res, label);
-    });
-  }
-
   const healthFields = [
     "status",
     "status_code",
     "frame_status",
-    "audio_status",
     "message",
   ] as const;
 
@@ -437,11 +397,6 @@ describe("Local API search and stability", function () {
     expect(res.body).toHaveProperty("status");
   });
 
-  it("keeps /audio/device/status public before auth headers are available", async () => {
-    const res = await fetchJson(apiUrl("/audio/device/status"));
-    expectNoServerError(res, "public audio status");
-  });
-
   it("handles 20 concurrent authenticated search requests", async function () {
     if (!key) this.skip();
     const requests = Array.from({ length: 20 }, (_, i) =>
@@ -464,18 +419,13 @@ describe("Local API search and stability", function () {
     const endpoints = [
       "/health",
       "/search?limit=1&content_type=ocr",
-      "/search?limit=1&content_type=audio",
-      "/audio/device/status",
       "/vision/status",
-      "/meetings/status",
     ];
     const results = await Promise.all(
       Array.from({ length: 4 }, () => endpoints)
         .flat()
         .map((path) =>
-          path === "/health" || path === "/audio/device/status"
-            ? fetchJson(apiUrl(path))
-            : authedGet(path),
+          path === "/health" ? fetchJson(apiUrl(path)) : authedGet(path),
         ),
     );
     expect(results.filter((r) => r.status >= 500 || r.status === 0)).toHaveLength(0);

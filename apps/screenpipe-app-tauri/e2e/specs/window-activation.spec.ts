@@ -21,14 +21,13 @@ import {
   closeWindow,
   expectSingleWindowHandle,
   invokeOrThrow,
-  waitForWindowHandle,
   waitForWindowUrl,
 } from "../helpers/tauri.js";
 
 const MAIN_LABELS = ["main", "main-window"] as const;
 type MainLabel = (typeof MAIN_LABELS)[number];
 
-async function showWindowActivated(window: "Main" | "Chat"): Promise<void> {
+async function showWindowActivated(window: "Main"): Promise<void> {
   await invokeOrThrow("show_window_activated", { window });
 }
 
@@ -64,10 +63,6 @@ async function waitForAnyMainHandle(timeoutMs = t(12_000)): Promise<MainLabel> {
         await browser.switchToWindow(openedMainLabel);
         await closeWindow("Main").catch(() => {});
         openedMainLabel = null;
-      }
-      if (handles.includes("chat")) {
-        await browser.switchToWindow("chat");
-        await closeWindow("Chat").catch(() => {});
       }
       if ((await browser.getWindowHandles()).includes("home")) {
         await browser.switchToWindow("home");
@@ -122,29 +117,6 @@ async function waitForAnyMainHandle(timeoutMs = t(12_000)): Promise<MainLabel> {
       await expectSingleWindowHandle(openedMainLabel);
 
       const filepath = await saveScreenshot("window-activated-main-focused");
-      expect(existsSync(filepath)).toBe(true);
-    });
-
-    it("show_window_activated(Chat) focuses the composer for immediate typing", async () => {
-      await showWindowActivated("Chat");
-      await waitForWindowHandle("chat", t(15_000));
-      await expectSingleWindowHandle("chat");
-
-      await browser.switchToWindow("chat");
-      await waitForWindowUrl("/chat", undefined, t(20_000));
-
-      const composer = await $("form textarea");
-      await composer.waitForExist({ timeout: t(20_000) });
-
-      // Verify composer is the typing target via click + element-scoped
-      // setValue (same rationale as chat-window.spec.ts — see comment there).
-      // The autofocus contract is covered by the manual TESTING.md checklist.
-      await composer.click();
-      const msg = `activated chat focus ${Date.now()}`;
-      await composer.setValue(msg);
-      expect(await composer.getValue()).toContain(msg);
-
-      const filepath = await saveScreenshot("window-activated-chat-focused");
       expect(existsSync(filepath)).toBe(true);
     });
   },

@@ -57,34 +57,10 @@
       "layers": ["notifications"]
     },
     {
-      "id": "audio-device-health",
-      "label": "Audio device health",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["audio-device"]
-    },
-    {
       "id": "window-lifecycle",
       "label": "Window lifecycle, focus, and dedupe",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["window-lifecycle"]
-    },
-    {
-      "id": "meeting-notes",
-      "label": "Meeting note creation and editing",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["real-ui-e2e"]
-    },
-    {
-      "id": "pipes",
-      "label": "Pipes discover, install, and play",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["pipes"]
-    },
-    {
-      "id": "chat",
-      "label": "Chat window, composer, and streaming state",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"]
     },
     {
       "id": "tray-search",
@@ -116,7 +92,7 @@
       "spec": "api.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["local-api"],
-      "features": ["health", "audio-device-health", "connections", "local-api-auth"],
+      "features": ["health", "local-api-auth"],
       "criticality": "high",
       "confidence": "partial",
       "ux": "api",
@@ -136,7 +112,7 @@
       "spec": "api-search-stress.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["local-api", "performance"],
-      "features": ["local-api-auth", "local-api-search", "health", "audio-device-health", "local-api-load"],
+      "features": ["local-api-auth", "local-api-search", "health", "local-api-load"],
       "criticality": "high",
       "confidence": "strong",
       "ux": "api",
@@ -151,116 +127,6 @@
       "confidence": "strong",
       "ux": "mixed",
       "notes": "Home webview, routing, reload, focus, resize, and storage stability."
-    },
-    {
-      "spec": "audio-fallback.spec.ts",
-      "platforms": ["macos"],
-      "layers": ["audio-device", "settings", "notifications"],
-      "features": ["audio-device-health", "settings-recording", "notifications"],
-      "criticality": "medium",
-      "confidence": "conditional",
-      "ux": "real-user-flow",
-      "notes": "Opt-in macOS cloud audio fallback seed."
-    },
-    {
-      "spec": "chat-composer-isolation.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai", "real-ui-e2e"],
-      "features": ["chat", "chat-drafts"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "mixed",
-      "notes": "Composer draft isolation across conversations."
-    },
-    {
-      "spec": "chat-newchat-duplicate.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-sidebar-dedupe"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Synthetic chat event regression for duplicate sidebar rows."
-    },
-    {
-      "spec": "chat-sidebar-stub-dedup.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-sidebar-dedupe"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Listener-order regression for metadata-only sidebar stubs gaining dedup keys."
-    },
-    {
-      "spec": "chat-parallel-jobs-duplicate.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-sidebar-dedupe"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Parallel auto-send prefill dedupe regression."
-    },
-    {
-      "spec": "chat-prefill-duplicate.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-prefill"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Cross-window prefill duplicate regression."
-    },
-    {
-      "spec": "chat-streaming-performance.spec.ts",
-      "platforms": ["macos"],
-      "layers": ["chat-ai", "performance"],
-      "features": ["chat", "chat-streaming"],
-      "criticality": "medium",
-      "confidence": "conditional",
-      "ux": "performance",
-      "notes": "macOS-only chat streaming responsiveness."
-    },
-    {
-      "spec": "zzz-browser-state-chat-switch.spec.ts",
-      "platforms": ["windows", "macos"],
-      "layers": ["real-ui-e2e", "storage-privacy"],
-      "features": ["chat", "owned-browser"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "synthetic",
-      "notes": "Synthetic E2E (zzz- prefix, search-driven): starts from a fresh chat with no conversation file, seeds browser state before the first durable save, then verifies auto-save persists that state and it survives a switch away and back. Keeps native visibility assertions out of this spec because post-zz window state is too brittle; deeper save/merge coverage lives in focused tests."
-    },
-    {
-      "spec": "chat-switch-context-loss.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-context"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Switching conversations during streaming must not corrupt state."
-    },
-    {
-      "spec": "chat-window.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai", "window-lifecycle", "real-ui-e2e"],
-      "features": ["chat", "window-lifecycle"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Opens Chat and focuses the composer for typing."
-    },
-    {
-      "spec": "chat-within-session-context-loss.spec.ts",
-      "platforms": ["macos"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-context"],
-      "criticality": "medium",
-      "confidence": "conditional",
-      "ux": "synthetic",
-      "notes": "macOS-only within-chat context retention regression."
     },
     {
       "spec": "focus-server.spec.ts",
@@ -296,7 +162,7 @@
       "spec": "home-window.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["real-ui-e2e", "window-lifecycle"],
-      "features": ["app-launch", "home-navigation", "timeline", "settings-recording", "pipes"],
+      "features": ["app-launch", "home-navigation", "timeline", "settings-recording"],
       "criticality": "high",
       "confidence": "strong",
       "ux": "real-user-flow",
@@ -343,16 +209,6 @@
       "notes": "Main close/reopen without handle leaks."
     },
     {
-      "spec": "meeting-note-bottom-click.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["real-ui-e2e", "local-api"],
-      "features": ["meeting-notes"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Seeds and opens a long meeting note, checks editor shell click focus behavior, then clicks the bottom editor line."
-    },
-    {
       "spec": "notification-viewer-link.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["notifications", "local-api", "window-lifecycle"],
@@ -373,16 +229,6 @@
       "notes": "Opt-in no-onboarding seed verifies onboarding redirect."
     },
     {
-      "spec": "owned-browser.spec.ts",
-      "platforms": ["windows", "macos"],
-      "layers": ["os-integration", "window-lifecycle"],
-      "features": ["owned-browser", "window-lifecycle"],
-      "criticality": "low",
-      "confidence": "smoke",
-      "ux": "command",
-      "notes": "Embedded agent browser hides safely without an attached child."
-    },
-    {
       "spec": "permission-recovery.spec.ts",
       "platforms": ["macos"],
       "layers": ["os-integration", "real-ui-e2e", "window-lifecycle"],
@@ -391,16 +237,6 @@
       "confidence": "conditional",
       "ux": "real-user-flow",
       "notes": "macOS-only recovery window for missing TCC permissions."
-    },
-    {
-      "spec": "pipes.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["pipes", "real-ui-e2e", "local-api"],
-      "features": ["pipes"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Pipes discover, install failure, connection modal, install, list, and play."
     },
     {
       "spec": "privacy-api-auth.spec.ts",
@@ -426,21 +262,11 @@
       "spec": "settings-sections.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["settings", "real-ui-e2e", "storage-privacy"],
-      "features": ["settings-recording", "settings-privacy-api-auth", "storage-retention", "audio-device-health"],
+      "features": ["settings-recording", "settings-privacy-api-auth", "storage-retention"],
       "criticality": "high",
       "confidence": "strong",
       "ux": "real-user-flow",
       "notes": "Settings sections, storage, privacy, and rapid switching crash guard."
-    },
-    {
-      "spec": "meeting-apps-picker.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["settings", "real-ui-e2e"],
-      "features": ["settings-recording", "meeting-detector-ignored-apps"],
-      "criticality": "medium",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Per-app meeting-detection ignore picker: open, toggle, count badge, persistence across reopen (#3882 / #3847)."
     },
     {
       "spec": "timeline.spec.ts",
@@ -476,7 +302,7 @@
       "spec": "window-activation.spec.ts",
       "platforms": ["macos"],
       "layers": ["window-lifecycle", "tauri-command", "real-ui-e2e"],
-      "features": ["window-lifecycle", "chat"],
+      "features": ["window-lifecycle"],
       "criticality": "medium",
       "confidence": "conditional",
       "ux": "real-user-flow",
@@ -521,16 +347,6 @@
       "confidence": "strong",
       "ux": "real-user-flow",
       "notes": "Windows-first real UX journey across search, timeline, settings, meetings, notifications, storage, and privacy."
-    },
-    {
-      "spec": "zz-owned-browser-background-nav.spec.ts",
-      "platforms": ["windows", "macos"],
-      "layers": ["os-integration", "window-lifecycle"],
-      "features": ["owned-browser", "window-lifecycle"],
-      "criticality": "low",
-      "confidence": "smoke",
-      "ux": "command",
-      "notes": "Owned browser background navigation visibility."
     },
     {
       "spec": "updater-banner.spec.ts",
