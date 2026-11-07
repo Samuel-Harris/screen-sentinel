@@ -26,30 +26,21 @@
             "pages": ["home", "quickstart", "getting-started", "use-cases", "architecture"]
           },
           {
-            "group": "pipes",
-            "pages": ["pipe-store", "pipes", "pipe-debugging", "pipe-permissions"]
-          },
-          {
             "group": "connect",
-            "pages": ["mcp-server", "mcp-apps", "connections", "connection-reference", "cloud-archive", "privacy-data-flow", "privacy-filter", "teams"]
+            "pages": ["mcp-server", "mcp-apps", "privacy-data-flow", "privacy-filter"]
           },
           {
             "group": "use cases",
-            "pages": ["search-screen-history", "meeting-intelligence", "meeting-transcription", "ai-memory", "for-developers"]
+            "pages": ["search-screen-history", "ai-memory", "for-developers"]
           },
           {
             "group": "integrations",
-            "pages": ["chatgpt", "apple-intelligence", "ollama", "claude-code", "opencode", "openclaw", "cline", "continue", "gemini-cli", "copilot-cli", "obsidian", "msty"]
+            "pages": ["chatgpt", "ollama", "claude-code", "opencode", "openclaw", "cline", "continue", "gemini-cli", "copilot-cli", "obsidian", "msty"]
           },
           {
             "group": "reference",
             "pages": ["api-recipes", "cli-reference"]
           },
-          {
-            "group": "deployment",
-            "pages": ["intune-deployment"]
-          },
-
           {
             "group": "compare",
             "pages": ["vs-pieces", "vs-littlebird", "vs-omi", "vs-granola", "vs-rewind", "vs-recall", "vs-limitless", "vs-otter", "vs-fathom", "vs-fireflies"]

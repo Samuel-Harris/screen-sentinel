@@ -22,11 +22,6 @@ pub struct DeleteTimeRangeRequest {
     pub start: DateTime<Utc>,
     #[serde(deserialize_with = "super::time::deserialize_flexible_datetime")]
     pub end: DateTime<Utc>,
-    /// When true, also delete local-only mp4 files that haven't been
-    /// uploaded to cloud yet. The default (`false`) preserves the original
-    /// cloud-archive-aware behavior used by sync flows.
-    #[serde(default)]
-    pub local_only: bool,
 }
 
 #[derive(Serialize, OaSchema)]
@@ -51,20 +46,16 @@ pub(crate) async fn delete_time_range_handler(
         ));
     }
 
-    let result = if payload.local_only {
-        state
-            .db
-            .delete_time_range_local(payload.start, payload.end)
-            .await
-    } else {
-        state.db.delete_time_range(payload.start, payload.end).await
-    }
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            JsonResponse(json!({"error": format!("failed to delete time range: {}", e)})),
-        )
-    })?;
+    let result = state
+        .db
+        .delete_time_range(payload.start, payload.end)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                JsonResponse(json!({"error": format!("failed to delete time range: {}", e)})),
+            )
+        })?;
 
     // Delete files from disk AFTER successful DB commit
     let mut video_files_deleted: u64 = 0;
@@ -75,7 +66,7 @@ pub(crate) async fn delete_time_range_handler(
         }
     }
 
-    // Delete uploaded snapshot files from disk
+    // Delete snapshot files from disk
     for path in &result.snapshot_files {
         if let Err(e) = std::fs::remove_file(path) {
             warn!("failed to delete snapshot file {}: {}", path, e);
@@ -357,4 +348,80 @@ pub(crate) async fn backup_handler(
         path: dest,
         size_bytes: size,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::SCServer;
+    use axum::body::{to_bytes, Body};
+    use axum::http::{Request, StatusCode};
+    use chrono::{Duration, Utc};
+    use screenpipe_db::DatabaseManager;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn delete_range_removes_rows_and_media_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let mp4 = dir.path().join("chunk.mp4");
+        let snapshot = dir.path().join("frame.jpg");
+        std::fs::write(&mp4, b"mp4").unwrap();
+        std::fs::write(&snapshot, b"jpg").unwrap();
+
+        let db = Arc::new(
+            DatabaseManager::new("sqlite::memory:", Default::default())
+                .await
+                .unwrap(),
+        );
+        db.insert_video_chunk(mp4.to_str().unwrap(), "monitor_1")
+            .await
+            .unwrap();
+        let now = Utc::now();
+        let frame_id = db
+            .insert_frame("monitor_1", Some(now), None, None, None, true, Some(0))
+            .await
+            .unwrap();
+        sqlx::query("UPDATE frames SET snapshot_path = ?1 WHERE id = ?2")
+            .bind(snapshot.to_str().unwrap())
+            .bind(frame_id)
+            .execute(&db.pool)
+            .await
+            .unwrap();
+
+        let router = SCServer::new(
+            db.clone(),
+            SocketAddr::from(([127, 0, 0, 1], 0)),
+            dir.path().to_path_buf(),
+            false,
+            false,
+            "balanced".to_string(),
+        )
+        .create_router()
+        .await;
+
+        let body = serde_json::json!({
+            "start": (now - Duration::minutes(1)).to_rfc3339(),
+            "end": (now + Duration::minutes(1)).to_rfc3339(),
+        });
+        let response = router
+            .oneshot(
+                Request::post("/data/delete-range")
+                    .header("content-type", "application/json")
+                    .body(Body::from(body.to_string()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let json: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap())
+                .unwrap();
+        assert_eq!(json["frames_deleted"], 1, "frame row deleted");
+        assert_eq!(json["video_chunks_deleted"], 1, "video chunk row deleted");
+        assert_eq!(json["video_files_deleted"], 1, "mp4 reported deleted");
+        assert!(!mp4.exists(), "mp4 removed from disk");
+        assert!(!snapshot.exists(), "snapshot removed from disk");
+    }
 }
