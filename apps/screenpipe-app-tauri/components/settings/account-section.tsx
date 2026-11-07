@@ -13,9 +13,6 @@ export const searchIndex: SettingsField[] = [
   { label: "Sign in to Screenpipe", keywords: ["login", "log in", "sign in"] },
   { label: "Logout", keywords: ["signout", "sign out", "log out"] },
   { label: "Screenpipe Pro", keywords: ["subscription", "billing", "plan", "pro", "upgrade", "manage"] },
-  { label: "pipe sync across devices", keywords: ["pipe sync", "sync"] },
-  { label: "memories sync across devices", keywords: ["memories sync", "sync", "facts"] },
-  { label: "connection sync across devices", keywords: ["connection sync", "sync", "gmail", "slack", "notion"] },
   { label: "Refer a friend", keywords: ["referral", "invite", "free month"] },
 ];
 import { Button } from "@/components/ui/button";
@@ -27,48 +24,20 @@ import {
   Zap,
   Shield,
   RefreshCw,
-  Lock,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { commands } from "@/lib/utils/tauri";
 import { planDisplayName } from "@/lib/app-entitlement";
 import { Card } from "../ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
-import { localFetch } from "@/lib/api";
 import { listen } from "@tauri-apps/api/event";
 import { ReferralCard } from "./referral-card";
-import { useHealthCheck } from "@/lib/hooks/use-health-check";
 import posthog from "posthog-js";
-
-/**
- * Map a thrown fetch error into a user-readable description.
- *
- * Reason: WebKit returns `TypeError: Load failed` when a fetch to a
- * host:port that isn't bound (engine server still warming up after
- * launch or mid-restart) — that message reaches the user as
- * "Load failed (localhost:3030)" which is opaque. Replace any
- * connection-style failure with a clear, actionable line; pass other
- * errors through verbatim.
- */
-function syncErrorDescription(e: unknown): string {
-  const msg = (e instanceof Error ? e.message : String(e)) || "";
-  // WebKit ("Load failed"), Chromium ("Failed to fetch"), Firefox ("NetworkError")
-  if (/load failed|failed to fetch|networkerror|network request failed/i.test(msg)) {
-    return "screenpipe server isn't reachable — give it a few seconds after launch and try again";
-  }
-  return msg;
-}
 
 export function AccountSection() {
   const { settings, updateSettings, loadUser } = useSettings();
-  const { isServerDown } = useHealthCheck();
   const [annual, setAnnual] = useState(true);
-  const [pipeSyncing, setPipeSyncing] = useState(false);
-  const [memoriesSyncing, setMemoriesSyncing] = useState(false);
-  const [connectionsSyncing, setConnectionsSyncing] = useState(false);
 
   useEffect(() => {
     if (!settings.user?.email) {
@@ -242,11 +211,6 @@ export function AccountSection() {
                 data-testid="account-logout-button"
                 onClick={async () => {
                   updateSettings({ user: null as any });
-                  // Restart Pi with null token so it stops using the old
-                  // account's quota. Next message will auto-start as anonymous.
-                  try {
-                    await commands.piUpdateConfig(null, null);
-                  } catch {}
                   toast({ title: "logged out" });
                 }}
               >
@@ -293,202 +257,6 @@ export function AccountSection() {
             </div>
           </div>
 
-          {/* Pipe sync */}
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">pipe sync across devices</p>
-                <p className="text-xs text-muted-foreground">
-                  sync your pipes & configs to all devices linked to your account
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Switch
-                    id="pipe-sync-toggle"
-                    checked={!!settings.pipeSyncEnabled}
-                    onCheckedChange={async (checked) => {
-                      await updateSettings({ pipeSyncEnabled: checked });
-                      toast({
-                        title: checked ? "pipe sync enabled" : "pipe sync disabled",
-                        description: checked
-                          ? "pipes will sync across your devices"
-                          : "pipes will no longer sync",
-                      });
-                    }}
-                  />
-                  <Label htmlFor="pipe-sync-toggle" className="text-xs text-muted-foreground cursor-pointer sr-only">
-                    sync
-                  </Label>
-                </div>
-                {settings.pipeSyncEnabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs uppercase tracking-wide"
-                    title={
-                      isServerDown
-                        ? "screenpipe server is starting up — try again in a moment"
-                        : undefined
-                    }
-                    disabled={pipeSyncing || isServerDown}
-                    onClick={async () => {
-                      setPipeSyncing(true);
-                      try {
-                        await localFetch("/sync/pipes/pull", { method: "POST" });
-                        await localFetch("/sync/pipes/push", { method: "POST" });
-                        toast({ title: "pipes synced" });
-                      } catch (e) {
-                        toast({
-                          title: "sync failed",
-                          description: syncErrorDescription(e),
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setPipeSyncing(false);
-                      }
-                    }}
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1 ${pipeSyncing ? "animate-spin" : ""}`} />
-                    sync now
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Memories sync — independent toggle. A user might keep pipes
-              device-local but want their memories everywhere, or vice versa. */}
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">memories sync across devices</p>
-                <p className="text-xs text-muted-foreground">
-                  sync your memories (facts, preferences, decisions) across devices
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Switch
-                    id="memories-sync-toggle"
-                    checked={!!settings.memoriesSyncEnabled}
-                    onCheckedChange={async (checked) => {
-                      await updateSettings({ memoriesSyncEnabled: checked });
-                      toast({
-                        title: checked ? "memories sync enabled" : "memories sync disabled",
-                        description: checked
-                          ? "memories will sync across your devices"
-                          : "memories will no longer sync",
-                      });
-                    }}
-                  />
-                  <Label htmlFor="memories-sync-toggle" className="text-xs text-muted-foreground cursor-pointer sr-only">
-                    sync
-                  </Label>
-                </div>
-                {settings.memoriesSyncEnabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs uppercase tracking-wide"
-                    title={
-                      isServerDown
-                        ? "screenpipe server is starting up — try again in a moment"
-                        : undefined
-                    }
-                    disabled={memoriesSyncing || isServerDown}
-                    onClick={async () => {
-                      setMemoriesSyncing(true);
-                      try {
-                        await localFetch("/sync/memories/pull", { method: "POST" });
-                        await localFetch("/sync/memories/push", { method: "POST" });
-                        toast({ title: "memories synced" });
-                      } catch (e) {
-                        toast({
-                          title: "sync failed",
-                          description: syncErrorDescription(e),
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setMemoriesSyncing(false);
-                      }
-                    }}
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1 ${memoriesSyncing ? "animate-spin" : ""}`} />
-                    sync now
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Connection sync — independent toggle. Off by default and kept
-              separate from pipes/memories on purpose: this syncs connected-
-              account credentials (OAuth tokens, API keys), so enabling it is a
-              distinct, informed choice. Credentials are end-to-end encrypted in
-              the sync blob; the server never sees them in plaintext. */}
-          <div className="mt-4 pt-4 border-t border-border/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">connection sync across devices</p>
-                <p className="text-xs text-muted-foreground">
-                  sync connected accounts (gmail, slack, notion…) to your devices — credentials are end-to-end encrypted
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Switch
-                    id="connections-sync-toggle"
-                    checked={!!settings.connectionsSyncEnabled}
-                    onCheckedChange={async (checked) => {
-                      await updateSettings({ connectionsSyncEnabled: checked });
-                      toast({
-                        title: checked ? "connection sync enabled" : "connection sync disabled",
-                        description: checked
-                          ? "connected accounts will sync across your devices"
-                          : "connected accounts will no longer sync",
-                      });
-                    }}
-                  />
-                  <Label htmlFor="connections-sync-toggle" className="text-xs text-muted-foreground cursor-pointer sr-only">
-                    sync
-                  </Label>
-                </div>
-                {settings.connectionsSyncEnabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs uppercase tracking-wide"
-                    title={
-                      isServerDown
-                        ? "screenpipe server is starting up — try again in a moment"
-                        : undefined
-                    }
-                    disabled={connectionsSyncing || isServerDown}
-                    onClick={async () => {
-                      setConnectionsSyncing(true);
-                      try {
-                        await localFetch("/sync/connections/pull", { method: "POST" });
-                        await localFetch("/sync/connections/push", { method: "POST" });
-                        toast({ title: "connections synced" });
-                      } catch (e) {
-                        toast({
-                          title: "sync failed",
-                          description: syncErrorDescription(e),
-                          variant: "destructive",
-                        });
-                      } finally {
-                        setConnectionsSyncing(false);
-                      }
-                    }}
-                  >
-                    <RefreshCw className={`h-3 w-3 mr-1 ${connectionsSyncing ? "animate-spin" : ""}`} />
-                    sync now
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
         </Card>
       ) : !settings.user?.token ? (
         /* Not logged in: login-first layout */
@@ -571,27 +339,6 @@ export function AccountSection() {
             </Card>
           </details>
 
-          {/* Locked pipe sync toggle — not logged in */}
-          <Card className="p-4 opacity-75">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">pipe sync across devices</p>
-                <p className="text-xs text-muted-foreground">
-                  sync your pipes & configs to all devices linked to your account
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch disabled checked={false} />
-                <button
-                  onClick={() => commands.openLoginWindow()}
-                  className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:bg-primary/20 transition-colors cursor-pointer"
-                >
-                  <Lock className="h-3 w-3" />
-                  Business
-                </button>
-              </div>
-            </div>
-          </Card>
         </>
       ) : (
         /* Logged in, no cloud (Basic plan or free): show active plan + Business upsell */
@@ -680,28 +427,6 @@ export function AccountSection() {
 
             </Card>
           </div>
-
-          {/* Locked pipe sync toggle — gated to Business (cloud) */}
-          <Card className="p-4 opacity-75">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">pipe sync across devices</p>
-                <p className="text-xs text-muted-foreground">
-                  sync your pipes & configs to all devices linked to your account
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch disabled checked={false} />
-                <button
-                  onClick={handleCheckout}
-                  className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:bg-primary/20 transition-colors cursor-pointer"
-                >
-                  <Lock className="h-3 w-3" />
-                  Business
-                </button>
-              </div>
-            </div>
-          </Card>
 
           {/* Free-tier note — only for true free (no plan); named plans show the active card above */}
           {!hasNamedPlan && (

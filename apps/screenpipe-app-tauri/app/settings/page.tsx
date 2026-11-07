@@ -13,10 +13,7 @@ import {
   HardDrive,
   Shield,
   Layout,
-  Users,
-  Mic,
   Bell,
-  BarChart3,
   Gift,
   ChevronLeft,
 } from "lucide-react";
@@ -30,13 +27,10 @@ import ShortcutSection, { searchIndex as shortcutsSearchIndex } from "@/componen
 import { AIPresets, searchIndex as aiSearchIndex } from "@/components/settings/ai-presets";
 import { RecordingSettings, searchIndex as recordingSearchIndex } from "@/components/settings/recording-settings";
 import GeneralSettings, { searchIndex as generalSearchIndex } from "@/components/settings/general-settings";
-import { TeamSection, searchIndex as teamSearchIndex } from "@/components/settings/team-section";
 import { DisplaySection, searchIndex as displaySearchIndex } from "@/components/settings/display-section";
 import { PrivacySection, searchIndex as privacySearchIndex } from "@/components/settings/privacy-section";
 import { StorageSection, searchIndex as storageSearchIndex } from "@/components/settings/storage-section";
 import { NotificationsSettings, searchIndex as notificationsSearchIndex } from "@/components/settings/notifications-settings";
-import { UsageSection, searchIndex as usageSearchIndex } from "@/components/settings/usage-section";
-import { SpeakersSection, searchIndex as speakersSearchIndex } from "@/components/settings/speakers-section";
 import { SettingsSearchInput, SettingsSearchPopover, searchSettingsNav, scrollToSettingsField, type IndexedSettingsField, type SettingsField } from "@/components/settings/settings-search";
 
 // Settings search index for the inline ReferralSection defined further down in
@@ -65,15 +59,11 @@ const ALL_SETTINGS_FIELDS: IndexedSettingsField[] = [
   ...recordingSearchIndex.map((f) => ({ ...f, section: "recording" })),
   ...shortcutsSearchIndex.map((f) => ({ ...f, section: "shortcuts" })),
   ...notificationsSearchIndex.map((f) => ({ ...f, section: "notifications" })),
-  ...usageSearchIndex.map((f) => ({ ...f, section: "usage" })),
   ...privacySearchIndex.map((f) => ({ ...f, section: "privacy" })),
   ...storageSearchIndex.map((f) => ({ ...f, section: "storage" })),
-  ...speakersSearchIndex.map((f) => ({ ...f, section: "speakers" })),
-  ...teamSearchIndex.map((f) => ({ ...f, section: "team" })),
   ...accountSearchIndex.map((f) => ({ ...f, section: "account" })),
   ...referralSearchIndex.map((f) => ({ ...f, section: "referral" })),
 ];
-import { useEnterprisePolicy } from "@/lib/hooks/use-enterprise-policy";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { commands } from "@/lib/utils/tauri";
 import { toast } from "@/components/ui/use-toast";
@@ -87,16 +77,13 @@ type SettingsSection =
   | "shortcuts"
   | "privacy"
   | "storage"
-  | "team"
   | "notifications"
-  | "referral"
-  | "usage"
-  | "speakers";
+  | "referral";
 
 const ALL_SETTINGS_SECTIONS: SettingsSection[] = [
   "display", "general", "ai", "recording", "shortcuts", "notifications",
-  "usage", "privacy", "storage", "speakers",
-  "team", "account", "referral",
+  "privacy", "storage",
+  "account", "referral",
 ];
 
 function ReferralSection() {
@@ -203,7 +190,6 @@ function ReferralSection() {
 
 function SettingsContent() {
   const router = useRouter();
-  const { isSectionHidden, isEnterprise } = useEnterprisePolicy();
   const { isTranslucent } = useSidebarContext();
 
   const [section, setSection] = useQueryState<SettingsSection>("section", {
@@ -211,20 +197,6 @@ function SettingsContent() {
     parse: (v) => (ALL_SETTINGS_SECTIONS.includes(v as SettingsSection) ? (v as SettingsSection) : "display"),
     serialize: (v) => v,
   });
-
-  // Connections moved to the main sidebar — redirect any old deep-link to home.
-  useEffect(() => {
-    const raw = new URLSearchParams(window.location.search).get("section");
-    if (raw === "connections") router.replace("/?section=connections");
-  }, [router]);
-
-  // Enterprise guard: if the active section is hidden by policy, redirect to the
-  // first visible section. Prevents direct-URL bypass of enterprise restrictions.
-  useEffect(() => {
-    if (!isSectionHidden(section)) return;
-    const fallback = ALL_SETTINGS_SECTIONS.find((s) => !isSectionHidden(s)) ?? "display";
-    setSection(fallback as SettingsSection);
-  }, [section, isSectionHidden, setSection]);
 
   const navGroups = [
     {
@@ -236,30 +208,21 @@ function SettingsContent() {
         { id: "recording" as const, label: "Recording", icon: <Video className="h-4 w-4" /> },
         { id: "shortcuts" as const, label: "Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
         { id: "notifications" as const, label: "Notifications", icon: <Bell className="h-4 w-4" /> },
-      ].filter((s) => !isSectionHidden(s.id)),
+      ],
     },
     {
       label: "Data & Privacy",
       items: [
-        { id: "usage" as const, label: "Usage", icon: <BarChart3 className="h-4 w-4" /> },
         { id: "privacy" as const, label: "Privacy", icon: <Shield className="h-4 w-4" /> },
         { id: "storage" as const, label: "Storage", icon: <HardDrive className="h-4 w-4" /> },
-        { id: "speakers" as const, label: "Speakers", icon: <Mic className="h-4 w-4" /> },
-      ].filter((s) => !isSectionHidden(s.id)),
+      ],
     },
     {
       label: "Account",
       items: [
-        // Hide "Team" on enterprise builds — those installs are already
-        // org-managed; the desktop has nothing to manage. Admins use the
-        // /enterprise dashboard on the web. On consumer builds we still
-        // surface Team as a marketing entry point to /team.
-        ...(isEnterprise
-          ? []
-          : [{ id: "team" as const, label: "Team", icon: <Users className="h-4 w-4" /> }]),
         { id: "account" as const, label: "Account", icon: <User className="h-4 w-4" /> },
         { id: "referral" as const, label: "Get free month", icon: <Gift className="h-4 w-4" /> },
-      ].filter((s) => !isSectionHidden(s.id)),
+      ],
     },
   ];
 
@@ -348,11 +311,8 @@ function SettingsContent() {
       case "shortcuts":     return <ShortcutSection />;
       case "privacy":       return <PrivacySection />;
       case "storage":       return <StorageSection />;
-      case "team":          return <TeamSection />;
       case "notifications": return <NotificationsSettings />;
       case "referral":      return <ReferralSection />;
-      case "usage":         return <UsageSection />;
-      case "speakers":      return <SpeakersSection />;
     }
   };
 

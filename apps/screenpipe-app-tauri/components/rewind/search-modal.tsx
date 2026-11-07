@@ -4,40 +4,17 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { Search, X, Loader2, Clock, MessageSquare, User, ArrowLeft, Mic, Volume2, Hash, Tag, Monitor, Keyboard, ClipboardCopy, AppWindow } from "lucide-react";
+import { Search, X, Loader2, Clock, Hash, Tag, Monitor, Keyboard, ClipboardCopy, AppWindow } from "lucide-react";
 import { useKeywordSearchStore, SearchMatch, UiEventResult } from "@/lib/hooks/use-keyword-search-store";
 import { useSearchHighlight } from "@/lib/hooks/use-search-highlight";
 import { useSearchFocus } from "./hooks/use-search-focus";
-import { listen, emit } from "@tauri-apps/api/event";
-import {
-  CHAT_HISTORY_INITIAL_LIMIT,
-  listConversations,
-  searchConversations,
-  type ConversationMeta,
-} from "@/lib/chat-storage";
+import { listen } from "@tauri-apps/api/event";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { format, isToday, isYesterday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { commands } from "@/lib/utils/tauri";
-import { showChatWithPrefill } from "@/lib/chat-utils";
 import { ThumbnailHighlightOverlay } from "./thumbnail-highlight-overlay";
 import { localFetch, getApiBaseUrl } from "@/lib/api";
-
-interface SpeakerResult {
-  id: number;
-  name: string;
-  metadata: string;
-}
-
-interface AudioTranscription {
-  timestamp: string;
-  transcription: string;
-  device_name: string;
-  is_input: boolean;
-  speaker_name: string;
-  duration_secs: number;
-}
-
 
 interface TaggedFrame {
   frame_id: number;
@@ -116,26 +93,6 @@ function extractInterestingWords(text: string): Map<string, { count: number; ori
   }
   return words;
 }
-
-function getChatTimeBucket(ts: number): "today" | "yesterday" | "week" | "older" {
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const d = new Date(ts);
-  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((todayStart - dayStart) / 86400000);
-  if (diffDays <= 0) return "today";
-  if (diffDays === 1) return "yesterday";
-  if (diffDays <= 7) return "week";
-  return "older";
-}
-
-const CHAT_BUCKET_LABELS: Record<string, string> = {
-  today: "today",
-  yesterday: "yesterday",
-  week: "previous 7 days",
-  older: "older",
-};
-const CHAT_BUCKET_ORDER = ["today", "yesterday", "week", "older"] as const;
 
 function sanitizeFts5Query(query: string): string {
   return query
@@ -377,7 +334,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const { inputRef, inputElRef, focusInput } = useSearchFocus(isOpen);
+  const { inputRef, inputElRef } = useSearchFocus(isOpen);
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Programmatically scroll via native-scroll events (macOS).
@@ -441,87 +398,33 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
   // Bump to force search effect re-run (fixes stale debouncedQuery after modal reopen)
   const [searchEpoch, setSearchEpoch] = useState(0);
 
-  // Speaker search state
-  const [speakerResults, setSpeakerResults] = useState<SpeakerResult[]>([]);
-  const [isSearchingSpeakers, setIsSearchingSpeakers] = useState(false);
-  // Drill-down: selected speaker to show their transcriptions
-  const [selectedSpeaker, setSelectedSpeaker] = useState<SpeakerResult | null>(null);
-  const [speakerTranscriptions, setSpeakerTranscriptions] = useState<AudioTranscription[]>([]);
-  const [isLoadingTranscriptions, setIsLoadingTranscriptions] = useState(false);
-  const [selectedTranscriptionIndex, setSelectedTranscriptionIndex] = useState(0);
-  const [transcriptionFrames, setTranscriptionFrames] = useState<Map<string, { frame_id: number; app_name: string }>>(new Map());
-
   // Tag search state
   const [tagResults, setTagResults] = useState<TaggedFrame[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]); // distinct tags for autocomplete
   const [isSearchingTags, setIsSearchingTags] = useState(false);
   const isTagSearch = query.startsWith("#");
-  const isPeopleSearch = query.startsWith("@");
 
   // Content type filter
-  type ContentFilter = "all" | "screen" | "input" | "chats";
+  type ContentFilter = "all" | "screen" | "input";
   const [contentFilter, setContentFilter] = useState<ContentFilter>("all");
 
-  // Chat search state
-  const [chatResults, setChatResults] = useState<ConversationMeta[]>([]);
-  const [isLoadingChats, setIsLoadingChats] = useState(false);
-  const [selectedChatIndex, setSelectedChatIndex] = useState(0);
-  const chatSearchRequestRef = useRef(0);
-  const recentChatRequestRef = useRef(0);
-  // Recent chats shown in the suggestions area (loaded on open, independent of chats tab)
-  const [recentChats, setRecentChats] = useState<ConversationMeta[]>([]);
-
-  // App filter (for screen results and speaker drill-down)
+  // App filter (for screen results)
   const [appFilter, setAppFilter] = useState<string | null>(null);
-  const [speakerAppFilter, setSpeakerAppFilter] = useState<string | null>(null);
   const [domainFilter, setDomainFilter] = useState<string | null>(null);
   // Time filter — stores the date string (YYYY-MM-DD) from a time range chip
   const [timeFilter, setTimeFilter] = useState<string | null>(null);
-  const [speakerTimeFilter, setSpeakerTimeFilter] = useState<string | null>(null);
 
   // Pagination
   const [ocrOffset, setOcrOffset] = useState(0);
   const [hasMoreOcr, setHasMoreOcr] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [transcriptionOffset, setTranscriptionOffset] = useState(0);
-  const [hasMoreTranscriptions, setHasMoreTranscriptions] = useState(true);
-  const [isLoadingMoreTranscriptions, setIsLoadingMoreTranscriptions] = useState(false);
 
   const OCR_PAGE_SIZE = 24;
-  const TRANSCRIPTION_PAGE_SIZE = 30;
 
   const debouncedQuery = useDebounce(query, 250);
   const queryRef = useRef(query);
   queryRef.current = query;
   const { suggestions, isLoading: suggestionsLoading } = useSuggestions(isOpen);
-  const loadChats = useCallback(async (q: string) => {
-    const requestId = ++chatSearchRequestRef.current;
-    setIsLoadingChats(true);
-    try {
-      const options = {
-        limit: CHAT_HISTORY_INITIAL_LIMIT,
-        includeHidden: false,
-        kind: "chat" as const,
-      };
-      const chats = q.trim()
-        ? await searchConversations(q, options)
-        : await listConversations(options);
-      if (chatSearchRequestRef.current === requestId) {
-        setChatResults(chats);
-        setSelectedChatIndex(0);
-      }
-    } catch {
-      if (chatSearchRequestRef.current === requestId) {
-        setChatResults([]);
-        setSelectedChatIndex(0);
-      }
-    } finally {
-      if (chatSearchRequestRef.current === requestId) {
-        setIsLoadingChats(false);
-      }
-    }
-  }, []);
-
   const {
     searchResults,
     searchGroups,
@@ -653,54 +556,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, buildTimeRanges, searchEpoch]);
 
-  // Speaker time ranges (from loaded transcriptions — these are small enough)
-  const speakerTimeRanges = useMemo(() => {
-    if (speakerTranscriptions.length === 0) return [];
-    const buckets = new Map<string, { label: string; dateKey: string; timestamp: string; count: number }>();
-    for (const t of speakerTranscriptions) {
-      const d = new Date(t.timestamp);
-      if (isNaN(d.getTime())) continue;
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      if (!buckets.has(key)) {
-        const dateKey = format(d, "yyyy-MM-dd");
-        let label: string;
-        if (isToday(d)) label = format(d, "h a");
-        else if (isYesterday(d)) label = "yesterday " + format(d, "h a");
-        else label = format(d, "MMM d");
-        buckets.set(key, { label, dateKey, timestamp: t.timestamp, count: 1 });
-      } else {
-        buckets.get(key)!.count++;
-      }
-    }
-    return [...buckets.values()]
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 10);
-  }, [speakerTranscriptions]);
-
   const domainCounts = facetDomains;
   const timeRanges = facetTimeRanges;
-
-  // Compute app distribution from speaker transcription frames
-  const speakerAppCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const [, info] of transcriptionFrames) {
-      if (info.app_name) {
-        counts.set(info.app_name, (counts.get(info.app_name) || 0) + 1);
-      }
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  }, [transcriptionFrames]);
-
-  // Filter speaker transcriptions by app and time
-  const filteredSpeakerTranscriptions = useMemo(() => {
-    let items = speakerTranscriptions;
-    if (speakerAppFilter) items = items.filter(t => {
-      const info = transcriptionFrames.get(t.timestamp);
-      return info?.app_name === speakerAppFilter;
-    });
-    if (speakerTimeFilter) items = items.filter(t => t.timestamp.startsWith(speakerTimeFilter));
-    return items;
-  }, [speakerTranscriptions, speakerAppFilter, speakerTimeFilter, transcriptionFrames]);
 
   const matchesTimeFilter = useCallback((timestamp: string) => {
     if (!timeFilter) return true;
@@ -740,31 +597,9 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
   // Keep a ref so keyboard handler reads current value without re-mounting the effect
   const filteredResultsRef = useRef(filteredResults);
   filteredResultsRef.current = filteredResults;
-  const filteredSpeakerTranscriptionsRef = useRef(filteredSpeakerTranscriptions);
-  filteredSpeakerTranscriptionsRef.current = filteredSpeakerTranscriptions;
 
-  // Load chats when switching to chats tab. Typing a query searches the full
-  // on-disk archive; empty state stays capped to recent chats.
-  useEffect(() => {
-    if (!isOpen || isTagSearch || isPeopleSearch) return;
-    const q = debouncedQuery.trim();
-    if (contentFilter === "chats" || q) {
-      void loadChats(q);
-    }
-  }, [contentFilter, debouncedQuery, isOpen, isTagSearch, isPeopleSearch, loadChats]);
-
-  // Chat results are already bounded / searched in chat-storage.
-  const filteredChats = useMemo(() => {
-    return chatResults;
-  }, [chatResults]);
-
-  // Refs for chat keyboard navigation (avoids re-registering the keydown effect)
-  const filteredChatsRef = useRef(filteredChats);
-  filteredChatsRef.current = filteredChats;
   const contentFilterRef = useRef<ContentFilter>(contentFilter);
   contentFilterRef.current = contentFilter;
-  const selectedChatIndexRef = useRef(selectedChatIndex);
-  selectedChatIndexRef.current = selectedChatIndex;
 
   const filteredGroups = useMemo(() => {
     let groups = searchGroups;
@@ -778,45 +613,11 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
   // Tokenize query for thumbnail highlights (split on spaces, filter empty)
   const queryTokens = useMemo(() => {
-    if (!debouncedQuery || isTagSearch || isPeopleSearch) return [];
+    if (!debouncedQuery || isTagSearch) return [];
     return debouncedQuery.split(/\s+/).filter((t) => t.length > 0);
-  }, [debouncedQuery, isTagSearch, isPeopleSearch]);
+  }, [debouncedQuery, isTagSearch]);
 
   const { setHighlight, clear: clearHighlight } = useSearchHighlight();
-
-  // Load all chats on open — powers both the inline chat section in "All" view
-  // and the recent chats strip in the empty state
-  useEffect(() => {
-    if (!isOpen) return;
-    const requestId = ++recentChatRequestRef.current;
-    if (!queryRef.current.trim()) {
-      setIsLoadingChats(true);
-    }
-    listConversations({
-      limit: CHAT_HISTORY_INITIAL_LIMIT,
-      includeHidden: false,
-      kind: "chat",
-    })
-      .then((all) => {
-        if (recentChatRequestRef.current !== requestId) return;
-        setRecentChats(all.slice(0, 5));
-        if (!queryRef.current.trim()) {
-          setChatResults(all);
-          setSelectedChatIndex(0);
-        }
-      })
-      .catch(() => {
-        if (recentChatRequestRef.current === requestId && !queryRef.current.trim()) {
-          setChatResults([]);
-          setSelectedChatIndex(0);
-        }
-      })
-      .finally(() => {
-        if (recentChatRequestRef.current === requestId && !queryRef.current.trim()) {
-          setIsLoadingChats(false);
-        }
-      });
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -832,25 +633,18 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
       setDomainFilter(null);
       setTimeFilter(null);
       setContentFilter("all");
-      setSpeakerResults([]);
       setTagResults([]);
       setAllTags([]);
-      setSelectedSpeaker(null);
-      setSpeakerTranscriptions([]);
-      setSelectedTranscriptionIndex(0);
       setOcrOffset(0);
       setHasMoreOcr(true);
-      setTranscriptionOffset(0);
-      setHasMoreTranscriptions(true);
     }
   }, [isOpen, resetSearch, standalone]);
 
   // Perform search when query changes
   useEffect(() => {
     const q = debouncedQuery.trim();
-    if (!q || q.startsWith("#") || q.startsWith("@")) {
+    if (!q || q.startsWith("#")) {
       resetSearch();
-      setSpeakerResults([]);
       setTagResults([]);
       setAppFilter(null);
       setDomainFilter(null);
@@ -864,7 +658,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
     setAppFilter(null);
     setDomainFilter(null);
     setTimeFilter(null);
-    if (contentFilterRef.current !== "chats") setContentFilter("all");
+    setContentFilter("all");
     setTagResults([]);
     setOcrOffset(0);
     setHasMoreOcr(true);
@@ -952,155 +746,6 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
     return () => { cancelled = true; };
   }, [debouncedQuery]);
 
-  // Search speakers — triggered by @query or normal text query (>= 2 chars)
-  useEffect(() => {
-    if (selectedSpeaker) {
-      setSpeakerResults([]);
-      return;
-    }
-
-    const isAtQuery = debouncedQuery.startsWith("@");
-    const searchTerm = isAtQuery ? debouncedQuery.slice(1).trim() : debouncedQuery.trim();
-
-    // For normal queries, require >= 2 chars; for @, show all speakers immediately
-    if (!isAtQuery && (searchTerm.length < 2 || debouncedQuery.startsWith("#"))) {
-      setSpeakerResults([]);
-      return;
-    }
-
-    let cancelled = false;
-    const controller = new AbortController();
-
-    (async () => {
-      setIsSearchingSpeakers(true);
-      try {
-        // For @ with no text, fetch all speakers; otherwise search by name
-        const url = searchTerm.length > 0
-          ? `/speakers/search?name=${encodeURIComponent(searchTerm)}`
-          : `/speakers/search?name=`;
-        const resp = await localFetch(url, {
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(3000)]),
-        });
-        if (resp.ok && !cancelled) {
-          const speakers: SpeakerResult[] = await resp.json();
-          setSpeakerResults(speakers.filter(s => s.name).slice(0, isAtQuery ? 20 : 5));
-        }
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setIsSearchingSpeakers(false);
-      }
-    })();
-
-    return () => { cancelled = true; controller.abort(); };
-  }, [debouncedQuery, selectedSpeaker]);
-
-  // Load transcriptions when a speaker is selected
-  useEffect(() => {
-    if (!selectedSpeaker) {
-      setSpeakerTranscriptions([]);
-      setTranscriptionFrames(new Map());
-      setTranscriptionOffset(0);
-      setHasMoreTranscriptions(true);
-      return;
-    }
-
-    let cancelled = false;
-    const controller = new AbortController();
-
-    (async () => {
-      setIsLoadingTranscriptions(true);
-      try {
-        const params = new URLSearchParams({
-          content_type: "audio",
-          speaker_name: selectedSpeaker.name,
-          limit: "30",
-          offset: "0",
-        });
-        const resp = await localFetch(
-          `/search?${params}`,
-          { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]) }
-        );
-        if (resp.ok && !cancelled) {
-          const data = await resp.json();
-          const items: AudioTranscription[] = (data?.data || []).map((item: any) => ({
-            timestamp: item.content?.timestamp || "",
-            transcription: item.content?.transcription || "",
-            device_name: item.content?.device_name || "",
-            is_input: item.content?.is_input ?? true,
-            speaker_name: item.content?.speaker_name || selectedSpeaker.name,
-            duration_secs: item.content?.duration_secs || 0,
-          }));
-          if (items.length < TRANSCRIPTION_PAGE_SIZE) setHasMoreTranscriptions(false);
-          setSpeakerTranscriptions(items);
-
-          // Fetch nearest frame for each transcription timestamp (in parallel batches)
-          const uniqueTimestamps = [...new Set(items.map(i => i.timestamp).filter(Boolean))];
-          if (uniqueTimestamps.length > 0 && !cancelled) {
-            try {
-              const map = new Map<string, { frame_id: number; app_name: string }>();
-              // Batch fetch: find closest frame within ±30s for each timestamp
-              const promises = uniqueTimestamps.map(async (ts) => {
-                const d = new Date(ts);
-                const lo = new Date(d.getTime() - 30_000).toISOString();
-                const hi = new Date(d.getTime() + 30_000).toISOString();
-                const escaped = ts.replace(/'/g, "''");
-                const resp = await localFetch("/raw_sql", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    query: `SELECT id as frame_id, app_name FROM frames WHERE timestamp >= '${lo}' AND timestamp <= '${hi}' ORDER BY ABS(julianday(timestamp) - julianday('${escaped}')) LIMIT 1`,
-                  }),
-                  signal: AbortSignal.timeout(3000),
-                });
-                if (resp.ok) {
-                  const rows: { frame_id: number; app_name: string }[] = await resp.json();
-                  if (rows.length > 0) map.set(ts, { frame_id: rows[0].frame_id, app_name: rows[0].app_name || "" });
-                }
-              });
-              await Promise.all(promises);
-              if (!cancelled) setTranscriptionFrames(map);
-            } catch {
-              // frames are optional, ignore errors
-            }
-          }
-        }
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setIsLoadingTranscriptions(false);
-      }
-    })();
-
-    return () => { cancelled = true; controller.abort(); };
-  }, [selectedSpeaker]);
-
-  // Send to AI handler
-  const handleSendToAI = useCallback(async () => {
-    const result = filteredResults[selectedIndex];
-    if (!result) return;
-
-    const context = `Context from search result:\n${result.app_name} - ${result.window_name}\nTime: ${format(new Date(result.timestamp), "PPpp")}\n\nText:\n${result.text || ""}`;
-
-    // Close search modal first
-    onClose();
-
-    // Show chat window and deliver prefill (handles fresh webview creation)
-    await showChatWithPrefill({ context, frameId: result.frame_id });
-  }, [filteredResults, selectedIndex, onClose]);
-
-  // Handle going back from speaker drill-down
-  const handleBackFromSpeaker = useCallback(() => {
-    setSelectedSpeaker(null);
-    setSpeakerTranscriptions([]);
-    setSpeakerAppFilter(null);
-    setSpeakerTimeFilter(null);
-    setSelectedTranscriptionIndex(0);
-    setTranscriptionOffset(0);
-    setHasMoreTranscriptions(true);
-    requestAnimationFrame(() => focusInput());
-  }, [focusInput]);
-
   // Load more OCR results
   const loadMoreOcr = useCallback(() => {
     if (isLoadingMore || !hasMoreOcr || !debouncedQuery.trim()) return;
@@ -1132,44 +777,6 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
     }
   }, [searchResults.length, ocrOffset, isSearching]);
 
-  // Load more speaker transcriptions
-  const loadMoreTranscriptions = useCallback(async () => {
-    if (isLoadingMoreTranscriptions || !hasMoreTranscriptions || !selectedSpeaker) return;
-    setIsLoadingMoreTranscriptions(true);
-    const newOffset = transcriptionOffset + TRANSCRIPTION_PAGE_SIZE;
-    setTranscriptionOffset(newOffset);
-
-    try {
-      const params = new URLSearchParams({
-        content_type: "audio",
-        speaker_name: selectedSpeaker.name,
-        limit: TRANSCRIPTION_PAGE_SIZE.toString(),
-        offset: newOffset.toString(),
-      });
-      const resp = await localFetch(
-        `/search?${params}`,
-        { signal: AbortSignal.timeout(5000) }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        const items = (data?.data || []).map((item: any) => ({
-          timestamp: item.content?.timestamp || "",
-          transcription: item.content?.transcription || "",
-          device_name: item.content?.device_name || "",
-          is_input: item.content?.is_input ?? true,
-          speaker_name: item.content?.speaker_name || selectedSpeaker.name,
-          duration_secs: item.content?.duration_secs || 0,
-        }));
-        if (items.length < TRANSCRIPTION_PAGE_SIZE) setHasMoreTranscriptions(false);
-        setSpeakerTranscriptions(prev => [...prev, ...items]);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsLoadingMoreTranscriptions(false);
-    }
-  }, [isLoadingMoreTranscriptions, hasMoreTranscriptions, selectedSpeaker, transcriptionOffset]);
-
   // Infinite scroll handler
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -1177,13 +784,9 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
     const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 200;
 
     if (nearBottom) {
-      if (selectedSpeaker) {
-        loadMoreTranscriptions();
-      } else {
-        loadMoreOcr();
-      }
+      loadMoreOcr();
     }
-  }, [selectedSpeaker, loadMoreOcr, loadMoreTranscriptions]);
+  }, [loadMoreOcr]);
 
   const handleSelectResult = useCallback((result: SearchMatch) => {
     if (queryTokens.length > 0) {
@@ -1203,65 +806,6 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const inputFocused = document.activeElement === inputElRef.current;
-
-      // Speaker drill-down mode
-      if (selectedSpeaker) {
-        const transcriptions = filteredSpeakerTranscriptionsRef.current;
-        switch (e.key) {
-          case "Escape":
-            e.preventDefault();
-            handleBackFromSpeaker();
-            break;
-          case "ArrowDown":
-            e.preventDefault();
-            setSelectedTranscriptionIndex(i => Math.min(i + 1, transcriptions.length - 1));
-            break;
-          case "ArrowUp":
-            e.preventDefault();
-            setSelectedTranscriptionIndex(i => Math.max(i - 1, 0));
-            break;
-          case "Enter":
-            e.preventDefault();
-            setSelectedTranscriptionIndex(i => {
-              if (transcriptions[i]?.timestamp) {
-                onNavigateToTimestamp(transcriptions[i].timestamp);
-                onClose();
-              }
-              return i;
-            });
-            break;
-        }
-        return;
-      }
-
-      // Chats mode — list navigation
-      if (contentFilterRef.current === "chats") {
-        const chats = filteredChatsRef.current;
-        switch (e.key) {
-          case "Escape":
-            onClose();
-            break;
-          case "ArrowDown":
-            e.preventDefault();
-            setSelectedChatIndex(i => Math.min(i + 1, chats.length - 1));
-            break;
-          case "ArrowUp":
-            e.preventDefault();
-            setSelectedChatIndex(i => Math.max(i - 1, 0));
-            break;
-          case "Enter":
-            e.preventDefault();
-            {
-              const chat = chats[selectedChatIndexRef.current];
-              if (chat) {
-                void emit("chat-load-conversation", { conversationId: chat.id });
-                onClose();
-              }
-            }
-            break;
-        }
-        return;
-      }
 
       // When input is focused, let left/right arrows move the cursor
       if (inputFocused && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
@@ -1293,15 +837,11 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           break;
         case "Enter":
           e.preventDefault();
-          if (e.metaKey || e.ctrlKey) {
-            handleSendToAI();
-          } else {
-            setSelectedIndex(i => {
-              const r = filteredResultsRef.current[i];
-              if (r) handleSelectResult(r);
-              return i;
-            });
-          }
+          setSelectedIndex(i => {
+            const r = filteredResultsRef.current[i];
+            if (r) handleSelectResult(r);
+            return i;
+          });
           break;
       }
     };
@@ -1315,7 +855,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("keydown", captureEscape, true);
     };
-  }, [isOpen, selectedSpeaker, onClose, onNavigateToTimestamp, handleSelectResult, handleSendToAI, handleBackFromSpeaker]);
+  }, [isOpen, onClose, handleSelectResult]);
 
   // Scroll selected item into view (only on arrow-key navigation, not on new page load)
   const prevSelectedIndex = useRef(selectedIndex);
@@ -1329,8 +869,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
   // Standalone: resize Tauri window based on content state.
   // DOM measurement fails because the small window viewport constrains layout.
-  const hasAnyResults = searchResults.length > 0 || speakerResults.length > 0 || tagResults.length > 0 || uiEventResults.length > 0 || filteredChats.length > 0;
-  const hasVisibleContent = hasAnyResults || contentFilter === "chats" || (debouncedQuery && debouncedQuery.trim().length >= 2) || isSearching || isSearchingSpeakers || isSearchingTags || isSearchingUiEvents;
+  const hasAnyResults = searchResults.length > 0 || tagResults.length > 0 || uiEventResults.length > 0;
+  const hasVisibleContent = hasAnyResults || (debouncedQuery && debouncedQuery.trim().length >= 2) || isSearching || isSearchingTags || isSearchingUiEvents;
   // input ~52px; footer ~28px; results up to ~380px
   const standaloneTargetH = hasVisibleContent ? 580 : 80;
 
@@ -1341,175 +881,12 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
   if (!isOpen) return null;
 
-  const hasResults = searchResults.length > 0 || speakerResults.length > 0 || tagResults.length > 0 || uiEventResults.length > 0;
-  const showEmpty = !isSearching && !isSearchingSpeakers && !isSearchingTags && !isSearchingUiEvents && debouncedQuery && debouncedQuery.trim().length >= 3 && !hasResults && !selectedSpeaker && !isTagSearch && !isPeopleSearch && contentFilter !== "chats";
+  const hasResults = searchResults.length > 0 || tagResults.length > 0 || uiEventResults.length > 0;
+  const showEmpty = !isSearching && !isSearchingTags && !isSearchingUiEvents && debouncedQuery && debouncedQuery.trim().length >= 3 && !hasResults && !isTagSearch;
   const activeIndex = hoveredIndex ?? selectedIndex;
 
   const renderResults = () => (
     <>
-      {/* === Speaker drill-down view === */}
-      {selectedSpeaker ? (
-        <div>
-          {/* Back button + speaker name */}
-          <button
-            onClick={handleBackFromSpeaker}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <User className="w-3.5 h-3.5" />
-            <span className="font-medium text-foreground">{selectedSpeaker.name}</span>
-          </button>
-
-          {isLoadingTranscriptions && (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="bg-muted animate-pulse rounded p-3 h-16" />
-              ))}
-            </div>
-          )}
-
-          {!isLoadingTranscriptions && speakerTranscriptions.length === 0 && (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              no transcriptions found for {selectedSpeaker.name}
-            </div>
-          )}
-
-          {/* App filter chips for speaker transcriptions */}
-          {speakerAppCounts.length > 1 && (
-            <div className="flex gap-1.5 mb-2 overflow-x-auto scrollbar-hide pb-0.5">
-              <button
-                onClick={() => { setSpeakerAppFilter(null); setSelectedTranscriptionIndex(0); }}
-                className={cn(
-                  "px-2.5 py-1 text-[11px] rounded-full border transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0",
-                  !speakerAppFilter
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border text-muted-foreground hover:border-foreground/40"
-                )}
-              >
-                all ({speakerTranscriptions.length})
-              </button>
-              {speakerAppCounts.map(([app, count]) => (
-                <button
-                  key={app}
-                  onClick={() => { setSpeakerAppFilter(speakerAppFilter === app ? null : app); setSelectedTranscriptionIndex(0); }}
-                  className={cn(
-                    "px-2.5 py-1 text-[11px] rounded-full border transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0",
-                    speakerAppFilter === app
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40"
-                  )}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`http://localhost:11435/app-icon?name=${encodeURIComponent(app)}`}
-                    className="w-4 h-4 rounded-sm object-contain"
-                    alt=""
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  {app} ({count})
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Time range filter chips for speaker transcriptions */}
-          {speakerTimeRanges.length > 1 && (
-            <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-hide pb-0.5">
-              <button
-                onClick={() => { setSpeakerTimeFilter(null); setSelectedTranscriptionIndex(0); }}
-                className={cn(
-                  "px-2.5 py-1 text-[11px] rounded-full border transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0",
-                  !speakerTimeFilter
-                    ? "bg-foreground text-background border-foreground"
-                    : "border-border text-muted-foreground hover:border-foreground/40"
-                )}
-              >
-                <Clock className="w-3 h-3" />
-                all dates
-              </button>
-              {speakerTimeRanges.map((range) => (
-                <button
-                  key={range.dateKey}
-                  onClick={() => { setSpeakerTimeFilter(speakerTimeFilter === range.dateKey ? null : range.dateKey); setSelectedTranscriptionIndex(0); }}
-                  className={cn(
-                    "px-2.5 py-1 text-[11px] rounded-full border transition-colors flex items-center gap-1 whitespace-nowrap shrink-0",
-                    speakerTimeFilter === range.dateKey
-                      ? "bg-foreground text-background border-foreground"
-                      : "border-border text-muted-foreground hover:border-foreground/40"
-                  )}
-                >
-                  <Clock className="w-3 h-3" />
-                  {range.label} ({range.count})
-                </button>
-              ))}
-            </div>
-          )}
-
-          {filteredSpeakerTranscriptions.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {filteredSpeakerTranscriptions.map((t, index) => {
-                const frameInfo = transcriptionFrames.get(t.timestamp);
-                const frameId = frameInfo?.frame_id;
-                return (
-                  <div
-                    key={`${t.timestamp}-${index}`}
-                    data-index={index}
-                    onClick={() => {
-                      if (t.timestamp) {
-                        onNavigateToTimestamp(t.timestamp);
-                        if (!embedded) onClose();
-                      }
-                    }}
-                    className={cn(
-                      "cursor-pointer rounded overflow-hidden border transition-all duration-150",
-                      index === selectedTranscriptionIndex
-                        ? "ring-2 ring-foreground border-foreground scale-[1.02] shadow-lg z-10"
-                        : "border-border hover:border-foreground/50"
-                    )}
-                  >
-                    {frameId ? (
-                      <FrameThumbnail
-                        frameId={frameId}
-                        alt={t.transcription || t.speaker_name}
-                      />
-                    ) : (
-                      <div className="aspect-video bg-muted flex items-center justify-center">
-                        <Mic className="w-5 h-5 text-muted-foreground/40" />
-                      </div>
-                    )}
-                    <div className="p-2 bg-card">
-                      <p className="text-xs text-foreground line-clamp-2 leading-relaxed mb-1">
-                        {t.transcription || "(empty)"}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1 font-mono">
-                          <Clock className="w-3 h-3" />
-                          {t.timestamp ? formatRelativeTime(t.timestamp) : "unknown"}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          {t.is_input ? <Mic className="w-2.5 h-2.5" /> : <Volume2 className="w-2.5 h-2.5" />}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Load more transcriptions indicator */}
-          {speakerTranscriptions.length > 0 && (isLoadingMoreTranscriptions || hasMoreTranscriptions) && (
-            <div className="flex justify-center py-4">
-              {isLoadingMoreTranscriptions ? (
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              ) : (
-                <span className="text-xs text-muted-foreground">scroll for more</span>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <>
           {/* Empty state */}
           {showEmpty && (
             <div className="py-12 text-center text-sm text-muted-foreground">
@@ -1609,26 +986,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             </div>
           )}
 
-          {/* @ people search loading */}
-          {isPeopleSearch && isSearchingSpeakers && speakerResults.length === 0 && (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-muted animate-pulse rounded p-3 h-10" />
-              ))}
-            </div>
-          )}
-
-          {/* @ people search empty */}
-          {isPeopleSearch && !isSearchingSpeakers && speakerResults.length === 0 && (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              {query.slice(1).trim()
-                ? <>no people matching &quot;{query.slice(1).trim()}&quot;</>
-                : "no speakers found"}
-            </div>
-          )}
-
           {/* Loading skeleton — filter chips + thumbnail grid */}
-          {!isTagSearch && !isPeopleSearch && (isSearching || facetsLoading) && searchResults.length === 0 && uiEventResults.length === 0 && speakerResults.length === 0 && (
+          {!isTagSearch && (isSearching || facetsLoading) && searchResults.length === 0 && uiEventResults.length === 0 && (
             <>
               {/* Skeleton filter chips */}
               <div className="flex gap-1.5 mb-2 overflow-hidden">
@@ -1656,43 +1015,16 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             </>
           )}
 
-          {/* People section */}
-          {speakerResults.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                <User className="w-3 h-3" />
-                people
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {speakerResults.map((speaker) => (
-                  <button
-                    key={speaker.id}
-                    onClick={() => {
-                      setSelectedSpeaker(speaker);
-                      setSelectedTranscriptionIndex(0);
-                    }}
-                    className="flex items-center gap-2 px-3 py-2 border border-border rounded-md
-                      hover:bg-muted hover:border-foreground/30 transition-colors cursor-pointer"
-                  >
-                    <User className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-sm font-medium">{speaker.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Content type filter chips — always visible */}
           <div className="flex gap-2 mb-3">
             {([
               { key: "all" as ContentFilter, label: "All", icon: null },
               { key: "screen" as ContentFilter, label: "Screen", icon: Monitor },
               { key: "input" as ContentFilter, label: "Keyboard & Clipboard", icon: Keyboard },
-              { key: "chats" as ContentFilter, label: "Chats", icon: MessageSquare },
             ] as const).map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
-                onClick={() => { setContentFilter(key); setSelectedIndex(0); setSelectedChatIndex(0); }}
+                onClick={() => { setContentFilter(key); setSelectedIndex(0); }}
                 className={cn(
                   "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-full border transition-colors",
                   contentFilter === key
@@ -1706,103 +1038,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             ))}
           </div>
 
-          {/* Inline chat section in "All" view — appears instantly (in-memory filter) while screen results load */}
-          {contentFilter !== "chats" && debouncedQuery.trim().length >= 1 && filteredChats.length > 0 && !isTagSearch && !isPeopleSearch && (
-            <div className="mb-4">
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
-                <MessageSquare className="w-3 h-3" />
-                chats
-              </p>
-              <div className="flex flex-col">
-                {filteredChats.slice(0, 5).map((chat) => {
-                  const ts = new Date(chat.lastUserMessageAt ?? chat.updatedAt).toISOString();
-                  return (
-                    <button
-                      key={chat.id}
-                      onClick={() => { void emit("chat-load-conversation", { conversationId: chat.id }); onClose(); }}
-                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded text-left transition-colors hover:bg-muted/50"
-                    >
-                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                      <span className="text-sm truncate">{chat.title}</span>
-                      <span className="ml-auto text-[11px] text-muted-foreground font-mono shrink-0">
-                        {formatRelativeTime(ts)}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              {filteredChats.length > 5 && (
-                <button
-                  onClick={() => setContentFilter("chats")}
-                  className="mt-1 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                >
-                  see all {filteredChats.length} chats →
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Chat results */}
-          {contentFilter === "chats" && (
-            <>
-              {isLoadingChats && (
-                <div className="space-y-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="bg-muted animate-pulse rounded p-3 h-10" />
-                  ))}
-                </div>
-              )}
-              {!isLoadingChats && filteredChats.length === 0 && (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  {debouncedQuery.trim()
-                    ? <>no chats matching &quot;{debouncedQuery.trim()}&quot;</>
-                    : "no chats yet"}
-                </div>
-              )}
-              {!isLoadingChats && filteredChats.length > 0 && (() => {
-                const buckets: Record<string, ConversationMeta[]> = { today: [], yesterday: [], week: [], older: [] };
-                for (const c of filteredChats) {
-                  buckets[getChatTimeBucket(c.lastUserMessageAt ?? c.updatedAt)].push(c);
-                }
-                return CHAT_BUCKET_ORDER.map((bucket) => {
-                  const items = buckets[bucket];
-                  if (!items?.length) return null;
-                  return (
-                    <div key={bucket} className="mb-1">
-                      <p className="px-1 pt-2 pb-1 text-[10px] uppercase tracking-wider font-mono text-muted-foreground/50">
-                        {CHAT_BUCKET_LABELS[bucket]}
-                      </p>
-                      {items.map((chat, idx) => {
-                        const absoluteIdx = filteredChats.indexOf(chat);
-                        const isSelected = absoluteIdx === selectedChatIndex;
-                        return (
-                          <button
-                            key={chat.id}
-                            data-chat-index={absoluteIdx}
-                            onClick={() => {
-                              void emit("chat-load-conversation", { conversationId: chat.id });
-                              onClose();
-                            }}
-                            onMouseEnter={() => setSelectedChatIndex(absoluteIdx)}
-                            className={cn(
-                              "w-full flex items-center gap-2.5 px-2 py-2 rounded text-left transition-colors",
-                              isSelected ? "bg-muted" : "hover:bg-muted/50"
-                            )}
-                          >
-                            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                            <span className="text-sm truncate">{chat.title}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                });
-              })()}
-            </>
-          )}
-
           {/* Screen results skeleton — keyword search still in flight but UI events already loaded */}
-          {contentFilter !== "chats" && isSearching && searchResults.length === 0 && contentFilter !== "input" && uiEventResults.length > 0 && (
+          {isSearching && searchResults.length === 0 && contentFilter !== "input" && uiEventResults.length > 0 && (
             <div className="mb-4">
               <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Monitor className="w-3 h-3" />
@@ -1823,7 +1060,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           )}
 
           {/* UI event results — shown above screen results so infinite scroll doesn't push them away */}
-          {uiEventResults.length > 0 && contentFilter !== "screen" && contentFilter !== "chats" && (
+          {uiEventResults.length > 0 && contentFilter !== "screen" && (
             <div className={cn(contentFilter === "all" && "mb-4")}>
               <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
                 <Keyboard className="w-3 h-3" />
@@ -1853,9 +1090,9 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           )}
 
           {/* Screen results grid */}
-          {searchResults.length > 0 && contentFilter !== "input" && contentFilter !== "chats" && (
+          {searchResults.length > 0 && contentFilter !== "input" && (
             <>
-              {(speakerResults.length > 0 || (contentFilter === "all" && uiEventResults.length > 0)) && (
+              {contentFilter === "all" && uiEventResults.length > 0 && (
                 <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Monitor className="w-3 h-3" />
                   screen
@@ -2067,35 +1304,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
 
           {/* Suggestions when no query */}
-          {!debouncedQuery && !isSearching && contentFilter !== "chats" && (
+          {!debouncedQuery && !isSearching && (
             <div className="py-4 px-2 space-y-4">
-              {/* Recent chats — list with timestamps */}
-              {recentChats.length > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground/60 mb-1 flex items-center gap-1.5">
-                    <MessageSquare className="w-3 h-3" />
-                    recent chats
-                  </p>
-                  <div className="flex flex-col">
-                    {recentChats.map((chat) => {
-                      const ts = new Date(chat.lastUserMessageAt ?? chat.updatedAt).toISOString();
-                      return (
-                        <button
-                          key={chat.id}
-                          onClick={() => { void emit("chat-load-conversation", { conversationId: chat.id }); onClose(); }}
-                          className="w-full flex items-center gap-2.5 px-2 py-2 rounded text-left transition-colors hover:bg-muted/50"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
-                          <span className="text-sm text-foreground/80 truncate">{chat.title}</span>
-                          <span className="ml-auto text-[11px] text-muted-foreground font-mono shrink-0">
-                            {formatRelativeTime(ts)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
               {/* Suggestion chips from recent screen activity */}
               {suggestions.length > 0 && (
                 <div>
@@ -2115,20 +1325,18 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   </div>
                 </div>
               )}
-              {!recentChats.length && !suggestionsLoading && (
+              {!suggestions.length && !suggestionsLoading && (
                 <div className="text-center text-sm text-muted-foreground py-4">
                   type to search your screen history
                 </div>
               )}
             </div>
           )}
-        </>
-      )}
     </>
   );
 
   if (standalone || embedded) {
-    const hasContent = hasResults || (debouncedQuery && debouncedQuery.trim().length >= 2) || isSearching || isSearchingSpeakers || isSearchingTags || isSearchingUiEvents;
+    const hasContent = hasResults || (debouncedQuery && debouncedQuery.trim().length >= 2) || isSearching || isSearchingTags || isSearchingUiEvents;
     return (
       <div className={cn(
         "flex flex-col bg-card/95 backdrop-blur-xl",
@@ -2148,15 +1356,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              if (selectedSpeaker) {
-                setSelectedSpeaker(null);
-                setSpeakerTranscriptions([]);
-                setSelectedTranscriptionIndex(0);
-                setTranscriptionOffset(0);
-                setHasMoreTranscriptions(true);
-              }
             }}
-            placeholder="search memory & chats... (# tags, @ people)"
+            placeholder="search memory... (# tags)"
             className={cn(
               "flex-1 bg-transparent text-foreground placeholder:text-muted-foreground/60 outline-none",
               standalone ? "text-base" : "text-sm",
@@ -2205,27 +1406,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           standalone ? "bg-muted/20" : "bg-muted/30 py-2",
         )}>
           <div className="flex items-center gap-4">
-            {selectedSpeaker ? (
-              <>
-                <span>↑↓ navigate</span>
-                <span>⏎ go to timeline</span>
-                <span>esc back</span>
-              </>
-            ) : contentFilter === "chats" ? (
-              <>
-                <span>↑↓ navigate</span>
-                <span>⏎ open chat</span>
-              </>
-            ) : (
-              <>
-                <span>←→↑↓ navigate</span>
-                <span>⏎ go to timeline</span>
-                <span className="flex items-center gap-1">
-                  <MessageSquare className="w-2.5 h-2.5" />
-                  ⌘⏎ ask AI
-                </span>
-              </>
-            )}
+            <span>←→↑↓ navigate</span>
+            <span>⏎ go to timeline</span>
           </div>
           <span>esc close</span>
         </div>
@@ -2260,16 +1442,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              // Exit speaker drill-down when user edits search query
-              if (selectedSpeaker) {
-                setSelectedSpeaker(null);
-                setSpeakerTranscriptions([]);
-                setSelectedTranscriptionIndex(0);
-                setTranscriptionOffset(0);
-                setHasMoreTranscriptions(true);
-              }
             }}
-            placeholder="Search memory & chats... (# tags, @ people)"
+            placeholder="Search memory... (# tags)"
             className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
             autoComplete="off"
             autoCorrect="off"
@@ -2307,29 +1481,10 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
         {/* Footer with keyboard hints */}
         <div className="px-4 py-2 border-t border-border bg-muted/30 flex items-center justify-between text-[10px] text-muted-foreground font-mono">
           <div className="flex items-center gap-4">
-            {selectedSpeaker ? (
-              <>
-                <span>↑↓ navigate</span>
-                <span>⏎ go to timeline</span>
-                <span>esc back</span>
-              </>
-            ) : contentFilter === "chats" ? (
-              <>
-                <span>↑↓ navigate</span>
-                <span>⏎ open chat</span>
-              </>
-            ) : (
-              <>
-                <span>←→↑↓ navigate</span>
-                <span>⏎ go to timeline</span>
-                <span className="flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" />
-                  ⌘⏎ ask AI
-                </span>
-              </>
-            )}
+            <span>←→↑↓ navigate</span>
+            <span>⏎ go to timeline</span>
           </div>
-          <span>esc {selectedSpeaker ? "back" : "close"}</span>
+          <span>esc close</span>
         </div>
       </div>
     </div>

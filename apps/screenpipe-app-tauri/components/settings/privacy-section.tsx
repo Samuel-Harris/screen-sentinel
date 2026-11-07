@@ -12,8 +12,6 @@ export const searchIndex: SettingsField[] = [
   { label: "PII masking", keywords: ["mask", "redact"] },
   { label: "Telemetry" },
 ];
-import { LockedSetting, ManagedSwitch } from "@/components/enterprise-locked-setting";
-import { useEnterprisePolicy } from "@/lib/hooks/use-enterprise-policy";
 import {
   Eye,
   EyeOff,
@@ -41,8 +39,6 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { WindowPicker } from "./window-picker";
 import { useSettings, Settings } from "@/lib/hooks/use-settings";
 import { ScheduleSettings } from "./schedule-settings";
-import { useIsEnterpriseBuild } from "@/lib/hooks/use-is-enterprise-build";
-import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { useToast } from "@/components/ui/use-toast";
 import { useSqlAutocomplete } from "@/lib/hooks/use-sql-autocomplete";
 import { useInstalledApps } from "@/lib/hooks/use-installed-apps";
@@ -279,13 +275,7 @@ function EncryptDataCard({
 
 export function PrivacySection() {
   const { settings, updateSettings } = useSettings();
-  const isEnterprise = useIsEnterpriseBuild();
   const { toast } = useToast();
-  // when the admin forces the PII backend (local/cloud) we lock the radios so
-  // the employee can't override it (the value itself is applied to settings by
-  // useEnterprisePolicy.applyPiiPolicy on every policy poll).
-  const { getManagedValue } = useEnterprisePolicy();
-  const managedPiiBackend = getManagedValue("piiBackend");
 
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -449,61 +439,6 @@ export function PrivacySection() {
     );
   };
 
-  // Kept for the ManagedSwitch path (enterprise lock on usePiiRemoval).
-  // Falls back to a Basic-mode flip; enterprise admins who pinned the
-  // legacy flag still get exactly what they pinned.
-  const handlePiiRemovalChange = (checked: boolean) => {
-    handlePiiModeChange(checked ? "basic" : "off");
-  };
-
-  // Cloud media analysis (Gemma 4 E4B inside our Tinfoil enclave) —
-  // toggling this also rewrites the screenpipe-api skill markdown so
-  // agents see the capability iff the toggle is on. Defaults to true.
-  const cloudMediaAnalysisEnabled =
-    settings.cloudMediaAnalysisEnabled ?? true;
-
-  const handleCloudMediaAnalysisChange = useCallback(
-    async (checked: boolean) => {
-      handleSettingsChange({ cloudMediaAnalysisEnabled: checked }, true);
-      try {
-        const res = await commands.setCloudMediaAnalysisSkill(checked);
-        if (res.status === "error") throw new Error(res.error);
-      } catch (e) {
-        console.error("failed to sync cloud media analysis skill:", e);
-        // Don't block on the file mutation — setting still persisted in
-        // the UI store. Worst case Pi sees a stale block until next
-        // toggle or app restart.
-      }
-    },
-    [handleSettingsChange],
-  );
-
-  // On first hydrate sync the skill file with the (default-true) setting.
-  // Cheap idempotent file write; ensures fresh installs land with the
-  // block present, and that flipping settings.json from outside the app
-  // (e.g. importing a config) keeps the skill in sync.
-  useEffect(() => {
-    if (!settings) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        if (!cancelled) {
-          const res = await commands.setCloudMediaAnalysisSkill(cloudMediaAnalysisEnabled);
-          if (res.status === "error") throw new Error(res.error);
-        }
-      } catch (e) {
-        console.error("cloud media analysis skill sync on hydrate failed:", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // Intentionally NOT depending on cloudMediaAnalysisEnabled — we want
-    // this to fire once on mount; subsequent changes flow through
-    // handleCloudMediaAnalysisChange which calls invoke directly.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const aiPiiRemovalEnabled = piiMode === "smart";
 
   // Where the AI workers run — one switch covers both modalities.
@@ -570,10 +505,6 @@ export function PrivacySection() {
     // UI is "Capture keyboard" on/off. Settings store inverts to match
     // the CLI flag name (--disable-keyboard-capture).
     handleSettingsChange({ disableKeyboardCapture: !checked }, true);
-  };
-
-  const handleRecordWhileLockedToggle = (checked: boolean) => {
-    handleSettingsChange({ recordWhileLocked: checked }, true);
   };
 
   const handleAnalyticsToggle = (checked: boolean) => {
@@ -722,7 +653,6 @@ export function PrivacySection() {
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
           Security
         </h2>
-        <LockedSetting settingKey="api_auth">
         <Card className="border-border bg-card">
           <CardContent className="px-3 py-2.5">
             <div className="flex items-center justify-between">
@@ -751,7 +681,6 @@ export function PrivacySection() {
                 click &quot;Apply &amp; Restart&quot; above for auth changes to take effect; existing browser connections keep using the old key until then
               </p>
             )}
-            <LockedSetting settingKey="api_key">
             {(settings.apiAuth ?? true) && (
               <div className="mt-2.5 flex items-center space-x-2.5 pl-6.5">
                 <Input
@@ -864,17 +793,13 @@ export function PrivacySection() {
                 </Button>
               </div>
             )}
-            </LockedSetting>
           </CardContent>
         </Card>
-        </LockedSetting>
 
-        {isEnterprise && <AdminTeamTokenCard />}
 
         {/* LAN access — off by default. Toggling on force-enables api_auth
             (the backend mirrors this guard in RecordingConfig::from_settings
             so the API is never exposed to the network unauthenticated). */}
-        <LockedSetting settingKey="listen_on_lan">
         <Card className="border-border bg-card">
           <CardContent className="px-3 py-2.5">
             <div className="flex items-center justify-between">
@@ -907,7 +832,6 @@ export function PrivacySection() {
             </div>
           </CardContent>
         </Card>
-        </LockedSetting>
 
         <EncryptDataCard
           encryptStore={settings.encryptStore ?? true}
@@ -1026,31 +950,6 @@ export function PrivacySection() {
         </CardContent>
       </Card>
 
-      {/* Record While Locked */}
-      <Card>
-        <CardContent className="px-3 py-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2.5">
-              <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-              <div>
-                <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                  Record Audio While Locked
-                  <HelpTooltip text="when enabled, audio recording continues even when your screen is locked. by default, audio recording pauses when the screen is locked to save resources and protect privacy." />
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Continue audio capture when screen is locked
-                </p>
-              </div>
-            </div>
-            <Switch
-              id="recordWhileLocked"
-              checked={Boolean(settings.recordWhileLocked ?? false)}
-              onCheckedChange={handleRecordWhileLockedToggle}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Recording Schedule */}
       <ScheduleSettings
         enabled={settings.scheduleEnabled ?? false}
@@ -1062,7 +961,6 @@ export function PrivacySection() {
       </div>
 
       {/* Data Protection */}
-      <LockedSetting settingKey="pii_removal">
       <div className="space-y-2">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
           Data protection
@@ -1091,8 +989,7 @@ export function PrivacySection() {
                   </p>
                 </div>
               </div>
-              <ManagedSwitch
-                settingKey="usePiiRemoval"
+              <Switch
                 id="usePiiRemoval"
                 checked={piiMode !== "off"}
                 onCheckedChange={(checked) =>
@@ -1148,13 +1045,12 @@ export function PrivacySection() {
             {aiPiiRemovalEnabled && (
               <div className="mt-3 ml-6 space-y-2 border-l-2 border-border pl-3">
                 <p className="text-xs font-medium text-foreground">Where it runs</p>
-                <label className={`flex items-start gap-2 text-xs ${managedPiiBackend ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
                   <input
                     type="radio"
                     name="piiBackend"
                     className="mt-0.5"
                     checked={piiBackend === "local"}
-                    disabled={!!managedPiiBackend}
                     onChange={() => handlePiiBackendChange("local")}
                   />
                   <span>
@@ -1164,13 +1060,12 @@ export function PrivacySection() {
                     </span>
                   </span>
                 </label>
-                <label className={`flex items-start gap-2 text-xs ${managedPiiBackend ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                <label className="flex cursor-pointer items-start gap-2 text-xs">
                   <input
                     type="radio"
                     name="piiBackend"
                     className="mt-0.5"
                     checked={piiBackend === "tinfoil"}
-                    disabled={!!managedPiiBackend}
                     onChange={() => handlePiiBackendChange("tinfoil")}
                   />
                   <span>
@@ -1229,35 +1124,7 @@ export function PrivacySection() {
           </CardContent>
         </Card>
 
-        {/* Cloud media analysis — audio / video / image via Gemma 4 E4B
-            inside the same Tinfoil enclave. Toggle adds/removes the
-            section from ~/.claude/skills/screenpipe-api/SKILL.md so
-            agents literally don't see the capability when it's off. */}
-        <Card className="border-border bg-card">
-          <CardContent className="px-3 py-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    AI audio &amp; video analysis
-                    <HelpTooltip text="Lets Pi and Claude Code call screenpipe's confidential enclave (Gemma 4 E4B inside a Tinfoil-attested AMD SEV-SNP container, encrypted in flight + at rest, no plaintext at the provider) to transcribe meetings, describe video clips, and analyze image frames from your screenpipe data. When off, the capability is stripped from the agent skill markdown so Pi won't try to use it." />
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Confidential enclave for transcription, video, and image understanding.
-                  </p>
-                </div>
-              </div>
-              <Switch
-                id="cloudMediaAnalysisEnabled"
-                checked={cloudMediaAnalysisEnabled}
-                onCheckedChange={handleCloudMediaAnalysisChange}
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
-      </LockedSetting>
 
       <div className="space-y-2">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
@@ -1379,7 +1246,6 @@ export function PrivacySection() {
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
           Telemetry
         </h2>
-        <LockedSetting settingKey="telemetry">
         <Card className="border-border bg-card">
           <CardContent className="px-3 py-2.5">
             <div className="flex items-center justify-between">
@@ -1394,16 +1260,14 @@ export function PrivacySection() {
                   </p>
                 </div>
               </div>
-              <ManagedSwitch
-                settingKey="analyticsEnabled"
+              <Switch
                 id="analyticsEnabled"
-                checked={settings.analyticsEnabled}
+                checked={settings.analyticsEnabled !== false}
                 onCheckedChange={handleAnalyticsToggle}
               />
             </div>
           </CardContent>
         </Card>
-        </LockedSetting>
       </div>
 
       {/* Floating apply & restart button */}
@@ -1441,223 +1305,5 @@ export function PrivacySection() {
         action={picker === "included" ? "include" : "ignore"}
       />
     </div>
-  );
-}
-
-/**
- * Admin team API token — enterprise builds only.
- *
- * Org-wide team-query auth has two intentionally separate pieces:
- * `license_key` is org-level (every employee's machine, deployed by IT);
- * `team_api_token` is per-admin and grants the `read:devices` /
- * `read:search` / `read:records` scopes that the `screenpipe-team` pi
- * skill calls v1 endpoints with. An admin mints one at
- * https://screenpi.pe/enterprise?tab=tokens, pastes it here, and the
- * desktop persists it to ~/.screenpipe/enterprise.json. Every new pi
- * chat reads that file at boot and (un)installs the skill accordingly —
- * no app restart needed, just open a new chat. Revoke from the same
- * dashboard page to kill team access immediately.
- *
- * UX mirrors the local API key card above (Input + Eye reveal + Copy).
- */
-function AdminTeamTokenCard() {
-  const { toast } = useToast();
-  const [liveToken, setLiveToken] = useState<string | null>(null);
-  const [revealToken, setRevealToken] = useState(false);
-  const [pendingToken, setPendingToken] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  const reload = useCallback(async () => {
-    try {
-      const cur = await commands.getEnterpriseTeamApiToken();
-      setLiveToken(cur ?? null);
-    } catch {
-      setLiveToken(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  const handleSave = useCallback(async () => {
-    const trimmed = (pendingToken ?? "").trim();
-    if (!trimmed) {
-      toast({ title: "paste a token first" });
-      return;
-    }
-    if (!trimmed.startsWith("sk_ent_")) {
-      toast({
-        title: "that doesn't look like an admin token",
-        description: "expected format: sk_ent_…",
-      });
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await commands.saveEnterpriseTeamConfig(null, null, trimmed);
-      if (res.status === "error") throw new Error(res.error);
-      setLiveToken(trimmed);
-      setPendingToken(null);
-      toast({
-        title: "admin token saved",
-        description: "open a new pi chat to use it — no app restart needed",
-      });
-    } catch (e) {
-      toast({
-        title: "failed to save",
-        description: e instanceof Error ? e.message : String(e),
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }, [pendingToken, toast]);
-
-  const handleClear = useCallback(async () => {
-    setSaving(true);
-    try {
-      const res = await commands.saveEnterpriseTeamConfig(null, null, "");
-      if (res.status === "error") throw new Error(res.error);
-      setLiveToken(null);
-      setPendingToken(null);
-      setRevealToken(false);
-      toast({ title: "admin token cleared" });
-    } catch (e) {
-      toast({
-        title: "failed to clear",
-        description: e instanceof Error ? e.message : String(e),
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }, [toast]);
-
-  const displayValue =
-    pendingToken !== null
-      ? pendingToken
-      : liveToken
-      ? revealToken
-        ? liveToken
-        : "•".repeat(Math.min(liveToken.length, 32))
-      : "";
-  const hasPending = pendingToken !== null && pendingToken !== (liveToken ?? "");
-
-  return (
-    <Card className="border-border bg-card">
-      <CardContent className="px-3 py-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div>
-              <h3 className="text-sm font-medium text-foreground">
-                Admin Team API Token
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Lets the pi agent query org-wide team data (devices, search,
-                records). Mint at{" "}
-                <button
-                  className="underline text-foreground hover:text-foreground/80"
-                  onClick={() =>
-                    openUrl("https://screenpi.pe/enterprise?tab=tokens")
-                  }
-                >
-                  screenpi.pe/enterprise → api tokens
-                </button>
-                .
-              </p>
-            </div>
-          </div>
-        </div>
-        <div className="mt-2.5 flex items-center space-x-2.5 pl-6.5">
-          <Input
-            type="text"
-            // First-time users have no `liveToken` yet — they must always be able
-            // to type a fresh token in. Only lock the input when we're displaying
-            // an EXISTING token in masked form; clicking the eye unlocks edit mode.
-            readOnly={Boolean(liveToken) && !revealToken && pendingToken === null}
-            placeholder="sk_ent_…"
-            data-testid="privacy-admin-token-input"
-            value={displayValue}
-            onChange={(e) => {
-              setPendingToken(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && hasPending) {
-                void handleSave();
-              }
-            }}
-            onClick={(e) => (e.target as HTMLInputElement).select()}
-            className="h-8 text-xs font-mono cursor-text select-all"
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2 shrink-0"
-            title={revealToken ? "Hide token" : "Reveal token"}
-            onClick={() => {
-              setRevealToken((v) => !v);
-              if (pendingToken === null && liveToken) setPendingToken(liveToken);
-            }}
-            // Eye only makes sense when there's a saved token to unmask. Fresh
-            // users typing a new token don't need it.
-            disabled={!liveToken}
-            data-testid="privacy-admin-token-reveal"
-          >
-            {revealToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2 shrink-0"
-            title="Copy token"
-            disabled={!liveToken}
-            data-testid="privacy-admin-token-copy"
-            onClick={async () => {
-              if (!liveToken) return;
-              try {
-                await navigator.clipboard.writeText(liveToken);
-              } catch {
-                const el = document.createElement("textarea");
-                el.value = liveToken;
-                el.style.position = "fixed";
-                el.style.opacity = "0";
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand("copy");
-                document.body.removeChild(el);
-              }
-              toast({ title: "admin token copied to clipboard" });
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          {hasPending && (
-            <Button
-              size="sm"
-              className="h-8 text-xs"
-              disabled={saving}
-              onClick={handleSave}
-              data-testid="privacy-admin-token-save"
-            >
-              save
-            </Button>
-          )}
-          {!hasPending && liveToken && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-              disabled={saving}
-              onClick={handleClear}
-              data-testid="privacy-admin-token-clear"
-            >
-              clear
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

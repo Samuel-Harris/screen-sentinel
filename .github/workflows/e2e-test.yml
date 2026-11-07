@@ -519,9 +519,6 @@ jobs:
     - name: Set up virtual display with window manager
       run: .github/scripts/setup_display.sh
 
-    - name: Setup audio
-      run: .github/scripts/setup_audio.sh
-
     - name: Run E2E Tests
       shell: bash
       working-directory: ./apps/screenpipe-app-tauri

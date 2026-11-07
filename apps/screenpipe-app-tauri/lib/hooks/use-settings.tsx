@@ -15,11 +15,6 @@ import { SettingsStore } from "../utils/tauri";
 import { installAuthInterceptor } from "../auth-guard";
 import { normalizeAppUser } from "@/lib/app-entitlement";
 import { screenpipeWebUrl } from "@/lib/web-url";
-import type { SourceCitation } from "@/lib/source-citations";
-import type {
-	EnterpriseAppUpdatePolicy,
-	EnterpriseInstallMetadata,
-} from "@ee/lib/app-update-policy";
 import { type FontSize, applyFontSize } from "@/lib/utils/font-size";
 export type VadSensitivity = "low" | "medium" | "high";
 
@@ -82,194 +77,21 @@ export type AIPreset = {
 
 export type UpdateChannel = "stable" | "beta";
 
-// Chat history types
-export interface ChatMessage {
-	id: string;
-	role: "user" | "assistant";
-	content: string;
-	intent?: "steer";
-	turnIntentId?: string;
-	timestamp: number;
-	contentBlocks?: any[];
-	sourceCitations?: SourceCitation[];
-	model?: string;
-	provider?: string;
-	/** UI override — when set, the sidebar / panel header renders this
-	 *  instead of `content` for compact display (e.g. "pipe executed
-	 *  10:24 – 10:26" for synthetic prompts). Doesn't affect persistence
-	 *  or what's sent to the model. */
-	displayContent?: string;
-	images?: any[];
-	/** Non-image attachments (PDF/DOCX/XLSX/text) extracted to text. Only
-	 *  metadata is stored here — the actual extracted text already lives
-	 *  inside `content` (folded in at send time so the model sees it).
-	 *  The renderer reads this to draw attachment cards above the bubble. */
-	attachments?: Array<{
-		name: string;
-		ext: string;
-		charCount: number;
-		truncated: boolean;
-	}>;
-	interruptedBySteer?: boolean;
-	steeredResponse?: boolean;
-	/** Wall-clock work duration for coalesced assistant messages (pipe
-	 *  runs). Used by the chat renderer as a fallback when no thinking
-	 *  blocks contributed a duration, so the work-group can still show
-	 *  "Worked for X min" even when the agent emitted no thinking. */
-	workDurationMs?: number;
-}
-
-/** What kind of session a conversation represents.
- *
- *  - `chat`        — a normal Pi chat session. The default; assumed when
- *                    `kind` is missing on disk.
- *  - `pipe-watch`  — a live pipe execution the user is currently
- *                    watching. The chat panel renders pipe events in
- *                    real time; the conversation is volatile (not
- *                    persisted unless the user opts to keep it).
- *  - `pipe-run`    — a completed pipe execution kept around as
- *                    history. Lives under "Pipe runs" in the sidebar
- *                    rather than "Recents". */
-export type ConversationKind = "chat" | "pipe-watch" | "pipe-run";
-
-/** Pipe-specific context attached to `pipe-watch` / `pipe-run`
- *  conversations. Drives the in-panel banner and the sidebar
- *  grouping. */
-export interface PipeContext {
-	pipeName: string;
-	executionId: number;
-	startedAt?: string;
-}
-
-export interface ChatConversation {
-	id: string;
-	title: string;
-	messages: ChatMessage[];
-	createdAt: number;
-	updatedAt: number;
-	/** User pinned this conversation in the chat sidebar — keeps it at the top.
-	 *  Persists across app restarts via the on-disk conversation file. */
-	pinned?: boolean;
-	/** User closed this conversation from the chat sidebar — keeps the file on
-	 *  disk (so deleting via close is non-destructive) but excludes it from the
-	 *  sidebar listing. Re-surface via a future "show hidden" UI; meanwhile a
-	 *  dedicated delete-forever action is the only way to actually remove. */
-	hidden?: boolean;
-	/** ms since epoch of the most recent USER-SENT message. Drives the
-	 *  sidebar sort order. Persisted so that order survives app restart;
-	 *  derived from messages on first hydration if not set on disk yet. */
-	lastUserMessageAt?: number;
-	/** Conversation type — defaults to "chat" when missing (back-compat
-	 *  with older on-disk files). See `ConversationKind`. */
-	kind?: ConversationKind;
-	/** Pipe metadata for `pipe-watch` / `pipe-run` conversations.
-	 *  Undefined for plain chats. */
-	pipeContext?: PipeContext;
-	/** Last URL the agent navigated the embedded browser sidebar to.
-	 *  Drives the right-side `<BrowserSidebar />` panel: when the user
-	 *  re-opens this conversation the panel restores to this URL.
-	 *  Cleared (set to undefined) when the user closes the sidebar. */
-	browserState?: {
-		url: string;
-		updatedAt: number;
-		/** User-chosen panel width in CSS pixels. Defaults to 480 if unset.
-		 *  Persisted so re-opening the chat restores the same layout. */
-		width?: number;
-		/** User has hidden the panel (still has a saved URL — a small
-		 *  "re-open" button is shown in the chat header). */
-		collapsed?: boolean;
-	};
-	/** Title source priority: user > ai > fallback. Used to prevent
-	 *  lower-priority titles from overwriting higher-priority ones. */
-	titleSource?: "user" | "ai" | "fallback";
-}
-
-export interface ChatHistoryStore {
-	conversations: ChatConversation[];
-	activeConversationId: string | null;
-	historyEnabled: boolean;
-}
-
 // Extend SettingsStore with fields added before Rust types are regenerated
 export type Settings = SettingsStore & {
 	deviceId?: string;
 	updateChannel?: UpdateChannel;
-	chatHistory?: ChatHistoryStore;
 	ignoredUrls?: string[];
 	searchShortcut?: string;
 	lockVaultShortcut?: string;
-	/** When true, audio devices follow system default and auto-switch on changes */
-	useSystemDefaultAudio?: boolean;
-	/** Enable AI workflow event detection (cloud, triggers event-based pipes) */
-	enableWorkflowEvents?: boolean;
-	/** Audio transcription scheduling: "realtime" (default) or "batch" (longer chunks for quality) */
-	transcriptionMode?: "realtime" | "smart" | "batch";
-	/** Live notes for manually-started meetings. Separate from background 24/7 transcription. */
-	meetingLiveTranscriptionEnabled?: boolean;
-	/** Provider for manually-started live notes. Defaults to the selected transcription engine. */
-	meetingLiveTranscriptionProvider?: "selected-engine" | "screenpipe-cloud" | "disabled" | "deepgram-live";
-	/** When true, the user's typed text (and edited files) captured during a meeting is auto-appended to the meeting note when the meeting stops. Default true. */
-	appendTypedTextToMeetingNote?: boolean;
-	/** User's name for speaker identification — input device audio will be labeled with this name */
-	userName?: string;
-	/** Filters pushed from team — merged with local filters for recording */
-	teamFilters?: {
-		ignoredWindows: string[];
-		includedWindows: string[];
-		ignoredUrls: string[];
-	};
-	/** Custom vocabulary entries for transcription biasing and word replacement */
-	vocabularyWords?: Array<{ word: string; replacement?: string }>;
-	/** Cloud archive: auto-upload and delete data older than retention period */
-	cloudArchiveEnabled?: boolean;
-	/** Days to keep data locally before archiving (default: 7) */
-	cloudArchiveRetentionDays?: number;
-	/** Sync pipe configurations across devices (requires cloud sync subscription) */
-	pipeSyncEnabled?: boolean;
-	/** Slug of the pipe used to summarize meetings. Drives both the manual
-	 * "Summarize with AI" button (its body becomes the chat prompt) and the
-	 * auto-fire on meeting_ended (the picked pipe owns the trigger). Default:
-	 * "meeting-summary" (the built-in pipe). */
-	meetingSummaryPipeSlug?: string;
-	/** Sync memories (facts, preferences, decisions, insights) across devices.
-	 * Independent of pipeSyncEnabled — a user might want their memories on
-	 * every device but keep pipes device-local, or vice versa. Pro-gated. */
-	memoriesSyncEnabled?: boolean;
-	/** Sync connected-account credentials (OAuth tokens + manual API keys)
-	 * across devices. Off by default and kept separate from pipes/memories on
-	 * purpose: it syncs secrets, so enabling it is a distinct informed choice.
-	 * Credentials are end-to-end encrypted in the sync blob. Pro-gated. */
-	connectionsSyncEnabled?: boolean;
+	/** Frontend PostHog opt-in and machine id. */
+	analyticsEnabled?: boolean;
+	analyticsId?: string;
 	/** Font size for the entire app UI */
 	fontSize?: FontSize;
-	/** OpenAI-compatible transcription endpoint URL */
-	openaiCompatibleEndpoint?: string;
-	/** OpenAI-compatible transcription API key */
-	openaiCompatibleApiKey?: string;
-	/** OpenAI-compatible transcription model name */
-	openaiCompatibleModel?: string;
-	/** Custom HTTP headers for OpenAI-compatible transcription (JSON object) */
-	openaiCompatibleHeaders?: Record<string, string>;
-	/** Send raw WAV audio instead of MP3 to OpenAI-compatible endpoint */
-	openaiCompatibleRawAudio?: boolean;
-	/** Let Pi / Claude Code call the confidential cloud enclave
-	 * (Gemma 4 E4B inside an attested Tinfoil CVM) to analyze audio,
-	 * video frames, and images from screenpipe data. Default true. When
-	 * false, the "Cloud audio + video + image analysis" section is
-	 * stripped from `~/.claude/skills/screenpipe-api/SKILL.md` so agents
-	 * literally cannot see the endpoint and won't try to call it. */
-	cloudMediaAnalysisEnabled?: boolean;
-	/** Filter music-dominant audio before transcription (reduces Spotify/YouTube music noise) */
-	filterMusic?: boolean;
-	/** Maximum batch transcription duration in seconds (0 = engine default: Deepgram 5000s, OpenAI 3000s, Whisper 600s) */
-	batchMaxDurationSecs?: number;
-	/** Show periodic notifications suggesting pipe ideas based on user's data (default: true) */
-	pipeSuggestionsEnabled?: boolean;
-	/** Hours between pipe suggestion notifications (default: 24) */
-	pipeSuggestionFrequencyHours?: number;
 	/** User's power mode preference — persisted so it survives app restarts */
 	powerMode?: "auto" | "performance" | "battery_saver";
-	/** Show restart notifications when audio/vision capture stalls (default: false for now) */
+	/** Show restart notifications when vision capture stalls (default: false for now) */
 	showRestartNotifications?: boolean;
 	/** Pause all screen capture when a DRM-protected streaming app (Netflix, Disney+, etc.) or a remote-desktop client (Omnissa/VMware Horizon) is focused — they blank their windows during screen recording */
 	pauseOnDrmContent?: boolean;
@@ -277,16 +99,7 @@ export type Settings = SettingsStore & {
 	disableClipboardCapture?: boolean;
 	/** Skip keyboard / typed-text capture in the UI recorder. Defaults to true (keyboard capture OFF) — the a11y tree + OCR still capture on-screen text, this only drops the raw keystroke stream where secrets get typed. */
 	disableKeyboardCapture?: boolean;
-	/** Experimental: capture System Audio via CoreAudio Process Tap (macOS 14.4+) instead of ScreenCaptureKit.
-	 *  Off by default. Ignored on macOS <14.4 and non-macOS — falls back to SCK. */
-	experimentalCoreaudioSystemAudio?: boolean;
-	/** Experimental: request Windows WASAPI microphone AEC when supported. */
-	windowsInputAecEnabled?: boolean;
-	/** Experimental: request Apple VoiceProcessingIO AEC on the default macOS microphone. */
-	macosInputVpioEnabled?: boolean;
-	/** Continue recording audio when the screen is locked (default: false) */
-	recordWhileLocked?: boolean;
-	/** Auto-delete local data older than retention days (free alternative to cloud archive) */
+	/** Auto-delete local data older than retention days */
 	localRetentionEnabled?: boolean;
 	/** Days to keep data locally before auto-deleting (default: 14) */
 	localRetentionDays?: number;
@@ -295,37 +108,13 @@ export type Settings = SettingsStore & {
 	localRetentionMode?: "media" | "all";
 	/** Apply macOS vibrancy effect to sidebar for a translucent glass look */
 	translucentSidebar?: boolean;
-	/** Hide model "thinking" reasoning blocks in chat (default: true) */
-	hideThinkingBlocks?: boolean;
-	/** Auto-generate chat titles with the LLM after the first message.
-	 *  Costs one extra inference per new chat. Disable to save tokens —
-	 *  chats fall back to a title derived from the first message (default: true) */
-	autoGenerateChatTitles?: boolean;
 	/** Notification preferences — which notification sources are enabled */
 	notificationPrefs?: {
 		captureStalls: boolean;
 		appUpdates: boolean;
-		pipeSuggestions: boolean;
-		pipeNotifications: boolean;
 		/** Toast when a monitor is plugged, unplugged, or switched (clamshell, dock). Default true. */
 		displayChanges?: boolean;
-		/** Live-note prompt when a meeting is detected. Default true. */
-		meetingLiveNotes?: boolean;
-		/** OS notification when a meeting starts but no audio frames arrive within 60s. Default true. */
-		audioCaptureStalled?: boolean;
-		/** In-app /notify when audio is captured but no live transcript arrives within 60s. Default true. */
-		liveTranscriptStalled?: boolean;
-		mutedPipes: string[];
 	};
-	/** Remote devices to monitor pipes on (LAN addresses) */
-		monitorDevices?: Array<{
-			address: string;
-			label?: string;
-		}>;
-		/** Enterprise app-update policy fetched from the admin dashboard. */
-		enterpriseAppUpdatePolicy?: EnterpriseAppUpdatePolicy;
-		/** Local install/update-manager detection for enterprise fleet reporting. */
-		enterpriseInstallMetadata?: EnterpriseInstallMetadata;
 		/** Enable recording schedule — when on, recording only runs during defined time ranges */
 		scheduleEnabled?: boolean;
 	/** Per-day-of-week time ranges defining when recording is active */
@@ -337,16 +126,6 @@ export type Settings = SettingsStore & {
 	}>;
 	apiAuth?: boolean;
 	apiKey?: string;
-	/** Default behavior when a meeting is detected.
-	 * - `"ask"` (default): the existing meeting-start notification grows
-	 *   a "+ HD" action. Click → starts a meeting-bound session that
-	 *   auto-stops when the call ends.
-	 * - `"always"`: every detected meeting auto-starts a session.
-	 * - `"never"`: no auto-action; only the manual tray timer can start
-	 *   one.
-	 * Indefinite manual mode does not exist — every session is bound to
-	 * either a meeting or a timer, both with hard-cap safety nets. */
-	hdRecordingDefault?: "ask" | "always" | "never";
 	/** Capture debounce (ms) installed while an HD session is active.
 	 * Default 100 ≈ 10 fps. Clamped to >= 33 ms (30 fps ceiling). */
 	hdRecordingIntervalMs?: number;
@@ -359,11 +138,6 @@ export type Settings = SettingsStore & {
 	 */
 	listenOnLan?: boolean;
 	encryptStore?: boolean;
-	/** Global blanket permission: allow screenpipe to copy browser cookies
-	 *  into the owned browser so the agent can browse sites the user is
-	 *  logged into. Revocable from the owned-browser cookie menu.
-	 *  Undefined = not decided yet, false = disabled, true = enabled. */
-	browserCookieAccessGranted?: boolean;
 	/** Windows-only: when true, closing the Home window hides it to the system
 	 * tray (and removes it from the taskbar) instead of minimizing. The Rust
 	 * close handler in src-tauri/src/main.rs reads this directly. Default off. */
@@ -371,11 +145,10 @@ export type Settings = SettingsStore & {
 }
 
 export function getEffectiveFilters(settings: Settings) {
-	const team = settings.teamFilters || { ignoredWindows: [], includedWindows: [], ignoredUrls: [] };
 	return {
-		ignoredWindows: [...new Set([...settings.ignoredWindows, ...team.ignoredWindows])],
-		includedWindows: [...new Set([...settings.includedWindows, ...team.includedWindows])],
-		ignoredUrls: [...new Set([...(settings.ignoredUrls || []), ...team.ignoredUrls])],
+		ignoredWindows: settings.ignoredWindows,
+		includedWindows: settings.includedWindows,
+		ignoredUrls: settings.ignoredUrls || [],
 	};
 }
 
@@ -478,63 +251,24 @@ export function makeDefaultPresets(isPro: boolean): AIPreset[] {
 // ensureDefaultPreset() re-seeds with pro status once settings.user is loaded.
 const DEFAULT_CLOUD_PRESET: AIPreset = makeDefaultPresets(false)[0];
 
-const DEFAULT_AUDIO_ENGINE = "whisper-large-v3-turbo-quantized";
-
-const isLoggedInProUser = (user: User | null | undefined) =>
-	user?.cloud_subscribed === true && Boolean(user.token || user.id);
-
-const applyProCloudAudioDefaults = (settings: Settings): Settings => {
-	if (!isLoggedInProUser(settings.user)) return settings;
-	if ((settings as any)._proCloudAudioDefaultsAppliedV2) return settings;
-
-	// If the user picked a non-default, non-cloud engine, they've configured audio
-	// themselves — don't flip live-meeting on or rewrite the provider behind their back.
-	// V2 marker is intentionally left unset so a later switch back to default re-evaluates.
-	const userChoseCustomEngine =
-		settings.audioTranscriptionEngine !== DEFAULT_AUDIO_ENGINE &&
-		settings.audioTranscriptionEngine !== "screenpipe-cloud";
-	if (userChoseCustomEngine) return settings;
-
-	const oldCloudEngineMigrationAlreadyRan = (settings as any)._cloudEngineApplied === true;
-	if (!oldCloudEngineMigrationAlreadyRan) {
-		settings.audioTranscriptionEngine = "screenpipe-cloud";
-	}
-	settings.meetingLiveTranscriptionEnabled = true;
-	settings.meetingLiveTranscriptionProvider = "screenpipe-cloud";
-	(settings as any)._proCloudAudioDefaultsAppliedV2 = true;
-
-	return settings;
-};
-
 let DEFAULT_SETTINGS: Settings = {
 			aiPresets: makeDefaultPresets(false) as any,
 			deviceId: crypto.randomUUID(),
-			deepgramApiKey: "",
 			isLoading: false,
 			userId: "",
 			analyticsId: "",
 			devMode: false,
-			audioTranscriptionEngine: "whisper-large-v3-turbo-quantized",
-			meetingLiveTranscriptionEnabled: true,
-			meetingLiveTranscriptionProvider: "selected-engine",
-			appendTypedTextToMeetingNote: true,
 			ocrEngine: "default",
 			monitorIds: ["default"],
-			audioDevices: ["default"],
-			useSystemDefaultAudio: true,
 			usePiiRemoval: false,
 			port: 3030,
 			dataDir: "default",
-			disableAudio: false,
 			ignoredWindows: [
 			],
 			includedWindows: [],
 			ignoredUrls: [],
-			ignoredMeetingApps: [],
-			teamFilters: { ignoredWindows: [], includedWindows: [], ignoredUrls: [] },
 
 			analyticsEnabled: true,
-			audioChunkDuration: 30,
 			useChineseMirror: false,
 			languages: [],
 			embeddedLLM: {
@@ -544,7 +278,6 @@ let DEFAULT_SETTINGS: Settings = {
 			},
 		updateChannel: "stable",
 			autoUpdate: false,
-			autoUpdatePipes: true,
 			autoStartEnabled: true,
 			platform: "unknown",
 			disabledShortcuts: [],
@@ -572,41 +305,23 @@ let DEFAULT_SETTINGS: Settings = {
 			showScreenpipeShortcut: "Control+Super+S",
 			startRecordingShortcut: "Super+Alt+U",
 			stopRecordingShortcut: "Super+Alt+X",
-			startAudioShortcut: "Control+Super+A",
-			stopAudioShortcut: "Control+Super+Z",
-			showChatShortcut: "Control+Super+L",
 			searchShortcut: "Control+Super+K",
 			lockVaultShortcut: "Super+Shift+L",
 			disableVision: false,
 			useAllMonitors: true,
 			showShortcutOverlay: true,
-			chatHistory: {
-				conversations: [],
-				activeConversationId: null,
-				historyEnabled: true,
-			},
 			overlayMode: "fullscreen",
 			showOverlayInScreenRecording: false,
 			disableTimeline: false,
 			videoQuality: "balanced",
-			transcriptionMode: "batch",
-			cloudArchiveEnabled: false,
-			cloudArchiveRetentionDays: 7,
-			meetingSummaryPipeSlug: "meeting-summary",
-			filterMusic: false,
 			ignoreIncognitoWindows: true,
 			pauseOnDrmContent: false,
 			disableClipboardCapture: true,
 			disableKeyboardCapture: true,
-			experimentalCoreaudioSystemAudio: false,
-			windowsInputAecEnabled: false,
-			macosInputVpioEnabled: false,
-			recordWhileLocked: false,
 			localRetentionEnabled: false,
 			localRetentionDays: 14,
 			localRetentionMode: "media",
 			encryptStore: true,
-			hdRecordingDefault: "ask",
 			hdRecordingIntervalMs: 100,
 			fontSize: "16px",
 		};
@@ -619,10 +334,7 @@ export function createDefaultSettingsObject(): Settings {
 		DEFAULT_SETTINGS.ignoredWindows.push(...(DEFAULT_IGNORED_WINDOWS_PER_OS[p] ?? []));
 		DEFAULT_SETTINGS.ocrEngine = p === "macos" ? "apple-native" : p === "windows" ? "windows-native" : "tesseract";
 		DEFAULT_SETTINGS.showScreenpipeShortcut = p === "windows" ? "Alt+S" : "Control+Super+S";
-		DEFAULT_SETTINGS.showChatShortcut = p === "windows" ? "Alt+L" : "Control+Super+L";
 		DEFAULT_SETTINGS.searchShortcut = p === "windows" ? "Alt+K" : "Control+Super+K";
-		DEFAULT_SETTINGS.startAudioShortcut = p === "windows" ? "Alt+Shift+A" : "Control+Super+A";
-		DEFAULT_SETTINGS.stopAudioShortcut = p === "windows" ? "Alt+Shift+Z" : "Control+Super+Z";
 		DEFAULT_SETTINGS.lockVaultShortcut = p === "windows" ? "Ctrl+Shift+L" : "Super+Shift+L";
 
 		if (p === "windows") {
@@ -686,35 +398,6 @@ function createSettingsStore() {
 			needsUpdate = true;
 		}
 
-		// One-time migration (V2 — supersedes V1): flip the CoreAudio Process
-		// Tap toggle OFF for every existing install, keeping SCK as the System
-		// Audio backend. V1 (run a few days earlier) had flipped it ON by
-		// default, but the Process Tap can't capture audio rendered through a
-		// VoiceProcessing AudioUnit — Zoom/Meet/Teams all use one for echo
-		// cancellation — so the tap silently captured zeroed buffers on every
-		// meeting. Users who explicitly want the tap (e.g. to dodge SCK's
-		// sleep/wake display-enumeration bug) can re-enable it in Settings.
-		// Reported on 2026-04-24 after v2.4.46 calls kept dropping
-		// other participants.
-		if (!(settings as any).coreaudioTapMigrationV2) {
-			settings.experimentalCoreaudioSystemAudio = false;
-			(settings as any).coreaudioTapMigrationV2 = true;
-			needsUpdate = true;
-		}
-
-		if (settings.meetingLiveTranscriptionEnabled === undefined) {
-			settings.meetingLiveTranscriptionEnabled = true;
-			needsUpdate = true;
-		}
-		if (!settings.meetingLiveTranscriptionProvider) {
-			settings.meetingLiveTranscriptionProvider = "selected-engine";
-			needsUpdate = true;
-		}
-		if (settings.appendTypedTextToMeetingNote === undefined) {
-			settings.appendTypedTextToMeetingNote = true;
-			needsUpdate = true;
-		}
-
 		// Migration: Add default presets if user has none
 		if (!settings.aiPresets || settings.aiPresets.length === 0) {
 			const isPro = settings.user?.cloud_subscribed === true;
@@ -769,35 +452,6 @@ function createSettingsStore() {
 			needsUpdate = true;
 		}
 
-		// Migration: Add chat history for existing users
-		if (!settings.chatHistory) {
-			settings.chatHistory = {
-				conversations: [],
-				activeConversationId: null,
-				historyEnabled: true,
-			};
-			needsUpdate = true;
-		}
-
-		// Migration: Fill empty showChatShortcut with platform default
-		if (!settings.showChatShortcut || settings.showChatShortcut.trim() === "") {
-			const p = platform();
-			settings.showChatShortcut = p === "windows" ? "Alt+L" : "Control+Super+L";
-			needsUpdate = true;
-		}
-
-		// Migration: Fill empty audio shortcuts with platform defaults
-		if (!settings.startAudioShortcut || settings.startAudioShortcut.trim() === "") {
-			const p = platform();
-			settings.startAudioShortcut = p === "windows" ? "Alt+Shift+A" : "Control+Super+A";
-			needsUpdate = true;
-		}
-		if (!settings.stopAudioShortcut || settings.stopAudioShortcut.trim() === "") {
-			const p = platform();
-			settings.stopAudioShortcut = p === "windows" ? "Alt+Shift+Z" : "Control+Super+Z";
-			needsUpdate = true;
-		}
-
 		// Always override platform with runtime detection — never trust persisted value.
 		// Platform can be "unknown" if it was saved during SSR or before Tauri was ready.
 		try {
@@ -808,40 +462,6 @@ function createSettingsStore() {
 			}
 		} catch {
 			// platform() unavailable (SSR/tests) — keep existing value
-		}
-
-		// Mark pro migration as done so the old migration doesn't re-trigger
-		if (!(settings as any)._proCloudMigrationDone) {
-			(settings as any)._proCloudMigrationDone = true;
-			needsUpdate = true;
-		}
-
-		// Migration: Set default transcription engine (one-time only)
-		// - macOS → whisper-large-v3-turbo-quantized
-		// - Windows/Linux → parakeet
-		// Does NOT set screenpipe-cloud here because user may not be logged in yet.
-		// Cloud switch happens in account-section.tsx when subscription is confirmed.
-		if (!(settings as any)._parakeetDefaultMigrationDone) {
-			const engine = settings.audioTranscriptionEngine;
-			const isWhisperVariant = engine?.includes("whisper");
-			if (isWhisperVariant || engine === "screenpipe-cloud" || engine === "parakeet") {
-				const { platform: getPlatform } = await import("@tauri-apps/plugin-os");
-				const os = getPlatform();
-				settings.audioTranscriptionEngine = os === "macos"
-					? "whisper-large-v3-turbo-quantized"
-					: "parakeet";
-				needsUpdate = true;
-			}
-			(settings as any)._parakeetDefaultMigrationDone = true;
-			needsUpdate = true;
-		}
-
-		// Post-migration: when a logged-in Pro user is first confirmed, default
-		// both background and live transcription to Screenpipe Cloud. The marker
-		// prevents future user refreshes from overriding a manual engine choice.
-		if (isLoggedInProUser(settings.user) && !(settings as any)._proCloudAudioDefaultsAppliedV2) {
-			applyProCloudAudioDefaults(settings);
-			needsUpdate = true;
 		}
 
 		// Post-migration: if user becomes pro and the Chat preset is still on the
@@ -887,15 +507,7 @@ function createSettingsStore() {
 	const set = async (value: Partial<Settings>) => {
 		const store = await getStore();
 		const current = await get();
-		let newSettings = { ...current, ...value } as Settings;
-		if ("user" in value) {
-			// On logout / Pro→non-Pro transition, clear the V2 marker so a future
-			// Pro login re-evaluates cloud defaults (handles account switching).
-			if (!isLoggedInProUser(newSettings.user)) {
-				delete (newSettings as any)._proCloudAudioDefaultsAppliedV2;
-			}
-			newSettings = applyProCloudAudioDefaults(newSettings);
-		}
+		const newSettings = { ...current, ...value } as Settings;
 		await store.set("settings", newSettings);
 		await saveAndEncrypt(store);
 	};
@@ -974,15 +586,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 					port: loadedSettings.port ?? 3030,
 					authEnabled: loadedSettings.apiAuth ?? true,
 				});
-
-				// Hydrate Rust's owned-browser runtime cache from persisted settings.
-				// This prevents the cookie-access prompt from reappearing after restart.
-				await commands
-					.setBrowserCookieAccessState(
-						loadedSettings.browserCookieAccessGranted === true,
-						loadedSettings.browserCookieAccessGranted === false,
-					)
-					.catch(() => {});
 			} catch (error) {
 				console.error("Failed to load settings:", error);
 				setLoadingError(error instanceof Error ? error.message : "Unknown error");
@@ -1019,14 +622,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 			() => settingsRef.current.user?.token ?? undefined,
 			async () => {
 				await updateSettings({ user: null as any });
-				// Mirror the sign-out into the sidecar so the pi-agent and
-				// cloud_proxy.rs stop sending the now-revoked token on the
-				// next pipe run.
-				try {
-					await commands.setCloudToken(null);
-				} catch (e) {
-					console.warn("failed to clear cloud token in sidecar:", e);
-				}
 			}
 		);
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1126,17 +721,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 			});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [settings.analyticsId, settings.user?.id, settings.user?.clerk_id, settings.user?.cloud_subscribed, (settings.user as any)?.app_entitled, (settings.user as any)?.subscription_plan]);
-
-	// When user becomes a Pro subscriber, default to cloud transcription (one-time)
-	useEffect(() => {
-		if (!isSettingsLoaded) return;
-		if ((settings as any)._proCloudMigrationDone) return;
-
-		// Mark migration as done — we no longer force cloud transcription for Pro users.
-		// Local engines (whisper/qwen3) are now the default for all users.
-		settingsStore.set({ _proCloudMigrationDone: true } as any);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [settings.user?.cloud_subscribed, isSettingsLoaded]);
 
 	// Upgrade the seeded "chat" preset Sonnet → Opus 4.7 the moment the user
 	// becomes pro (mirrors the on-load migration for same-session transitions).
@@ -1287,19 +871,6 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 			}
 
 			await updateSettings({ user: userData });
-
-			// Push the fresh token into the running sidecar so the
-			// `Server.cloud_token` (used by /v1/chat/completions proxy) and
-			// the `PiExecutor.user_token` (used by pi-agent's models.json
-			// apiKey) both pick up the new value on the next pipe run.
-			// Without this, sign-in only updates the webview's settings —
-			// the engine keeps whatever token it captured at boot (often
-			// `null`), and every Sonnet/Opus pipe 403s on tier=anonymous.
-			try {
-				await commands.setCloudToken(token);
-			} catch (e) {
-				console.warn("failed to push cloud token to sidecar:", e);
-			}
 		} catch (err) {
 			console.error("failed to load user:", err instanceof Error ? err.message : err);
 			throw err;

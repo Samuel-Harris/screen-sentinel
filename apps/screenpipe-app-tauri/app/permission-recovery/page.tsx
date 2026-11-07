@@ -5,7 +5,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Monitor, Mic, Keyboard, Lock, Check, RefreshCw } from "lucide-react";
+import { Monitor, Keyboard, Lock, Check, RefreshCw } from "lucide-react";
 import { commands } from "@/lib/utils/tauri";
 import { requestPermissionWithFlow } from "@/lib/utils/permission-flow";
 import { usePlatform } from "@/lib/hooks/use-platform";
@@ -129,13 +129,12 @@ export default function PermissionRecoveryPage() {
     if (!permissions || restartTriggeredRef.current) return;
 
     const screenOk = permissions.screenRecording === "granted" || permissions.screenRecording === "notNeeded";
-    const micOk = permissions.microphone === "granted" || permissions.microphone === "notNeeded";
     const accessibilityOk =
       !isMacOS ||
       permissions.accessibility === "granted" ||
       permissions.accessibility === "notNeeded";
 
-    if (screenOk && micOk && accessibilityOk) {
+    if (screenOk && accessibilityOk) {
       restartTriggeredRef.current = true;
       setTimeout(async () => {
         try {
@@ -169,14 +168,11 @@ export default function PermissionRecoveryPage() {
 
   const screenStatus = permissions?.screenRecording === "granted" || permissions?.screenRecording === "notNeeded"
     ? "granted" : permissions === null ? "checking" : "denied";
-  const micStatus = permissions?.microphone === "granted" || permissions?.microphone === "notNeeded"
-    ? "granted" : permissions === null ? "checking" : "denied";
   const accessibilityStatus = permissions?.accessibility === "granted" || permissions?.accessibility === "notNeeded"
     ? "granted" : permissions === null ? "checking" : "denied";
 
   const allOk =
     screenStatus === "granted" &&
-    micStatus === "granted" &&
     accessibilityStatus === "granted";
 
   return (
@@ -206,14 +202,6 @@ export default function PermissionRecoveryPage() {
                 status={screenStatus}
                 onFix={() => handleFix("screenRecording")}
                 testId="permission-row-screen"
-              />
-              <PermissionRow
-                icon={<Mic className="w-4 h-4" strokeWidth={1.5} />}
-                label="microphone"
-                description="transcribe audio"
-                status={micStatus}
-                onFix={() => handleFix("microphone")}
-                testId="permission-row-microphone"
               />
               {isMacOS && (
                 <PermissionRow

@@ -9,9 +9,6 @@ import { Loader2, RotateCcw, AlertCircle, X, Sparkles, Globe, Lock, ExternalLink
 import { SearchModal } from "@/components/rewind/search-modal";
 import { commands } from "@/lib/utils/tauri";
 import { listen, emit } from "@tauri-apps/api/event";
-import { showChatWithPrefill } from "@/lib/chat-utils";
-import { AudioTranscript } from "@/components/rewind/timeline/audio-transcript";
-import { SubtitleBar } from "@/components/rewind/timeline/subtitle-bar";
 import { TimelineProvider, useTimelineSelection } from "@/lib/hooks/use-timeline-selection";
 import { TimelineControls } from "@/components/rewind/timeline/timeline-controls";
 import { endOfDay, isSameDay, startOfDay } from "date-fns";
@@ -20,7 +17,6 @@ import { useTimelineData } from "@/lib/hooks/use-timeline-data";
 import { useCurrentFrame } from "@/lib/hooks/use-current-frame";
 import { TimelineSlider } from "@/components/rewind/timeline/timeline";
 import { SearchResultStrip } from "@/components/rewind/search-result-strip";
-import { useMeetings } from "@/lib/hooks/use-meetings";
 import { useTimelineStore } from "@/lib/hooks/use-timeline-store";
 import { shiftIndexForPrependedFrames } from "@/lib/hooks/timeline-live-edge";
 import { findNearestDateWithFrames } from "@/lib/actions/has-frames-date";
@@ -31,11 +27,9 @@ import { usePlatform } from "@/lib/hooks/use-platform";
 import { useAudioPlayback } from "@/lib/hooks/use-audio-playback";
 import { useHealthCheck } from "@/lib/hooks/use-health-check";
 import { useSettings } from "@/lib/hooks/use-settings";
-import { usePipes, type TemplatePipe } from "@/lib/hooks/use-pipes";
 
 import posthog from "posthog-js";
 import { toast } from "@/components/ui/use-toast";
-import { DailySummaryCard } from "@/components/rewind/daily-summary";
 import { useTimelineFilters } from "@/components/rewind/hooks/use-timeline-filters";
 import { useScrollZoom } from "@/components/rewind/hooks/use-scroll-zoom";
 import { useDateNavigation } from "@/components/rewind/hooks/use-date-navigation";
@@ -94,7 +88,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 	const { settings } = useSettings();
 	const { health } = useHealthCheck();
 	const [currentIndex, setCurrentIndex] = useState(0);
-	const [showAudioTranscript, setShowAudioTranscript] = useState(false);
 	const [showSearchModal, setShowSearchModal] = useState(false);
 
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -161,9 +154,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 
 	const inSearchReviewMode = hasSearchHighlight && searchResults.length > 0 && searchResultIndex >= 0;
 
-	// Get timeline selection for chat context
 	const { selectionRange, loadTagsForFrames, tags } = useTimelineSelection();
-	const { promptPipes } = usePipes();
 
 	// Load tags when a selection is made (lazy-load)
 	useEffect(() => {
@@ -172,8 +163,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		}
 	}, [selectionRange?.frameIds.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// Note: audio transcript is now on-demand (opened via subtitle bar click)
-
 	const { currentDate, setCurrentDate, fetchTimeRange, hasDateBeenFetched, onWindowFocus, clearNewFramesCount, clearSentRequestForDate, clearFramesForNavigation, pendingNavigation, setPendingNavigation } =
 		useTimelineStore();
 
@@ -181,8 +170,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		useTimelineData(currentDate, (frame) => {
 			setCurrentFrame(frame);
 		});
-
-	const { meetings } = useMeetings(frames);
 
 	// Force guard rect refresh when inner timeline mounts/unmounts
 	useEffect(() => {
@@ -200,7 +187,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		selectedDomain,
 		selectedSpeaker,
 		selectedTag,
-		selectedMeeting,
 		matchingIndices,
 		resetFilters,
 		allDeviceIds,
@@ -210,7 +196,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		handleDomainChange,
 		handleSpeakerChange,
 		handleTagChange,
-		handleMeetingChange,
 		findNextDevice,
 		selectedDeviceIdRef,
 		selectedAppNameRef,
@@ -223,7 +208,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		setCurrentIndex,
 		setCurrentFrame,
 		tags,
-		meetings,
 	});
 
 	// Audio playback engine
@@ -662,90 +646,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		}
 	}, [currentFrame, frames.length]);
 
-	// Send timeline selection context to chat (optionally with a specific pipe)
-	const sendSelectionToChat = useCallback(async (pipe?: TemplatePipe) => {
-		if (!selectionRange) return;
-
-		const startTime = selectionRange.start.toLocaleString();
-		const endTime = selectionRange.end.toLocaleString();
-
-		// Get OCR/audio context from frames in the selection range
-		const selectedFrames = frames.filter((frame) => {
-			const frameTime = new Date(frame.timestamp).getTime();
-			return (
-				frameTime >= selectionRange.start.getTime() &&
-				frameTime <= selectionRange.end.getTime()
-			);
-		});
-
-		// Build context string
-		const contextParts: string[] = [];
-		contextParts.push(`Time range: ${startTime} - ${endTime}`);
-
-		// Add app names
-		const apps = new Set<string>();
-		selectedFrames.forEach((frame) => {
-			frame.devices.forEach((device) => {
-				if (device.metadata.app_name) {
-					apps.add(device.metadata.app_name);
-				}
-			});
-		});
-		if (apps.size > 0) {
-			contextParts.push(`Apps: ${Array.from(apps).join(", ")}`);
-		}
-
-		// Add sample OCR text (first few frames)
-		const ocrSamples: string[] = [];
-		selectedFrames.slice(0, 3).forEach((frame) => {
-			frame.devices.forEach((device) => {
-				if (device.metadata.ocr_text && device.metadata.ocr_text.length > 0) {
-					const sample = device.metadata.ocr_text.slice(0, 200);
-					if (sample.trim()) {
-						ocrSamples.push(sample);
-					}
-				}
-			});
-		});
-		if (ocrSamples.length > 0) {
-			contextParts.push(`Screen text samples:\n${ocrSamples.join("\n---\n")}`);
-		}
-
-		// Add audio transcriptions if any
-		const audioSamples: string[] = [];
-		selectedFrames.slice(0, 3).forEach((frame) => {
-			frame.devices.forEach((device) => {
-				device.audio?.forEach((audio) => {
-					if (audio.transcription && audio.transcription.trim()) {
-						audioSamples.push(audio.transcription.slice(0, 200));
-					}
-				});
-			});
-		});
-		if (audioSamples.length > 0) {
-			contextParts.push(`Audio transcriptions:\n${audioSamples.join("\n---\n")}`);
-		}
-
-		const context = contextParts.join("\n\n");
-
-		// Open chat window and deliver prefill reliably (handles fresh webview creation)
-		if (pipe) {
-			await showChatWithPrefill({ context, prompt: pipe.prompt, autoSend: true });
-		} else {
-			await showChatWithPrefill({ context, prompt: `Based on my activity from ${startTime} to ${endTime}, `, source: "timeline" });
-		}
-
-		posthog.capture("timeline_selection_to_chat", {
-			selection_duration_ms: selectionRange.end.getTime() - selectionRange.start.getTime(),
-			frames_in_selection: selectedFrames.length,
-			pipe_name: pipe?.name,
-		});
-
-		if (pipe) {
-			toast({ title: `${pipe.icon} ${pipe.title}`, description: "running pipe with selection context" });
-		}
-	}, [selectionRange, frames]);
-
 	// Wrapper that opens search in separate window (fullscreen) or inline modal (embedded)
 	const openSearch = useCallback((v: boolean) => {
 		if (v && !embedded) {
@@ -781,8 +681,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		setIsArrowNav,
 		arrowNavTimerRef,
 		resetFilters,
-		selectionRange,
-		sendSelectionToChat,
 		selectedDeviceIdRef,
 		selectedAppNameRef,
 	});
@@ -1213,7 +1111,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 								? undefined
 								: () => commands.showWindow({ Search: { query: null } })
 						}
-						onChatClick={embedded ? undefined : () => commands.showWindow("Chat")}
 						embedded={embedded}
 						isPlaying={isPlaying}
 						playbackSpeed={playbackSpeed}
@@ -1225,11 +1122,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 						mutedDevices={mutedDevices}
 						onToggleDeviceMute={toggleDeviceMute}
 					/>
-				</div>
-
-				{/* Daily Summary — top right, below controls */}
-				<div className={`absolute ${embedded ? "top-12" : "top-[calc(env(safe-area-inset-top)+56px)]"} right-4 z-40`}>
-					<DailySummaryCard currentDate={currentDate} />
 				</div>
 
 				{/* Browser URL bar — at top of frame, above nav */}
@@ -1272,18 +1164,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 						</div>
 					);
 				})()}
-
-				{/* Subtitle bar — below nav bar, always visible when audio exists nearby */}
-				<div className={`absolute ${embedded ? "top-16" : "top-[calc(env(safe-area-inset-top)+96px)]"} left-4 right-4 z-[35]`}>
-					<SubtitleBar
-						frames={frames}
-						currentIndex={currentIndex}
-						isPlaying={isPlaying}
-						onClick={() => setShowAudioTranscript(true)}
-						transcriptionPaused={health?.audio_pipeline?.transcription_paused && !!health?.audio_pipeline?.meeting_app}
-						meetingApp={health?.audio_pipeline?.meeting_app}
-					/>
-				</div>
 
 				{/* Loading/Error States - Progressive loading: only block when no frames yet */}
 				{showBlockingLoader && (
@@ -1349,38 +1229,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 								Press Esc or click X to close
 							</p>
 						</div>
-					</div>
-				)}
-
-				{/* Full transcript panel — only shown on demand */}
-				{showAudioTranscript && currentFrame && (
-					<div className="absolute bottom-28 left-4 right-4 z-[35]">
-						<AudioTranscript
-							frames={frames}
-							currentIndex={currentIndex}
-							groupingWindowMs={30000}
-							meetings={meetings}
-							onClose={() => setShowAudioTranscript(false)}
-							isPlaying={isPlaying}
-							onJumpToTime={(timestamp) => {
-								const targetTime = timestamp.getTime();
-								let bestIdx = 0;
-								let bestDiff = Infinity;
-								for (let i = 0; i < frames.length; i++) {
-									const diff = Math.abs(
-										new Date(frames[i].timestamp).getTime() - targetTime
-									);
-									if (diff < bestDiff) {
-										bestDiff = diff;
-										bestIdx = i;
-									}
-								}
-								let snapped = snapToDevice(bestIdx);
-								snapped = snapToFiltered(snapped);
-								setCurrentIndex(snapped);
-								setCurrentFrame(frames[snapped]);
-							}}
-						/>
 					</div>
 				)}
 
@@ -1458,9 +1306,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							zoomLevel={zoomLevel}
 							targetZoom={targetZoom}
 							setTargetZoom={setTargetZoom}
-							onAskAI={() => sendSelectionToChat()}
-							onRunPipe={(pipe) => sendSelectionToChat(pipe)}
-							templatePipes={promptPipes}
 							isPlaying={isPlaying}
 							onTogglePlayPause={togglePlayPause}
 							selectedDeviceId={selectedDeviceId}
@@ -1474,9 +1319,6 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							onSpeakerChange={handleSpeakerChange}
 							selectedTag={selectedTag}
 							onTagChange={handleTagChange}
-							meetings={meetings}
-							selectedMeeting={selectedMeeting}
-							onMeetingChange={handleMeetingChange}
 							onRefresh={handleRefresh}
 							filtersRef={filtersRef}
 							scrubberRef={scrubberRef}

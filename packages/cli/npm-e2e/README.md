@@ -35,13 +35,11 @@ Starts Verdaccio, publishes staged packages, prints the registry URL and the exa
 bun run screenpipe <command> [flags]
 ```
 
-Example (CI-safe, no screen/audio permissions needed):
+Example (CI-safe, no screen permissions needed):
 
 ```bash
 bun run screenpipe record \
-  --disable-audio \
-  --disable-vision \
-  --disable-meeting-detector
+  --disable-vision
 ```
 
 ## Full e2e (CI)
