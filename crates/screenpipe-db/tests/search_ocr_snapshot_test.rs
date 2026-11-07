@@ -10,9 +10,7 @@
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use screenpipe_db::{
-        AudioDevice, ContentType, DatabaseManager, DeviceType, OcrEngine, SearchResult,
-    };
+    use screenpipe_db::{ContentType, DatabaseManager, OcrEngine, SearchResult};
     use std::sync::Arc;
 
     async fn setup_test_db() -> DatabaseManager {
@@ -67,8 +65,6 @@ mod tests {
                 ContentType::OCR,
                 100,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -160,8 +156,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -174,8 +168,6 @@ mod tests {
                 ContentType::OCR,
                 2,
                 2,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -212,8 +204,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
@@ -222,17 +212,12 @@ mod tests {
 
     /// Bug: ContentType::All with limit=2 can return more than 2 results.
     ///
-    /// Each sub-function (search_ocr, search_audio) gets the user's limit
+    /// Each sub-function (search_ocr, search_accessibility) gets the user's limit
     /// independently in SQL. The merged results are sorted but never capped,
     /// so the caller can receive up to limit * N_content_types items.
     #[tokio::test]
     async fn test_search_all_limit_exceeded() {
         let db = setup_test_db().await;
-
-        let device = AudioDevice {
-            name: "test_mic".to_string(),
-            device_type: DeviceType::Input,
-        };
 
         // Insert 3 OCR items matching "allbug"
         for i in 0..3 {
@@ -265,22 +250,12 @@ mod tests {
             .unwrap();
         }
 
-        // Insert 3 audio items matching "allbug"
+        // Insert 3 accessibility items matching "allbug"
         for i in 0..3 {
-            let chunk_id = db
-                .insert_audio_chunk(&format!("/tmp/allbug_audio_{}.wav", i), None)
-                .await
-                .unwrap();
-
-            db.insert_audio_transcription(
-                chunk_id,
-                &format!("allbug audio transcript unique item {}", i),
-                i as i64,
-                "test_engine",
-                &device,
-                None,
-                None,
-                None,
+            db.insert_accessibility_text(
+                "test_app",
+                "test_window",
+                &format!("allbug accessibility text unique item {}", i),
                 None,
             )
             .await
@@ -289,15 +264,13 @@ mod tests {
 
         // Search with ContentType::All and limit=2
         // Expected: at most 2 results total
-        // Actual bug: returns up to 4 (2 from OCR + 2 from audio)
+        // Actual bug: returns up to 4 (2 from OCR + 2 from accessibility)
         let results = db
             .search(
                 "allbug",
                 ContentType::All,
                 2,
                 0,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -326,17 +299,12 @@ mod tests {
     /// Bug: ContentType::All pagination is broken — page 2 returns 0 items.
     ///
     /// Each sub-function applies offset independently in SQL, so with
-    /// offset=3, both OCR (3 items) and audio (3 items) skip past all
+    /// offset=3, both OCR (3 items) and accessibility (3 items) skip past all
     /// their own items, returning nothing. Meanwhile page 1 returns
     /// ALL 6 items (exceeding the limit of 3).
     #[tokio::test]
     async fn test_search_all_pagination_wrong_page_two() {
         let db = setup_test_db().await;
-
-        let device = AudioDevice {
-            name: "test_mic".to_string(),
-            device_type: DeviceType::Input,
-        };
 
         // Insert 3 OCR items
         for i in 0..3 {
@@ -369,22 +337,12 @@ mod tests {
             .unwrap();
         }
 
-        // Insert 3 audio items
+        // Insert 3 accessibility items matching "pagebug"
         for i in 0..3 {
-            let chunk_id = db
-                .insert_audio_chunk(&format!("/tmp/pagebug_audio_{}.wav", i), None)
-                .await
-                .unwrap();
-
-            db.insert_audio_transcription(
-                chunk_id,
-                &format!("pagebug audio recording unique {}", i),
-                i as i64,
-                "test_engine",
-                &device,
-                None,
-                None,
-                None,
+            db.insert_accessibility_text(
+                "test_app",
+                "test_window",
+                &format!("pagebug accessibility text unique {}", i),
                 None,
             )
             .await
@@ -411,13 +369,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
             )
             .await
             .unwrap();
 
-        // Bug: page 1 returns 6 items (3 OCR + 3 audio) instead of 3
+        // Bug: page 1 returns 6 items (3 OCR + 3 accessibility) instead of 3
         assert_eq!(
             page1.len(),
             3,
@@ -432,8 +388,6 @@ mod tests {
                 ContentType::All,
                 3,
                 3,
-                None,
-                None,
                 None,
                 None,
                 None,

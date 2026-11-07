@@ -22,7 +22,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     server::AppState,
-    video_cache::{AudioEntry, DeviceFrame, FrameMetadata, TimeSeriesFrame},
+    video_cache::{DeviceFrame, FrameMetadata, TimeSeriesFrame},
 };
 
 use super::websocket::{try_acquire_ws_connection, WsConnectionGuard};
@@ -65,7 +65,6 @@ pub struct DeviceFrameResponse {
     pub offset_index: i64,
     pub fps: f64,
     pub metadata: DeviceMetadata,
-    pub audio: Vec<AudioData>,
     pub machine_id: Option<String>,
 }
 
@@ -76,19 +75,6 @@ pub struct DeviceMetadata {
     pub window_name: String,
     pub ocr_text: String,
     pub browser_url: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct AudioData {
-    pub device_name: String,
-    pub is_input: bool,
-    pub transcription: String,
-    pub audio_file_path: String,
-    pub duration_secs: f64,
-    pub start_offset: f64, // offset from frame timestamp
-    pub audio_chunk_id: i64,
-    pub speaker_id: Option<i64>,
-    pub speaker_name: Option<String>,
 }
 
 impl From<TimeSeriesFrame> for StreamTimeSeriesResponse {
@@ -114,21 +100,6 @@ impl From<TimeSeriesFrame> for StreamTimeSeriesResponse {
                             ocr_text: device_frame.metadata.ocr_text,
                             browser_url: device_frame.metadata.browser_url,
                         },
-                        audio: device_frame
-                            .audio_entries
-                            .into_iter()
-                            .map(|audio| AudioData {
-                                device_name: audio.device_name,
-                                is_input: audio.is_input,
-                                transcription: audio.transcription,
-                                audio_file_path: audio.audio_file_path,
-                                duration_secs: audio.duration_secs,
-                                start_offset: audio.start_time.unwrap_or(0.0),
-                                audio_chunk_id: audio.audio_chunk_id,
-                                speaker_id: audio.speaker_id,
-                                speaker_name: audio.speaker_name,
-                            })
-                            .collect(),
                         machine_id: device_frame.machine_id,
                     }
                 })
@@ -138,34 +109,7 @@ impl From<TimeSeriesFrame> for StreamTimeSeriesResponse {
 }
 
 pub(crate) fn create_time_series_frame(chunk: FrameData) -> TimeSeriesFrame {
-    // Pre-compute audio entries once (avoid duplicating for each OCR entry)
-    let audio_entries: Vec<AudioEntry> = chunk
-        .audio_entries
-        .iter()
-        .map(|a| AudioEntry {
-            transcription: a.transcription.clone(),
-            device_name: a.device_name.clone(),
-            is_input: a.is_input,
-            audio_file_path: a.audio_file_path.clone(),
-            duration_secs: a.duration_secs,
-            audio_chunk_id: a.audio_chunk_id,
-            speaker_id: a.speaker_id,
-            speaker_name: a.speaker_name.clone(),
-            start_time: a.start_time,
-            end_time: a.end_time,
-        })
-        .collect();
-
-    // Pre-compute transcription text once
-    let transcription_text: String = chunk
-        .audio_entries
-        .iter()
-        .map(|a| a.transcription.clone())
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    // Create DeviceFrames from OCR entries
-    let mut device_frames: Vec<DeviceFrame> = chunk
+    let device_frames: Vec<DeviceFrame> = chunk
         .ocr_entries
         .into_iter()
         // Filter out screenpipe frames at display time
@@ -178,42 +122,12 @@ pub(crate) fn create_time_series_frame(chunk: FrameData) -> TimeSeriesFrame {
                 file_path: device_data.video_file_path,
                 app_name: device_data.app_name,
                 window_name: device_data.window_name,
-                transcription: transcription_text.clone(),
                 ocr_text: device_data.text,
                 browser_url: device_data.browser_url,
             },
-            // FIX: Don't duplicate audio entries for each OCR entry
-            // Audio will be added only to the first DeviceFrame
-            audio_entries: vec![],
             machine_id: chunk.machine_id.clone(),
         })
         .collect();
-
-    // Only put audio entries in the first DeviceFrame to avoid duplication
-    // This ensures audio is displayed once per frame, not once per OCR text region
-    if let Some(first_frame) = device_frames.first_mut() {
-        first_frame.audio_entries = audio_entries;
-    } else if !audio_entries.is_empty() {
-        // If there are no OCR-based device frames but we have audio,
-        // create a placeholder frame to hold the audio entries.
-        // This ensures audio is not silently dropped when screen capture
-        // produced no visible windows or all windows were filtered out.
-        device_frames.push(DeviceFrame {
-            device_id: "audio-only".to_string(),
-            frame_id: chunk.frame_id,
-            image_data: vec![],
-            metadata: FrameMetadata {
-                file_path: String::new(),
-                app_name: "Audio Recording".to_string(),
-                window_name: String::new(),
-                transcription: transcription_text,
-                ocr_text: String::new(),
-                browser_url: None,
-            },
-            audio_entries,
-            machine_id: chunk.machine_id.clone(),
-        });
-    }
 
     TimeSeriesFrame {
         timestamp: chunk.timestamp,
@@ -462,8 +376,6 @@ async fn handle_stream_frames_socket(
 
         // Subscribe to live frame updates from the hot cache
         let mut frame_rx_cache = cache.subscribe_frames();
-        // Subscribe to live audio updates (reconciliation / batch mode push)
-        let mut audio_rx_cache = cache.subscribe_audio();
         let mut frame_rx_channel = Some(frame_rx);
 
         loop {
@@ -520,10 +432,6 @@ async fn handle_stream_frames_socket(
                                 continue;
                             }
 
-                            // Look up nearby audio from the hot cache so live
-                            // frames include transcriptions (not just empty audio).
-                            let audio_entries = cache.find_audio_near(hot_frame.timestamp).await;
-
                             // Convert HotFrame to StreamTimeSeriesResponse
                             let response = StreamTimeSeriesResponse {
                                 timestamp: hot_frame.timestamp,
@@ -539,20 +447,6 @@ async fn handle_stream_frames_socket(
                                         ocr_text: hot_frame.ocr_text_preview.to_string(),
                                         browser_url: hot_frame.browser_url.as_deref().map(String::from),
                                     },
-                                    audio: audio_entries
-                                        .into_iter()
-                                        .map(|a| AudioData {
-                                            device_name: a.device_name,
-                                            is_input: a.is_input,
-                                            transcription: a.transcription,
-                                            audio_file_path: a.audio_file_path,
-                                            duration_secs: a.duration_secs,
-                                            start_offset: a.start_time.unwrap_or(0.0),
-                                            audio_chunk_id: a.audio_chunk_id,
-                                            speaker_id: a.speaker_id,
-                                            speaker_name: a.speaker_name,
-                                        })
-                                        .collect(),
                                     machine_id: hot_frame.machine_id.as_deref().map(String::from),
                                 }],
                             };
@@ -570,48 +464,6 @@ async fn handle_stream_frames_socket(
                         }
                         Err(broadcast::error::RecvError::Closed) => {
                             debug!("hot cache broadcast closed");
-                            break;
-                        }
-                    }
-                }
-
-                // Live audio from hot cache (reconciliation / batch mode)
-                // Sends audio updates so the timeline can attach transcriptions
-                // to frames that were originally sent without audio.
-                result = audio_rx_cache.recv() => {
-                    match result {
-                        Ok(hot_audio) => {
-                            let is_live = live_subscribe.lock().await.unwrap_or(false);
-                            if !is_live {
-                                continue;
-                            }
-                            // Send a lightweight audio-update message so the
-                            // frontend can merge transcription into existing frames.
-                            let update = serde_json::json!({
-                                "type": "audio_update",
-                                "timestamp": hot_audio.timestamp,
-                                "audio": {
-                                    "device_name": hot_audio.device_name,
-                                    "is_input": hot_audio.is_input,
-                                    "transcription": hot_audio.transcription,
-                                    "audio_file_path": hot_audio.audio_file_path,
-                                    "duration_secs": hot_audio.duration_secs,
-                                    "start_offset": hot_audio.start_time.unwrap_or(0.0),
-                                    "audio_chunk_id": hot_audio.audio_chunk_id,
-                                    "speaker_id": hot_audio.speaker_id,
-                                    "speaker_name": hot_audio.speaker_name,
-                                }
-                            });
-                            if let Err(e) = sender.send(Message::Text(update.to_string())).await {
-                                warn!("failed to send audio update: {}", e);
-                                break;
-                            }
-                        }
-                        Err(broadcast::error::RecvError::Lagged(n)) => {
-                            debug!("audio cache broadcast lagged by {} messages", n);
-                        }
-                        Err(broadcast::error::RecvError::Closed) => {
-                            debug!("audio cache broadcast closed");
                             break;
                         }
                     }
@@ -718,9 +570,9 @@ async fn send_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use screenpipe_db::{AudioEntry as DbAudioEntry, FrameData, OCREntry};
+    use screenpipe_db::{FrameData, OCREntry};
 
-    fn create_test_frame_data(num_ocr_entries: usize, num_audio_entries: usize) -> FrameData {
+    fn create_test_frame_data(num_ocr_entries: usize) -> FrameData {
         let ocr_entries: Vec<OCREntry> = (0..num_ocr_entries)
             .map(|i| OCREntry {
                 device_name: format!("monitor_{}", i % 2),
@@ -732,21 +584,6 @@ mod tests {
             })
             .collect();
 
-        let audio_entries: Vec<DbAudioEntry> = (0..num_audio_entries)
-            .map(|i| DbAudioEntry {
-                transcription: format!("Audio transcription {}", i),
-                device_name: format!("microphone_{}", i),
-                is_input: true,
-                audio_file_path: format!("/path/to/audio_{}.mp4", i),
-                duration_secs: 3.0,
-                audio_chunk_id: i as i64,
-                speaker_id: None,
-                speaker_name: None,
-                start_time: None,
-                end_time: None,
-            })
-            .collect();
-
         FrameData {
             frame_id: 12345,
             timestamp: chrono::Utc::now(),
@@ -754,79 +591,12 @@ mod tests {
             fps: 0.5,
             machine_id: None,
             ocr_entries,
-            audio_entries,
         }
     }
 
-    /// TEST: Demonstrate and verify the audio duplication bug is fixed
-    /// With the fix, audio should appear only once, not duplicated per OCR entry
     #[test]
-    fn test_audio_not_duplicated_per_ocr_entry() {
-        // Create a frame with 10 OCR entries and 1 audio entry
-        let frame_data = create_test_frame_data(10, 1);
-
-        let result = create_time_series_frame(frame_data);
-
-        // Count total audio entries across all DeviceFrames
-        let total_audio_entries: usize = result
-            .frame_data
-            .iter()
-            .map(|df| df.audio_entries.len())
-            .sum();
-
-        let num_device_frames = result.frame_data.len();
-
-        println!("OCR entries: 10, Audio entries: 1");
-        println!("DeviceFrames created: {}", num_device_frames);
-        println!("Total audio entries in result: {}", total_audio_entries);
-
-        // After fix: Should have exactly 1 audio entry total, not 10
-        assert_eq!(num_device_frames, 10, "Should have 10 DeviceFrames");
-        assert_eq!(
-            total_audio_entries, 1,
-            "Audio should appear exactly once, not duplicated per OCR entry"
-        );
-    }
-
-    /// TEST: Multiple audio entries should still work correctly
-    #[test]
-    fn test_multiple_audio_entries_not_duplicated() {
-        // 5 OCR entries, 3 audio entries
-        let frame_data = create_test_frame_data(5, 3);
-
-        let result = create_time_series_frame(frame_data);
-
-        let total_audio_entries: usize = result
-            .frame_data
-            .iter()
-            .map(|df| df.audio_entries.len())
-            .sum();
-
-        println!("OCR entries: 5, Audio entries: 3");
-        println!("DeviceFrames: {}", result.frame_data.len());
-        println!("Total audio entries: {}", total_audio_entries);
-
-        // Should have exactly 3 audio entries, not 15 (5 * 3)
-        assert_eq!(
-            total_audio_entries, 3,
-            "Should have exactly 3 audio entries, not duplicated"
-        );
-    }
-
-    /// TEST: Empty audio entries should work
-    #[test]
-    fn test_no_audio_entries_handled() {
-        let frame_data = create_test_frame_data(5, 0);
-
-        let result = create_time_series_frame(frame_data);
-
-        let total_audio_entries: usize = result
-            .frame_data
-            .iter()
-            .map(|df| df.audio_entries.len())
-            .sum();
-
-        assert_eq!(total_audio_entries, 0, "Should have no audio entries");
+    fn test_one_device_frame_per_ocr_entry() {
+        let result = create_time_series_frame(create_test_frame_data(5));
         assert_eq!(result.frame_data.len(), 5, "Should have 5 DeviceFrames");
     }
 
@@ -839,40 +609,5 @@ mod tests {
             stream_frame_limit(Some(MAX_STREAM_FRAME_LIMIT + 1)),
             MAX_STREAM_FRAME_LIMIT
         );
-    }
-
-    /// TEST: Audio entries with no OCR entries should create a placeholder frame
-    #[test]
-    fn test_audio_only_frame_creates_placeholder() {
-        // 0 OCR entries, 2 audio entries
-        let frame_data = create_test_frame_data(0, 2);
-
-        let result = create_time_series_frame(frame_data);
-
-        let total_audio_entries: usize = result
-            .frame_data
-            .iter()
-            .map(|df| df.audio_entries.len())
-            .sum();
-
-        println!("OCR entries: 0, Audio entries: 2");
-        println!("DeviceFrames: {}", result.frame_data.len());
-        println!("Total audio entries in result: {}", total_audio_entries);
-
-        // Should have 1 placeholder DeviceFrame with 2 audio entries
-        assert_eq!(
-            result.frame_data.len(),
-            1,
-            "Should have 1 placeholder DeviceFrame for audio"
-        );
-        assert_eq!(
-            total_audio_entries, 2,
-            "Should have 2 audio entries in the placeholder frame"
-        );
-
-        // Verify the placeholder frame has the expected metadata
-        let placeholder = &result.frame_data[0];
-        assert_eq!(placeholder.device_id, "audio-only");
-        assert_eq!(placeholder.metadata.app_name, "Audio Recording");
     }
 }

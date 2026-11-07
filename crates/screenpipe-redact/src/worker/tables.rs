@@ -5,26 +5,24 @@
 //! Per-table queries used by the reconciliation worker.
 //!
 //! Destructive-only model: the worker overwrites the source column
-//! (`text` / `transcription` / `accessibility_text` / `text_content`)
+//! (`text` / `accessibility_text` / `text_content`)
 //! with the redacted text and stamps a `redacted_at` timestamp. There
 //! is no separate "redacted text" column; the source IS the redacted
 //! text after the UPDATE returns.
 //!
 //! ## What we redact
 //!
-//! Four logical surfaces, five [`TargetTable`] variants (UI events
+//! Three logical surfaces, four [`TargetTable`] variants (UI events
 //! split into keyboard vs clipboard):
 //!
 //! 1. **`ocr_text`** — OCR'd screen text. Source column `text`.
-//! 2. **`audio_transcriptions`** — speech-to-text output. Source column
-//!    `transcription`.
-//! 3. **`frames.accessibility_text`** — accessibility-tree text. The
+//! 2. **`frames.accessibility_text`** — accessibility-tree text. The
 //!    standalone `accessibility` table was consolidated into `frames`
 //!    by `20260312000001_drop_dead_fts_tables.sql`; we redact on the
 //!    new home. The "is processed" timestamp is prefixed
 //!    (`accessibility_redacted_at`) so the same `frames` row can carry
 //!    independent state for accessibility text vs. image redaction.
-//! 4. **`ui_events`** — user input events. The same table holds both
+//! 3. **`ui_events`** — user input events. The same table holds both
 //!    typed/keystroke text (`event_type IN ('text', 'key')`) and
 //!    clipboard contents (`event_type = 'clipboard'`). Source column
 //!    `text_content`. Split into two variants so the row-fetch SQL
@@ -43,8 +41,6 @@ use sqlx::{Row, SqlitePool};
 pub enum TargetTable {
     /// OCR'd screen text (`ocr_text.text`).
     Ocr,
-    /// Speech-to-text (`audio_transcriptions.transcription`).
-    AudioTranscription,
     /// Accessibility-tree text — lives on `frames.accessibility_text`
     /// since the `accessibility` table was consolidated into `frames`
     /// by `20260312000001_drop_dead_fts_tables.sql`. The "is processed"
@@ -61,7 +57,6 @@ pub enum TargetTable {
 
 pub const ALL_TARGET_TABLES: &[TargetTable] = &[
     TargetTable::Ocr,
-    TargetTable::AudioTranscription,
     TargetTable::Accessibility,
     TargetTable::UiEventsKeyboard,
     TargetTable::UiEventsClipboard,
@@ -79,7 +74,6 @@ impl TargetTable {
     pub fn table(&self) -> &'static str {
         match self {
             Self::Ocr => "ocr_text",
-            Self::AudioTranscription => "audio_transcriptions",
             // accessibility_text lives on frames after the 2026-03-12
             // consolidation; see the variant docs above.
             Self::Accessibility => "frames",
@@ -91,7 +85,6 @@ impl TargetTable {
     pub fn source_col(&self) -> &'static str {
         match self {
             Self::Ocr => "text",
-            Self::AudioTranscription => "transcription",
             Self::Accessibility => "accessibility_text",
             Self::UiEventsKeyboard | Self::UiEventsClipboard => "text_content",
         }
@@ -132,7 +125,6 @@ impl TargetTable {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Ocr => "ocr_text",
-            Self::AudioTranscription => "audio_transcriptions",
             Self::Accessibility => "frames:accessibility_text",
             Self::UiEventsKeyboard => "ui_events:keyboard",
             Self::UiEventsClipboard => "ui_events:clipboard",

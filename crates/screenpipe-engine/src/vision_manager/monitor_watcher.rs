@@ -22,12 +22,7 @@ use crate::permission_monitor;
 static MONITOR_WATCHER: Lazy<Mutex<Option<JoinHandle<()>>>> = Lazy::new(|| Mutex::new(None));
 
 /// Start the monitor watcher that polls for monitor changes.
-/// When `audio_manager` is provided, SCK-based (output) audio devices are also
-/// stopped/restarted alongside vision during DRM pause/resume.
-pub async fn start_monitor_watcher(
-    vision_manager: Arc<VisionManager>,
-    audio_manager: Option<screenpipe_audio::audio_manager::AudioManager>,
-) -> anyhow::Result<()> {
+pub async fn start_monitor_watcher(vision_manager: Arc<VisionManager>) -> anyhow::Result<()> {
     // Stop existing watcher if any
     stop_monitor_watcher().await?;
 
@@ -94,11 +89,6 @@ pub async fn start_monitor_watcher(
                     if let Err(e) = vision_manager.stop().await {
                         warn!("failed to stop vision manager for DRM pause: {:?}", e);
                     }
-                    if let Some(ref am) = audio_manager {
-                        if let Err(e) = am.stop_output_devices().await {
-                            warn!("failed to stop SCK audio for DRM pause: {:?}", e);
-                        }
-                    }
                     drm_stopped = true;
                 }
                 // Poll focused app (Accessibility API only, no SCK) to detect
@@ -117,11 +107,6 @@ pub async fn start_monitor_watcher(
                 info!("DRM content no longer focused — restarting vision monitors");
                 if let Err(e) = vision_manager.start().await {
                     warn!("failed to restart vision manager after DRM pause: {:?}", e);
-                }
-                if let Some(ref am) = audio_manager {
-                    if let Err(e) = am.start_output_devices().await {
-                        warn!("failed to restart SCK audio after DRM clear: {:?}", e);
-                    }
                 }
                 drm_stopped = false;
                 suppress_next_topology_event = true;
@@ -145,11 +130,6 @@ pub async fn start_monitor_watcher(
                     if let Err(e) = vision_manager.stop().await {
                         warn!("failed to stop vision manager for schedule pause: {:?}", e);
                     }
-                    if let Some(ref am) = audio_manager {
-                        if let Err(e) = am.stop().await {
-                            warn!("failed to stop audio for schedule pause: {:?}", e);
-                        }
-                    }
                     schedule_stopped = true;
                 }
                 // Check every 30 s — matches the schedule monitor's own cadence.
@@ -164,11 +144,6 @@ pub async fn start_monitor_watcher(
                         "failed to restart vision manager after schedule resume: {:?}",
                         e
                     );
-                }
-                if let Some(ref am) = audio_manager {
-                    if let Err(e) = am.start().await {
-                        warn!("failed to restart audio after schedule resume: {:?}", e);
-                    }
                 }
                 schedule_stopped = false;
                 suppress_next_topology_event = true;

@@ -10,8 +10,6 @@
  *
  *   - GET /health            — unauthed; the canonical "is the server up"
  *     ping the tray + permission monitor + cold-start poll already use.
- *   - GET /audio/device/status — unauthed; lightweight audio-side health
- *     bit that should still report a sane shape with audio disabled.
  *   - get_local_api_config IPC — resolves the in-memory bearer key the
  *     server core holds; needed for any authed call.
  *   - GET /connections        — authed; list of available integrations.
@@ -133,13 +131,6 @@ describe("Local HTTP API", function () {
     // Health payload always includes a top-level `status` string. Don't
     // assert exact value — startup races can briefly report "warning".
     expect(res.body).toHaveProperty("status");
-  });
-
-  it("GET /audio/device/status — unauthed, returns object with audio disabled", async () => {
-    const res = await fetchJson(`http://127.0.0.1:${port}/audio/device/status`);
-    // 404 is acceptable here only if the route is gated off; status code
-    // shouldn't be a server error.
-    expect(res.status).toBeLessThan(500);
   });
 
   it("GET /connections — authed, returns 2xx with an array body", async function () {

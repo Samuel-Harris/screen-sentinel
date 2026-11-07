@@ -54,7 +54,7 @@ struct RetentionRuntime {
 }
 
 /// What old data gets cleaned up. `Media` (default) keeps DB rows (search,
-/// timeline, transcripts) and only reclaims mp4/wav/jpeg files; `All` is the
+/// timeline) and only reclaims mp4/jpeg files; `All` is the
 /// legacy behavior that wipes everything past the cutoff.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, OaSchema, ValueEnum, Default,
@@ -369,23 +369,19 @@ async fn do_local_cleanup(
                     .await
                 {
                     Ok(result) => {
-                        let batch_total = result.frames_deleted
-                            + result.ocr_deleted
-                            + result.audio_transcriptions_deleted
-                            + result.ui_events_deleted;
+                        let batch_total =
+                            result.frames_deleted + result.ocr_deleted + result.ui_events_deleted;
 
                         if batch_total > 0 {
                             any_deleted = true;
                             info!(
-                                "retention: batch deleted frames={} ocr={} audio={} ui_events={} \
-                                 (video_files={} snapshot_files={} audio_files={})",
+                                "retention: batch deleted frames={} ocr={} ui_events={} \
+                                 (video_files={} snapshot_files={})",
                                 result.frames_deleted,
                                 result.ocr_deleted,
-                                result.audio_transcriptions_deleted,
                                 result.ui_events_deleted,
                                 result.video_files.len(),
                                 result.snapshot_files.len(),
-                                result.audio_files.len(),
                             );
                         }
 
@@ -394,7 +390,6 @@ async fn do_local_cleanup(
                         for path in result
                             .video_files
                             .iter()
-                            .chain(result.audio_files.iter())
                             .chain(result.snapshot_files.iter())
                         {
                             if let Err(e) = tokio::fs::remove_file(path).await {
@@ -412,20 +407,16 @@ async fn do_local_cleanup(
             }
             RetentionMode::Media => match db.evict_media_in_range(batch_start, batch_end).await {
                 Ok(result) => {
-                    let batch_total = result.video_chunks_evicted
-                        + result.audio_chunks_evicted
-                        + result.snapshots_evicted;
+                    let batch_total = result.video_chunks_evicted + result.snapshots_evicted;
 
                     if batch_total > 0 {
                         any_deleted = true;
                         info!(
-                            "retention: batch evicted video_chunks={} audio_chunks={} snapshots={} \
-                             (files: video={} audio={} snapshots={})",
+                            "retention: batch evicted video_chunks={} snapshots={} \
+                             (files: video={} snapshots={})",
                             result.video_chunks_evicted,
-                            result.audio_chunks_evicted,
                             result.snapshots_evicted,
                             result.video_files.len(),
-                            result.audio_files.len(),
                             result.snapshot_files.len(),
                         );
                     }
@@ -435,7 +426,6 @@ async fn do_local_cleanup(
                     for path in result
                         .video_files
                         .iter()
-                        .chain(result.audio_files.iter())
                         .chain(result.snapshot_files.iter())
                     {
                         if let Err(e) = tokio::fs::remove_file(path).await {

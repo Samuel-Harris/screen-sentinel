@@ -5,8 +5,7 @@
 //! Thin client around the Tinfoil-hosted `openai/privacy-filter` service.
 //!
 //! Called from the `/search` handler when the request sets `filter_pii=true`
-//! so every text-bearing field (OCR text, audio transcription, UI text,
-//! memory content) gets PII redacted before leaving the user's device.
+//! so every text-bearing field (OCR text, UI text, memory content) gets PII redacted before leaving the user's device.
 //!
 //! Design notes:
 //! - Tinfoil SDK does AMD SEV-SNP attestation + Sigstore code-provenance

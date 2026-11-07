@@ -27,8 +27,7 @@ use uuid::Uuid;
 
 use crate::server::AppState;
 use crate::sync_provider::{
-    AccessibilityRecord, FrameRecord, OcrRecord, SyncChunk, TranscriptionRecord, UiEventSyncRecord,
-    SCHEMA_VERSION,
+    AccessibilityRecord, FrameRecord, OcrRecord, SyncChunk, UiEventSyncRecord, SCHEMA_VERSION,
 };
 
 // ============================================================================
@@ -652,22 +651,6 @@ async fn get_archive_chunk(
     .fetch_all(pool)
     .await?;
 
-    // Get transcriptions in range
-    let transcriptions: Vec<(i64, String, String, String, bool, Option<i64>)> = sqlx::query_as(
-        r#"
-        SELECT at.id, at.timestamp, at.transcription, at.device, at.is_input_device, at.speaker_id
-        FROM audio_transcriptions at
-        WHERE at.timestamp >= ? AND at.timestamp < ?
-        ORDER BY at.timestamp ASC
-        LIMIT ?
-        "#,
-    )
-    .bind(&start_str)
-    .bind(&end_str)
-    .bind(limit as i64)
-    .fetch_all(pool)
-    .await?;
-
     // Accessibility data now lives in frames.full_text (text_source='accessibility')
     let accessibility: Vec<(i64, String, String, String, String, Option<String>)> = sqlx::query_as(
         r#"
@@ -707,11 +690,7 @@ async fn get_archive_chunk(
     .fetch_all(pool)
     .await?;
 
-    if frames.is_empty()
-        && transcriptions.is_empty()
-        && accessibility.is_empty()
-        && ui_events.is_empty()
-    {
+    if frames.is_empty() && accessibility.is_empty() && ui_events.is_empty() {
         return Ok(None);
     }
 
@@ -719,9 +698,6 @@ async fn get_archive_chunk(
     let mut all_timestamps: Vec<&str> = Vec::new();
     for f in &frames {
         all_timestamps.push(&f.1);
-    }
-    for t in &transcriptions {
-        all_timestamps.push(&t.1);
     }
     for a in &accessibility {
         all_timestamps.push(&a.1);
@@ -797,21 +773,6 @@ async fn get_archive_chunk(
         Vec::new()
     };
 
-    // Build transcription records
-    let transcription_records: Vec<TranscriptionRecord> = transcriptions
-        .into_iter()
-        .map(
-            |(_, timestamp, transcription, device, is_input, speaker_id)| TranscriptionRecord {
-                sync_id: Uuid::new_v4().to_string(),
-                timestamp,
-                transcription,
-                device,
-                is_input_device: is_input,
-                speaker_id,
-            },
-        )
-        .collect();
-
     // Build accessibility records
     let accessibility_records: Vec<AccessibilityRecord> = accessibility
         .into_iter()
@@ -869,7 +830,7 @@ async fn get_archive_chunk(
         time_end,
         frames: frame_records,
         ocr_records,
-        transcriptions: transcription_records,
+        transcriptions: Vec::new(),
         accessibility_records,
         ui_events: ui_event_records,
     }))
@@ -892,14 +853,6 @@ async fn count_records_in_range(
             .fetch_one(pool)
             .await?;
 
-    let (transcriptions,): (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM audio_transcriptions WHERE timestamp >= ? AND timestamp < ?",
-    )
-    .bind(&start_str)
-    .bind(&end_str)
-    .fetch_one(pool)
-    .await?;
-
     let (accessibility,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM frames WHERE timestamp >= ? AND timestamp < ? AND text_source = 'accessibility'",
     )
@@ -915,7 +868,7 @@ async fn count_records_in_range(
             .fetch_one(pool)
             .await?;
 
-    Ok((frames + transcriptions + accessibility + ui_events) as u64)
+    Ok((frames + accessibility + ui_events) as u64)
 }
 
 /// Delete data before cutoff and remove orphan media files from disk.
@@ -948,23 +901,19 @@ async fn do_cleanup(db: &Arc<DatabaseManager>, cutoff: DateTime<Utc>) -> anyhow:
             .await
         {
             Ok(result) => {
-                let batch_total = result.frames_deleted
-                    + result.ocr_deleted
-                    + result.audio_transcriptions_deleted
-                    + result.ui_events_deleted;
+                let batch_total =
+                    result.frames_deleted + result.ocr_deleted + result.ui_events_deleted;
 
                 if batch_total > 0 {
                     any_deleted = true;
                     info!(
-                        "archive: batch deleted frames={} ocr={} audio={} ui_events={} \
-                         (video_files={} snapshot_files={} audio_files={})",
+                        "archive: batch deleted frames={} ocr={} ui_events={} \
+                         (video_files={} snapshot_files={})",
                         result.frames_deleted,
                         result.ocr_deleted,
-                        result.audio_transcriptions_deleted,
                         result.ui_events_deleted,
                         result.video_files.len(),
                         result.snapshot_files.len(),
-                        result.audio_files.len(),
                     );
                 }
 
@@ -972,7 +921,6 @@ async fn do_cleanup(db: &Arc<DatabaseManager>, cutoff: DateTime<Utc>) -> anyhow:
                 for path in result
                     .video_files
                     .iter()
-                    .chain(result.audio_files.iter())
                     .chain(result.snapshot_files.iter())
                 {
                     if let Err(e) = tokio::fs::remove_file(path).await {

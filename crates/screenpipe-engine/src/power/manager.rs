@@ -148,17 +148,14 @@ pub fn start_power_manager_with_pref(initial_pref: PowerMode) -> Arc<PowerManage
             power_state.thermal_state,
             dominant_reason(&power_state)
         );
-        // Apply audio VAD threshold from initial profile
-        // audio_disabled uses ratio=1.0 to block all VAD segments.
-        screenpipe_audio::vad::set_min_speech_ratio(profile.vad_min_speech_ratio);
         if profile.capture_paused {
             info!(
                 "initial power state: capture paused (battery critical, battery={:?})",
                 power_state.battery_pct
             );
-        } else if profile.audio_disabled {
+        } else if profile.screenshot_disabled {
             info!(
-                "initial power state: audio disabled (battery <=20%, battery={:?})",
+                "initial power state: screenshots paused (battery <=20%, battery={:?})",
                 power_state.battery_pct
             );
         }
@@ -212,26 +209,21 @@ pub fn start_power_manager_with_pref(initial_pref: PowerMode) -> Arc<PowerManage
                 );
             }
 
-            // Apply audio VAD threshold from profile.
-            // audio_disabled sets ratio=1.0 so no segment passes VAD — effectively
-            // pauses Whisper without needing a separate code path.
-            screenpipe_audio::vad::set_min_speech_ratio(new_profile.vad_min_speech_ratio);
-
             if new_profile.capture_paused && current_name != ProfileName::FullPause {
                 info!(
                     "battery critical (<=10%) — pausing all capture \
                     (server stays up for search/timeline); battery={:?}",
                     power_state.battery_pct
                 );
-            } else if new_profile.audio_disabled
+            } else if new_profile.screenshot_disabled
                 && !matches!(
                     current_name,
-                    ProfileName::AudioPaused | ProfileName::FullPause
+                    ProfileName::ScreenshotPaused | ProfileName::FullPause
                 )
             {
                 info!(
-                    "battery low (<=20%) — pausing audio transcription, \
-                    vision capture continues; battery={:?}",
+                    "battery low (<=20%) — pausing screenshots, \
+                    accessibility capture continues; battery={:?}",
                     power_state.battery_pct
                 );
             } else if !new_profile.capture_paused && matches!(current_name, ProfileName::FullPause)

@@ -10,22 +10,15 @@ mod tests {
     use axum::Router;
     use chrono::DateTime;
     use chrono::{Duration, Utc};
-    use screenpipe_audio::audio_manager::AudioManagerBuilder;
     use screenpipe_db::{ContentType, DatabaseManager, SearchResult};
     use screenpipe_engine::routes::search::SearchResponse;
+    use screenpipe_engine::ContentItem;
     use screenpipe_engine::SCServer;
-    use screenpipe_engine::{ContentItem, PaginatedResponse};
     use screenpipe_screen::OcrEngine; // Adjust this import based on your actual module structure
-    use serde::Deserialize;
     use std::net::SocketAddr;
     use std::sync::Arc;
     use tower::ServiceExt; // for `oneshot` and `ready`
 
-    // Before the test function, add:
-    #[derive(Deserialize)]
-    struct TestErrorResponse {
-        error: String,
-    }
     // Add this function to initialize the logger
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -47,22 +40,11 @@ mod tests {
                 .unwrap(),
         );
 
-        let audio_manager = Arc::new(
-            AudioManagerBuilder::new()
-                .is_disabled(true)
-                .output_path(screenpipe_dir.join("audio"))
-                .build(db.clone())
-                .await
-                .unwrap(),
-        );
-
         let app = SCServer::new(
             db.clone(),
             SocketAddr::from(([127, 0, 0, 1], 23948)),
             screenpipe_dir,
             false,
-            false,
-            audio_manager,
             false, // use_pii_removal
             "balanced".to_string(),
         );
@@ -139,131 +121,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires Silero VAD ONNX models, run locally with --ignored"]
-    async fn test_search_audio_with_length_constraints() {
-        let (app, db) = setup_test_app().await;
-
-        // Insert some test data
-        let _ = db
-            .insert_audio_chunk("test_audio1.wav", None)
-            .await
-            .unwrap();
-        let audio_chunk_id1 = db
-            .insert_audio_chunk("test_audio2.wav", None)
-            .await
-            .unwrap();
-        let audio_chunk_id2 = db
-            .insert_audio_chunk("test_audio3.wav", None)
-            .await
-            .unwrap();
-
-        let _ = db
-            .insert_audio_transcription(
-                audio_chunk_id1,
-                "Short",
-                0,
-                "",
-                &screenpipe_db::AudioDevice {
-                    name: "test1".to_string(),
-                    device_type: screenpipe_db::DeviceType::Input,
-                },
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
-        let _ = db
-            .insert_audio_transcription(
-                audio_chunk_id2,
-                "This is a longer transcription with more words",
-                0,
-                "",
-                &screenpipe_db::AudioDevice {
-                    name: "test2".to_string(),
-                    device_type: screenpipe_db::DeviceType::Input,
-                },
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
-        // Test with min_length
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/search?content_type=audio&min_length=20")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        if response.status() != StatusCode::OK {
-            let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-            let error_response: TestErrorResponse = serde_json::from_slice(&body).unwrap();
-            panic!("Expected OK status, got: {}", error_response.error);
-        }
-        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let search_response: PaginatedResponse<ContentItem> =
-            serde_json::from_slice(&body).unwrap();
-        assert_eq!(search_response.data.len(), 1);
-        if let ContentItem::Audio(audio_item) = &search_response.data[0] {
-            assert!(audio_item.transcription.len() >= 20);
-        } else {
-            panic!("Expected audio item");
-        }
-
-        // Test with max_length
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/search?content_type=audio&max_length=10")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let search_response: PaginatedResponse<ContentItem> =
-            serde_json::from_slice(&body).unwrap();
-        assert_eq!(search_response.data.len(), 1);
-
-        // Test with both min_length and max_length
-        let response = app
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .uri("/search?content_type=audio&min_length=5&max_length=30")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::OK);
-        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
-        let search_response: PaginatedResponse<ContentItem> =
-            serde_json::from_slice(&body).unwrap();
-        assert_eq!(search_response.data.len(), 1);
-        if let ContentItem::Audio(audio_item) = &search_response.data[0] {
-            assert!(audio_item.transcription.len() >= 5);
-            assert!(audio_item.transcription.len() <= 30);
-        } else {
-            panic!("Expected audio item");
-        }
-    }
-
-    #[tokio::test]
     #[ignore]
     async fn test_count_search_results() {
         let (_, db) = setup_test_app().await;
@@ -298,78 +155,11 @@ mod tests {
         .await
         .unwrap();
 
-        let audio_chunk_id1 = db
-            .insert_audio_chunk("test_audio1.wav", None)
-            .await
-            .unwrap();
-        let audio_chunk_id2 = db
-            .insert_audio_chunk("test_audio2.wav", None)
-            .await
-            .unwrap();
-        let _ = db
-            .insert_audio_transcription(
-                audio_chunk_id1,
-                "This is a test audio transcription that should definitely be longer than thirty characters", // >30 chars
-                0,
-                "",
-                &screenpipe_db::AudioDevice {
-                    name: "test1".to_string(),
-                    device_type: screenpipe_db::DeviceType::Input,
-                },
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-        let _ = db
-            .insert_audio_transcription(
-                audio_chunk_id2,
-                "Short audio", // <30 chars
-                0,
-                "",
-                &screenpipe_db::AudioDevice {
-                    name: "test2".to_string(),
-                    device_type: screenpipe_db::DeviceType::Input,
-                },
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
         // Test counting all results
         let count = db
             .count_search_results(
                 "test*",
                 ContentType::All,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None, // on_screen — issue #2436
-            )
-            .await
-            .unwrap();
-        assert_eq!(count, 3);
-
-        // Test counting only OCR results
-        let count = db
-            .count_search_results(
-                "OCR",
-                ContentType::OCR,
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -385,13 +175,11 @@ mod tests {
             .unwrap();
         assert_eq!(count, 2);
 
-        // Test counting only Audio results
+        // Test counting only OCR results
         let count = db
             .count_search_results(
-                "audio",
-                ContentType::Audio,
-                None,
-                None,
+                "OCR",
+                ContentType::OCR,
                 None,
                 None,
                 None,
@@ -421,8 +209,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
@@ -438,8 +224,6 @@ mod tests {
                 None,
                 None,
                 Some("TestWindow2"),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -465,8 +249,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
@@ -487,8 +269,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
@@ -497,7 +277,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires Silero VAD ONNX models, run locally with --ignored"]
     async fn test_search_with_time_constraints() {
         let (_, db) = setup_test_app().await;
 
@@ -510,17 +289,13 @@ mod tests {
             .insert_frame("test_device", None, None, None, None, true, None)
             .await
             .unwrap();
-        let audio_chunk_id1 = db
-            .insert_audio_chunk("test_audio1.wav", None)
-            .await
-            .unwrap();
 
         let now = DateTime::parse_from_rfc3339("2024-09-21T10:49:23.240367Z")
             .unwrap()
             .with_timezone(&Utc);
         let two_hours_ago = now - Duration::hours(2);
 
-        // update timestamps for ocr and audio
+        // update timestamps for ocr
         sqlx::query("UPDATE frames SET timestamp = ? WHERE id = ?")
             .bind(two_hours_ago)
             .bind(frame_id1)
@@ -528,7 +303,7 @@ mod tests {
             .await
             .unwrap();
 
-        // insert ocr and audio data
+        // insert ocr data
         db.insert_ocr_text(
             frame_id1,
             "old ocr text",
@@ -538,30 +313,6 @@ mod tests {
         .await
         .unwrap();
 
-        let audio_transcription_id1 = db
-            .insert_audio_transcription(
-                audio_chunk_id1,
-                "old audio transcription",
-                0,
-                "",
-                &screenpipe_db::AudioDevice {
-                    name: "test".to_string(),
-                    device_type: screenpipe_db::DeviceType::Input,
-                },
-                None,
-                None,
-                None,
-                None,
-            )
-            .await
-            .unwrap();
-
-        sqlx::query("UPDATE audio_transcriptions SET timestamp = ? WHERE id = ?")
-            .bind(two_hours_ago)
-            .bind(audio_transcription_id1)
-            .execute(&db.pool)
-            .await
-            .unwrap();
         // test search with start_time constraint
         let ocr_results = db
             .search(
@@ -580,38 +331,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
             .unwrap();
         assert_eq!(ocr_results.len(), 0);
-
-        let audio_results = db
-            .search(
-                "audio",
-                ContentType::Audio,
-                10,
-                0,
-                Some(now - Duration::minutes(1)),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None, // on_screen — issue #2436
-            )
-            .await
-            .unwrap();
-        assert_eq!(audio_results.len(), 0);
 
         // test search with end_time constraint
         let ocr_results = db
@@ -622,8 +346,6 @@ mod tests {
                 0,
                 None,
                 Some(now - Duration::minutes(10)),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -644,36 +366,6 @@ mod tests {
             panic!("expected ocr result");
         }
 
-        let audio_results = db
-            .search(
-                "audio",
-                ContentType::Audio,
-                10,
-                0,
-                None,
-                Some(now - Duration::minutes(10)),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None, // on_screen — issue #2436
-            )
-            .await
-            .unwrap();
-        assert_eq!(audio_results.len(), 1);
-        if let SearchResult::Audio(audio_result) = &audio_results[0] {
-            assert_eq!(audio_result.transcription, "old audio transcription");
-        } else {
-            panic!("expected audio result");
-        }
-
         // test count with time constraints
         let ocr_count = db
             .count_search_results(
@@ -688,34 +380,11 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
             .unwrap();
         assert_eq!(ocr_count, 1);
-
-        let audio_count = db
-            .count_search_results(
-                "audio",
-                ContentType::Audio,
-                Some(two_hours_ago - Duration::minutes(100)),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None, // on_screen — issue #2436
-            )
-            .await
-            .unwrap();
-        assert_eq!(audio_count, 1);
     }
 
     #[tokio::test]
@@ -799,8 +468,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
@@ -824,8 +491,6 @@ mod tests {
                 0,
                 Some(old_timestamp - Duration::seconds(1)),
                 Some(old_timestamp + Duration::seconds(1)),
-                None,
-                None,
                 None,
                 None,
                 None,
@@ -883,8 +548,6 @@ mod tests {
                 None,
                 None,
                 None,
-                None,
-                None,
                 None, // on_screen — issue #2436
             )
             .await
@@ -901,8 +564,6 @@ mod tests {
                 0,
                 Some(four_hours_ago - Duration::minutes(5)),
                 Some(four_hours_ago + Duration::minutes(5)),
-                None,
-                None,
                 None,
                 None,
                 None,
