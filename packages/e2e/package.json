@@ -22,6 +22,7 @@
   },
   "nx": {
     "tags": ["type:tool", "scope:e2e", "lang:ts"],
+    "implicitDependencies": ["screen-sentinel-engine"],
     "includedScripts": [],
     "targets": {
       "e2e": { "command": "bun run test", "options": { "cwd": "{projectRoot}" } },

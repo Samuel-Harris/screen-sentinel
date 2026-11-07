@@ -199,4 +199,4 @@ tracing-oslog = { workspace = true }
 ignored = []
 
 [package.metadata.nx]
-tags = ["type:lib", "scope:engine", "lang:rust"]
+tags = ["type:lib", "scope:engine", "lang:rust", "os:windows"]
