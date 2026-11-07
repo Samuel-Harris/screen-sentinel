@@ -24,17 +24,6 @@ bun tauri build --no-sign --debug --verbose --no-bundle -- --features e2e
 bun run test:e2e
 ```
 
-**Run the macOS audio fallback spec**
-
-```bash
-bun run test:e2e:audio-fallback:macos
-```
-
-This uses `SCREENPIPE_E2E_SEED=onboarding,no-recording,cloud-audio-fallback`
-to keep vision capture off while leaving the audio settings visible with
-Screenpipe Cloud saved and no logged-in user. It asserts the Recording fallback
-alert and the persisted `/notifications` entry.
-
 **Run the macOS HD recording pipeline spec**
 
 ```bash
@@ -233,8 +222,7 @@ Saves to `e2e/videos/`.
 | `windows-system-integration.spec.ts` | Windows-only. Verifies isolated data dir, native DLL/WebView2 runtime, display/DPI topology, localhost-only API binding, process health, Defender visibility, audio service/device health, concurrent local API load, focus churn, rapid Home-window routing, Home close/reopen backend survival, and absence of Windows crash-report events during the suite |
 | `windows-user-journey.spec.ts` | Windows-only. Drives Home search button -> floating Search input -> Timeline -> Home, opens Recording settings to reveal Windows audio troubleshooting controls, starts/stops a manual Meeting note through the visible UI, opens the Shortcuts editor and cancels an open-search hotkey capture, toggles the Display shortcut-reminder overlay, clicks its visible Search, Chat, Timeline, and Hide controls, opens notification history from the bell, manages notification preferences, dismisses a notification from the visible bell UI, previews the Storage retention safety confirmation without applying destructive cleanup, and verifies the Privacy API-auth restart warning without restarting |
 | `hd-recording-pipeline.spec.ts` | macOS opt-in. Starts an HD timer session via `/capture/hd/start`; asserts the controller goes active, a non-empty `hd_*.mp4` chunk is written, and OCR keeps indexing during HD (high-fps + indexing decouple, #3699/#3707) |
-| `settings-sections.spec.ts` | Navigates General → Recording → AI → Speakers settings; verifies content and no crash |
-| `audio-fallback.spec.ts` | macOS opt-in spec for the Screenpipe Cloud → local Whisper fallback alert and `/notify` history |
+| `settings-sections.spec.ts` | Navigates General → Recording → AI settings; verifies content and no crash |
 | `window-lifecycle.spec.ts` | Exercises `show_window` / `close_window` routing for Home, Search, and completed onboarding |
 | `permission-recovery.spec.ts` | macOS recovery window smoke for missing TCC permissions, route wiring, dedupe, and clean close |
 | `owned-browser.spec.ts` | Verifies the embedded agent browser queues navigation and hides safely |
