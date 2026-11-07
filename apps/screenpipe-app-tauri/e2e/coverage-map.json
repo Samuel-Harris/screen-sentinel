@@ -57,22 +57,10 @@
       "layers": ["notifications"]
     },
     {
-      "id": "audio-device-health",
-      "label": "Audio device health",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["audio-device"]
-    },
-    {
       "id": "window-lifecycle",
       "label": "Window lifecycle, focus, and dedupe",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["window-lifecycle"]
-    },
-    {
-      "id": "meeting-notes",
-      "label": "Meeting note creation and editing",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["real-ui-e2e"]
     },
     {
       "id": "pipes",
@@ -116,7 +104,7 @@
       "spec": "api.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["local-api"],
-      "features": ["health", "audio-device-health", "connections", "local-api-auth"],
+      "features": ["health", "connections", "local-api-auth"],
       "criticality": "high",
       "confidence": "partial",
       "ux": "api",
@@ -136,7 +124,7 @@
       "spec": "api-search-stress.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["local-api", "performance"],
-      "features": ["local-api-auth", "local-api-search", "health", "audio-device-health", "local-api-load"],
+      "features": ["local-api-auth", "local-api-search", "health", "local-api-load"],
       "criticality": "high",
       "confidence": "strong",
       "ux": "api",
@@ -151,16 +139,6 @@
       "confidence": "strong",
       "ux": "mixed",
       "notes": "Home webview, routing, reload, focus, resize, and storage stability."
-    },
-    {
-      "spec": "audio-fallback.spec.ts",
-      "platforms": ["macos"],
-      "layers": ["audio-device", "settings", "notifications"],
-      "features": ["audio-device-health", "settings-recording", "notifications"],
-      "criticality": "medium",
-      "confidence": "conditional",
-      "ux": "real-user-flow",
-      "notes": "Opt-in macOS cloud audio fallback seed."
     },
     {
       "spec": "chat-composer-isolation.spec.ts",
@@ -343,16 +321,6 @@
       "notes": "Main close/reopen without handle leaks."
     },
     {
-      "spec": "meeting-note-bottom-click.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["real-ui-e2e", "local-api"],
-      "features": ["meeting-notes"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Seeds and opens a long meeting note, checks editor shell click focus behavior, then clicks the bottom editor line."
-    },
-    {
       "spec": "notification-viewer-link.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["notifications", "local-api", "window-lifecycle"],
@@ -426,21 +394,11 @@
       "spec": "settings-sections.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["settings", "real-ui-e2e", "storage-privacy"],
-      "features": ["settings-recording", "settings-privacy-api-auth", "storage-retention", "audio-device-health"],
+      "features": ["settings-recording", "settings-privacy-api-auth", "storage-retention"],
       "criticality": "high",
       "confidence": "strong",
       "ux": "real-user-flow",
       "notes": "Settings sections, storage, privacy, and rapid switching crash guard."
-    },
-    {
-      "spec": "meeting-apps-picker.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["settings", "real-ui-e2e"],
-      "features": ["settings-recording", "meeting-detector-ignored-apps"],
-      "criticality": "medium",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Per-app meeting-detection ignore picker: open, toggle, count badge, persistence across reopen (#3882 / #3847)."
     },
     {
       "spec": "timeline.spec.ts",
