@@ -32,8 +32,8 @@ describe("Window lifecycle", function () {
     await openHomeWindow();
     await expectSingleWindowHandle("home");
 
-    const homeSection = await $('[data-testid="section-home"]');
-    await homeSection.waitForExist({ timeout: t(15_000) });
+    const homePage = await $('[data-testid="home-page"]');
+    await homePage.waitForExist({ timeout: t(15_000) });
 
     await showWindow({ Home: { page: "help" } });
     await waitForWindowHandle("home", t(10_000));
@@ -55,8 +55,8 @@ describe("Window lifecycle", function () {
     await showWindow({ Home: { page: "home" } });
     await browser.switchToWindow("home");
     await waitForWindowUrl("/home", undefined, t(12_000));
-    const restoredHomeSection = await $('[data-testid="section-home"]');
-    await restoredHomeSection.waitForExist({ timeout: t(15_000) });
+    const restoredHomePage = await $('[data-testid="home-page"]');
+    await restoredHomePage.waitForExist({ timeout: t(15_000) });
     await expectSingleWindowHandle("home");
 
     const filepath = await saveScreenshot("window-lifecycle-home-routes");
@@ -87,8 +87,10 @@ describe("Window lifecycle", function () {
       await input.waitForExist({ timeout: t(10_000) });
 
       // Verify input is the typing target via click + element-scoped
-      // setValue (same rationale as chat-window.spec.ts — see comment there).
-      // The autofocus contract is covered by the manual TESTING.md checklist.
+      // setValue rather than `document.activeElement` or `browser.keys`:
+      // hosted CI webviews do not consistently grant key-window status in
+      // headless mode. The autofocus contract is covered by the manual
+      // TESTING.md checklist.
       await input.click();
       const probe = `search-focus-${i}-${Date.now()}`;
       await input.setValue(probe);
