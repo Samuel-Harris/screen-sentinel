@@ -213,7 +213,7 @@ Saves to `e2e/videos/`.
 
 | Spec | What it tests |
 |---|---|
-| `home-window.spec.ts` | Opens Home window; clicks through Home, Timeline, Help, Settings nav items |
+| `home-window.spec.ts` | Opens Home window; clicks through Timeline, Help, Settings nav items |
 | `timeline.spec.ts` | Navigates to Timeline; seeds a capture event; verifies at least one frame renders |
 | `windows-core-recording.spec.ts` | Windows opt-in. Enables real vision recording and requires API auth, health/load, audio/device, vision, and search endpoints to stay responsive. In CI it uses `SCREENPIPE_E2E_SEED=onboarding,no-audio` so hosted runners exercise OCR without booting Whisper. When the runner exposes usable desktop frames, it also shows a foreground marker window and verifies OCR indexing/query search plus Timeline frame metadata, visible scrubber clicks, and arrow-key frame stepping; hosted runners without frames self-skip those capture-dependent assertions. |
 | `windows-system-integration.spec.ts` | Windows-only. Verifies isolated data dir, native DLL/WebView2 runtime, display/DPI topology, localhost-only API binding, process health, Defender visibility, audio service/device health, concurrent local API load, focus churn, rapid Home-window routing, Home close/reopen backend survival, and absence of Windows crash-report events during the suite |

@@ -11,41 +11,15 @@ import {
   redactApiUrlForLogs,
 } from "@/lib/api";
 
-interface AudioPipelineHealth {
-  chunks_sent: number;
-  chunks_channel_full: number;
-  stream_timeouts: number;
-  vad_passed: number;
-  vad_rejected: number;
-  transcriptions_completed: number;
-  transcription_errors: number;
-  db_inserted: number;
-  total_words: number;
-  words_per_minute: number;
-  transcription_mode?: string;
-  segments_deferred?: number;
-  segments_batch_processed?: number;
-  batch_paused_reason?: string | null;
-  pending_transcription_segments?: number;
-  oldest_pending_transcription_at?: string | null;
-  transcription_paused?: boolean;
-  meeting_detected?: boolean;
-  meeting_app?: string;
-}
-
 interface HealthCheckResponse {
   status: string;
   status_code: number;
   last_frame_timestamp: string | null;
-  last_audio_timestamp: string | null;
   last_ui_timestamp: string | null;
   frame_status: string;
-  audio_status: string;
   ui_status: string;
   message: string;
   verbose_instructions?: string | null;
-  device_status_details?: string | null;
-  audio_pipeline?: AudioPipelineHealth | null;
 }
 
 function isHealthChanged(
@@ -57,14 +31,10 @@ function isHealthChanged(
     oldHealth.status !== newHealth.status ||
     oldHealth.status_code !== newHealth.status_code ||
     oldHealth.last_frame_timestamp !== newHealth.last_frame_timestamp ||
-    oldHealth.last_audio_timestamp !== newHealth.last_audio_timestamp ||
     oldHealth.last_ui_timestamp !== newHealth.last_ui_timestamp ||
     oldHealth.frame_status !== newHealth.frame_status ||
-    oldHealth.audio_status !== newHealth.audio_status ||
     oldHealth.ui_status !== newHealth.ui_status ||
-    oldHealth.message !== newHealth.message ||
-    JSON.stringify(oldHealth.audio_pipeline) !==
-      JSON.stringify(newHealth.audio_pipeline)
+    oldHealth.message !== newHealth.message
   );
 }
 
@@ -179,10 +149,8 @@ function errorHealth(message: string): HealthCheckResponse {
     status: "error",
     status_code: 500,
     last_frame_timestamp: null,
-    last_audio_timestamp: null,
     last_ui_timestamp: null,
     frame_status: "error",
-    audio_status: "error",
     ui_status: "error",
     message,
   };

@@ -319,8 +319,8 @@ export async function createPermissionFlow(): Promise<PermissionFlow> {
 
 /**
  * Screenpipe-facing alias: every OS permission we surface in onboarding,
- * recovery, or settings cards. Some entries (microphone, automation,
- * calendar) do not have an app-list drag UI; those fall back to opening
+ * recovery, or settings cards. Some entries (automation) do not have an
+ * app-list drag UI; those fall back to opening
  * Privacy & Security directly via our typed Tauri commands.
  */
 export type PermissionFlowPermission = OSPermission;
@@ -504,14 +504,6 @@ async function openNativePermissionSettings(
 async function requestNativePermission(
   permission: PermissionFlowPermission,
 ): Promise<void> {
-  if (permission === "calendar") {
-    const result = await commands.calendarAuthorize();
-    if (result.status !== "ok" || result.data !== "granted") {
-      await openNativePermissionSettings("calendar");
-    }
-    return;
-  }
-
   await commands.requestPermission(permission);
 }
 
@@ -519,8 +511,8 @@ async function requestNativePermission(
  * Opens macOS Privacy & Security and, when that pane supports app-list grants,
  * shows the native floating drag panel from permission-flow.
  *
- * Calendar, microphone, and automation are prompt/toggle based rather than
- * app-list drag based, so they use the same typed Privacy & Security anchors
+ * Automation is prompt/toggle based rather than
+ * app-list drag based, so it uses the same typed Privacy & Security anchors
  * but no floating drag card.
  */
 export async function requestPermissionWithFlow(

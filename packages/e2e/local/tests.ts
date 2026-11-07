@@ -50,7 +50,7 @@ async function buildAndDeploy(ip: string): Promise<void> {
 async function startServer(ip: string, port = 3030): Promise<void> {
   await ssh(
     ip,
-    `export PATH="/usr/local/bin:/tmp:$PATH" HOME=/Users/admin && nohup /tmp/screenpipe record --disable-audio --port ${port} > /tmp/screenpipe.log 2>&1 & echo $!`,
+    `export PATH="/usr/local/bin:/tmp:$PATH" HOME=/Users/admin && nohup /tmp/screenpipe record --port ${port} > /tmp/screenpipe.log 2>&1 & echo $!`,
     { timeout: 10_000 }
   );
 

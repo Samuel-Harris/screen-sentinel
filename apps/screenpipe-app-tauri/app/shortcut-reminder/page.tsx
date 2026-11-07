@@ -7,120 +7,28 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { localFetch } from "@/lib/api";
 import { exists, readTextFile } from "@tauri-apps/plugin-fs";
 import { homeDir } from "@tauri-apps/api/path";
 import posthog from "posthog-js";
 import { usePlatform } from "@/lib/hooks/use-platform";
 import { getStore, saveAndEncrypt } from "@/lib/hooks/use-settings";
 import { commands } from "@/lib/utils/tauri";
-import { X, Phone } from "lucide-react";
+import { X } from "lucide-react";
 import { useOverlayData } from "./use-overlay-data";
-import { AudioEqualizer } from "./audio-equalizer";
 import { ScreenMatrix } from "./screen-matrix";
-import { computeMeetingActive, type MeetingStatusResponse } from "@/lib/utils/meeting-state";
-import { appendAuthToken, ensureApiReady, getApiBaseUrl } from "@/lib/api";
 
 type ReminderSettings = {
   disabledShortcuts?: string[];
   shortcutOverlaySize?: string;
-  showChatShortcut?: string;
   showScreenpipeShortcut?: string;
   searchShortcut?: string;
 };
 
-function useMeetingState() {
-  const [meetingState, setMeetingState] = useState(() => computeMeetingActive(null, 0));
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    let backoffMs = 1000;
-
-    const connect = () => {
-      void (async () => {
-        try {
-          await ensureApiReady();
-          const wsBase = getApiBaseUrl().replace("http://", "ws://");
-          ws = new WebSocket(appendAuthToken(`${wsBase}/ws/meeting-status`));
-          ws.onopen = () => {
-            backoffMs = 1000;
-          };
-          ws.onmessage = (event) => {
-            try {
-              const parsed = JSON.parse(event.data) as MeetingStatusResponse;
-              setMeetingState(computeMeetingActive(parsed, 0));
-            } catch {
-              // ignore malformed payloads
-            }
-          };
-          ws.onclose = (event) => {
-            if (event.code === 1000) return;
-            retry = setTimeout(connect, backoffMs);
-            backoffMs = Math.min(backoffMs * 2, 10000);
-          };
-          ws.onerror = () => {
-            ws?.close();
-          };
-        } catch {
-          retry = setTimeout(connect, backoffMs);
-          backoffMs = Math.min(backoffMs * 2, 10000);
-        }
-      })();
-    };
-
-    connect();
-
-    return () => {
-      if (retry) clearTimeout(retry);
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close(1000, "unmount");
-      }
-    };
-  }, []);
-
-  const toggle = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (meetingState.active) {
-        await localFetch("/meetings/stop", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: meetingState.stoppableMeetingId }),
-        });
-        setMeetingState(computeMeetingActive(null, 0));
-      } else {
-        const res = await localFetch("/meetings/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ app: "manual" }),
-        });
-        if (res.ok) {
-          setMeetingState(computeMeetingActive({
-            active: true,
-            manualActive: true,
-            meetingApp: "manual",
-            detectionSource: "manual",
-          }, Date.now()));
-        }
-      }
-    } catch (e) {
-      console.error("meeting toggle failed:", e);
-    }
-    setLoading(false);
-  }, [meetingState]);
-
-  return { active: meetingState.active, loading, toggle };
-}
-
 export default function ShortcutReminderPage() {
   const { isMac, isLoading } = usePlatform();
   const [overlayShortcut, setOverlayShortcut] = useState<string | null>(null);
-  const [chatShortcut, setChatShortcut] = useState<string | null>(null);
   const [searchShortcut, setSearchShortcut] = useState<string | null>(null);
   const overlayData = useOverlayData();
-  const meeting = useMeetingState();
   const [overlayScale, setOverlayScale] = useState(1);
   const isMacRef = useRef(isMac);
   isMacRef.current = isMac;
@@ -138,7 +46,6 @@ export default function ShortcutReminderPage() {
     setOverlayShortcut(
       formatForReminder(settings.showScreenpipeShortcut, "showScreenpipeShortcut")
     );
-    setChatShortcut(formatForReminder(settings.showChatShortcut, "showChatShortcut"));
     setSearchShortcut(formatForReminder(settings.searchShortcut, "searchShortcut"));
 
     if (settings.shortcutOverlaySize) {
@@ -176,7 +83,6 @@ export default function ShortcutReminderPage() {
     loadShortcutsFromFile().then(() => {
       // Set platform-appropriate defaults if file had no values
       setOverlayShortcut(prev => prev ?? (isMac ? "⌘⌃S" : "Alt+S"));
-      setChatShortcut(prev => prev ?? (isMac ? "⌘⌃L" : "Alt+L"));
       setSearchShortcut(prev => prev ?? (isMac ? "⌘⌃K" : "Alt+K"));
     });
 
@@ -262,7 +168,6 @@ export default function ShortcutReminderPage() {
   const padY = 2 * overlayScale;
   const gap = 2 * overlayScale;
   const smIconPx = 10 * overlayScale;
-  const dotPx = Math.max(5 * overlayScale, 5);
 
   return (
     <div
@@ -279,7 +184,7 @@ export default function ShortcutReminderPage() {
           style={{
             background: "rgba(0, 0, 0, 0.88)",
             display: "grid",
-            gridTemplateColumns: "1fr 1px 1fr 1px 1fr",
+            gridTemplateColumns: "1fr 1px 1fr",
             gridTemplateRows: "1fr 1px 1fr",
           }}
         >
@@ -309,27 +214,6 @@ export default function ShortcutReminderPage() {
           <button
             onClick={(e) => {
               e.stopPropagation();
-              commands.showWindow("Chat");
-              posthog.capture("shortcut_reminder_chat_clicked");
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer min-w-0"
-            style={{ gap: `${gap}px`, padding: `${padY}px ${padX}px`, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            title="Open chat"
-          >
-            <svg width={iconPx} height={iconPx} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/70 shrink-0">
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-            {chatShortcut ? (
-              <span className="font-mono font-medium text-white whitespace-nowrap truncate" style={{ fontSize: `${fontPx}px` }}>
-                {chatShortcut}
-              </span>
-            ) : null}
-          </button>
-          <div className="bg-white/25" />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
               commands.showWindow({ Search: { query: null } });
               posthog.capture("shortcut_reminder_search_clicked");
             }}
@@ -350,16 +234,9 @@ export default function ShortcutReminderPage() {
           </button>
 
           {/* Divider row */}
-          <div className="col-span-5 bg-white/15" />
+          <div className="col-span-3 bg-white/15" />
 
           {/* Row 2: Status + close */}
-          <div className="min-w-0 overflow-hidden flex items-center" style={{ padding: `${padY}px ${padX}px` }}>
-            <AudioEqualizer
-              active={overlayData.audioActive}
-              speechRatio={overlayData.speechRatio}
-            />
-          </div>
-          <div className="bg-white/15" />
           <div className="min-w-0 overflow-hidden flex items-center" style={{ padding: `${padY}px ${padX}px` }}>
             <ScreenMatrix
               active={overlayData.screenActive}
@@ -369,27 +246,6 @@ export default function ShortcutReminderPage() {
           </div>
           <div className="bg-white/15" />
           <div className="flex items-center justify-center" style={{ gap: `${gap}px`, padding: `${padY}px ${padX}px` }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                meeting.toggle();
-              }}
-              disabled={meeting.loading}
-              className="relative flex items-center justify-center hover:bg-white/10 transition-colors cursor-pointer"
-              title={meeting.active ? "stop meeting" : "start meeting"}
-              style={{ padding: `${padY}px`, WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-            >
-              {meeting.active && (
-                <span
-                  className="absolute rounded-full bg-white animate-pulse"
-                  style={{ top: -1, right: -1, width: `${dotPx}px`, height: `${dotPx}px` }}
-                />
-              )}
-              <Phone
-                style={{ width: `${smIconPx}px`, height: `${smIconPx}px` }}
-                className={meeting.active ? "text-white" : "text-white/60 hover:text-white"}
-              />
-            </button>
             <button
               onClick={handleClose}
               onMouseDown={(e) => {

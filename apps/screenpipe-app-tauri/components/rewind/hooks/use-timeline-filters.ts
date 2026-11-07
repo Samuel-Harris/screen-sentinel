@@ -5,7 +5,6 @@
 import { useState, useRef, useMemo, useCallback } from "react";
 import { extractDomain } from "@/components/rewind/timeline/favicon-utils";
 import type { StreamTimeSeriesResponse } from "@/components/rewind/timeline";
-import type { Meeting } from "@/lib/hooks/use-meetings";
 
 export function useTimelineFilters(opts: {
 	frames: StreamTimeSeriesResponse[];
@@ -13,16 +12,14 @@ export function useTimelineFilters(opts: {
 	setCurrentIndex: (i: number) => void;
 	setCurrentFrame: (f: StreamTimeSeriesResponse) => void;
 	tags: Record<string, string[]>;
-	meetings?: Meeting[];
 }) {
-	const { frames, currentIndex, setCurrentIndex, setCurrentFrame, tags, meetings = [] } = opts;
+	const { frames, currentIndex, setCurrentIndex, setCurrentFrame, tags } = opts;
 
 	const [selectedDeviceId, setSelectedDeviceId] = useState<string>("all");
 	const [selectedAppName, setSelectedAppName] = useState<string>("all");
 	const [selectedDomain, setSelectedDomain] = useState<string>("all");
 	const [selectedSpeaker, setSelectedSpeaker] = useState<string>("all");
 	const [selectedTag, setSelectedTag] = useState<string>("all");
-	const [selectedMeeting, setSelectedMeeting] = useState<string>("all");
 
 	const resetFilters = useCallback(() => {
 		setSelectedDeviceId("all");
@@ -30,7 +27,6 @@ export function useTimelineFilters(opts: {
 		setSelectedDomain("all");
 		setSelectedSpeaker("all");
 		setSelectedTag("all");
-		setSelectedMeeting("all");
 	}, []);
 
 	// Track filter state in refs so event listeners can read fresh values
@@ -64,9 +60,7 @@ export function useTimelineFilters(opts: {
 		const filterDomain = selectedDomain !== "all";
 		const filterSpeaker = selectedSpeaker !== "all";
 		const filterTag = selectedTag !== "all";
-		const filterMeeting = selectedMeeting !== "all";
-		const activeMeeting = filterMeeting ? meetings.find((m) => m.id === selectedMeeting) : null;
-		if (!filterDevice && !filterApp && !filterDomain && !filterSpeaker && !filterTag && !filterMeeting) return null;
+		if (!filterDevice && !filterApp && !filterDomain && !filterSpeaker && !filterTag) return null;
 		const indices: number[] = [];
 		for (let i = 0; i < frames.length; i++) {
 			const f = frames[i];
@@ -82,13 +76,12 @@ export function useTimelineFilters(opts: {
 				const frameTags = frameId ? (tags[frameId] || []) : [];
 				return frameTags.includes(selectedTag);
 			})();
-			const matchesMeeting = !filterMeeting || (activeMeeting && i >= activeMeeting.frameIndexRange.first && i <= activeMeeting.frameIndexRange.last);
-			if (matchesDevice && matchesApp && matchesDomain && matchesSpeaker && matchesTag && matchesMeeting) {
+			if (matchesDevice && matchesApp && matchesDomain && matchesSpeaker && matchesTag) {
 				indices.push(i);
 			}
 		}
 		return indices.length > 0 ? indices : null;
-	}, [frames, selectedDeviceId, allDeviceIds.length, selectedAppName, selectedDomain, selectedSpeaker, selectedTag, tags, selectedMeeting, meetings]);
+	}, [frames, selectedDeviceId, allDeviceIds.length, selectedAppName, selectedDomain, selectedSpeaker, selectedTag, tags]);
 
 	// Find next frame index matching active filters in a given direction
 	const findNextDevice = useCallback((fromIndex: number, dir: 1 | -1): number => {
@@ -223,26 +216,12 @@ export function useTimelineFilters(opts: {
 		if (snapped !== currentIndex) { setCurrentIndex(snapped); setCurrentFrame(frames[snapped]); }
 	}, [currentIndex, frames, tags, snapToMatch, setCurrentFrame]);
 
-	const handleMeetingChange = useCallback((meetingId: string) => {
-		setSelectedMeeting(meetingId);
-		if (meetingId === "all") return;
-		const meeting = meetings.find((m) => m.id === meetingId);
-		if (meeting) {
-			const snapped = meeting.frameIndexRange.first;
-			if (snapped !== currentIndex && snapped < frames.length) {
-				setCurrentIndex(snapped);
-				setCurrentFrame(frames[snapped]);
-			}
-		}
-	}, [currentIndex, frames, meetings, setCurrentIndex, setCurrentFrame]);
-
 	return {
 		selectedDeviceId,
 		selectedAppName,
 		selectedDomain,
 		selectedSpeaker,
 		selectedTag,
-		selectedMeeting,
 		matchingIndices,
 		resetFilters,
 		allDeviceIds,
@@ -252,7 +231,6 @@ export function useTimelineFilters(opts: {
 		handleDomainChange,
 		handleSpeakerChange,
 		handleTagChange,
-		handleMeetingChange,
 		findNextDevice,
 		selectedDeviceIdRef,
 		selectedAppNameRef,

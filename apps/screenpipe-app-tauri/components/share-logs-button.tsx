@@ -23,8 +23,6 @@ import {
 } from "./ui/tooltip";
 import { localFetch } from "@/lib/api";
 import { useHealthCheck } from "@/lib/hooks/use-health-check";
-import { loadAllConversations } from "@/lib/chat-storage";
-import { redactPii } from "@/lib/utils/redact-pii";
 
 interface VideoChunk {
   device_name: string;
@@ -47,7 +45,6 @@ export const ShareLogsButton = ({
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
   const [screenshot, setScreenshot] = useState<string | null>(null);
   const [mergedVideoPath, setMergedVideoPath] = useState<string | null>(null);
-  const [includeChatHistory, setIncludeChatHistory] = useState(true);
   const { health } = useHealthCheck();
 
   useEffect(() => {
@@ -209,34 +206,12 @@ export const ShareLogsButton = ({
         },
       } = await signedRes.json();
 
-      let chatSection = "";
-      if (includeChatHistory) {
-        try {
-          const conversations = await loadAllConversations();
-          const MAX_CHAT_SIZE = 200 * 1024;
-          const recentConvs = conversations.slice(0, 5);
-          let chatData = "";
-          for (const conv of recentConvs) {
-            const convText = conv.messages
-              .map((m: any) => `[${m.role}] ${typeof m.content === "string" ? m.content : JSON.stringify(m.content)}`)
-              .join("\n");
-            const entry = `\n--- ${conv.title || conv.id} (${new Date(conv.updatedAt).toISOString()}) ---\n${convText}\n`;
-            if (chatData.length + entry.length > MAX_CHAT_SIZE) break;
-            chatData += entry;
-          }
-          chatSection = "\n\n=== Pi Chat History (PII redacted) ===\n" + redactPii(chatData);
-        } catch (e) {
-          console.error("failed to load chat history:", e);
-        }
-      }
-
       const combinedLogs =
         logContents
           .map((log) => `\n=== ${log.name} ===\n${log.content}`)
           .join("\n\n") +
         "\n\n=== Browser Console Logs ===\n" +
-        consoleLog +
-        chatSection;
+        consoleLog;
 
       await fetch(signedUrl, {
         method: "PUT",

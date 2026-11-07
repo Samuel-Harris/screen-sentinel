@@ -32,8 +32,8 @@ describe("Window lifecycle", function () {
     await openHomeWindow();
     await expectSingleWindowHandle("home");
 
-    const homeSection = await $('[data-testid="section-home"]');
-    await homeSection.waitForExist({ timeout: t(15_000) });
+    const homePage = await $('[data-testid="home-page"]');
+    await homePage.waitForExist({ timeout: t(15_000) });
 
     await showWindow({ Home: { page: "help" } });
     await waitForWindowHandle("home", t(10_000));
@@ -55,8 +55,8 @@ describe("Window lifecycle", function () {
     await showWindow({ Home: { page: "home" } });
     await browser.switchToWindow("home");
     await waitForWindowUrl("/home", undefined, t(12_000));
-    const restoredHomeSection = await $('[data-testid="section-home"]');
-    await restoredHomeSection.waitForExist({ timeout: t(15_000) });
+    const restoredHomePage = await $('[data-testid="home-page"]');
+    await restoredHomePage.waitForExist({ timeout: t(15_000) });
     await expectSingleWindowHandle("home");
 
     const filepath = await saveScreenshot("window-lifecycle-home-routes");

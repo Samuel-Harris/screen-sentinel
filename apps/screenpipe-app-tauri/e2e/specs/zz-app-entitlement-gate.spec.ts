@@ -29,8 +29,7 @@ const FORCE_KEY = 'screenpipe_e2e_force_billing_gate';
  *  engine: the resume effect only fires on an isEntitled false->true transition,
  *  not a devBypass one (in production devBypass is a constant env var, so this
  *  toggle only happens in e2e). Bring the sidecar back up here so trailing specs
- *  in the shared session (e.g. the owned-browser navigation spec) find a live
- *  local API instead of a refused connection. */
+ *  in the shared session find a live local API instead of a refused connection. */
 async function restartEngineForTrailingSpecs(): Promise<void> {
   await openHomeWindow().catch(() => {});
   let port = 3030;
@@ -106,14 +105,14 @@ describe('App entitlement gate', () => {
     const choosePlan = await $('button*=choose plan');
     await choosePlan.waitForExist({ timeout: t(15000) });
     expect(await choosePlan.isExisting()).toBe(true);
-    expect(await (await $('[data-testid="nav-home"]')).isExisting()).toBe(false);
+    expect(await (await $('[data-testid="nav-settings"]')).isExisting()).toBe(false);
 
     // 2. Clear the flag (back to the bypassed e2e build) and the app returns.
     await setForceGate(false);
 
-    const navHome = await $('[data-testid="nav-home"]');
-    await navHome.waitForExist({ timeout: t(15000) });
-    expect(await navHome.isExisting()).toBe(true);
+    const navSettings = await $('[data-testid="nav-settings"]');
+    await navSettings.waitForExist({ timeout: t(15000) });
+    expect(await navSettings.isExisting()).toBe(true);
     expect(await (await $('button*=choose plan')).isExisting()).toBe(false);
   });
 });
