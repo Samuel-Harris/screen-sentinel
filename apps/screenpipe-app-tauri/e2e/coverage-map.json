@@ -63,12 +63,6 @@
       "layers": ["window-lifecycle"]
     },
     {
-      "id": "chat",
-      "label": "Chat window, composer, and streaming state",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"]
-    },
-    {
       "id": "tray-search",
       "label": "Tray/search window behavior",
       "platforms": ["windows", "macos", "linux"],
@@ -133,106 +127,6 @@
       "confidence": "strong",
       "ux": "mixed",
       "notes": "Home webview, routing, reload, focus, resize, and storage stability."
-    },
-    {
-      "spec": "chat-composer-isolation.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai", "real-ui-e2e"],
-      "features": ["chat", "chat-drafts"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "mixed",
-      "notes": "Composer draft isolation across conversations."
-    },
-    {
-      "spec": "chat-newchat-duplicate.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-sidebar-dedupe"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Synthetic chat event regression for duplicate sidebar rows."
-    },
-    {
-      "spec": "chat-sidebar-stub-dedup.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-sidebar-dedupe"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Listener-order regression for metadata-only sidebar stubs gaining dedup keys."
-    },
-    {
-      "spec": "chat-parallel-jobs-duplicate.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-sidebar-dedupe"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Parallel auto-send prefill dedupe regression."
-    },
-    {
-      "spec": "chat-prefill-duplicate.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-prefill"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Cross-window prefill duplicate regression."
-    },
-    {
-      "spec": "chat-streaming-performance.spec.ts",
-      "platforms": ["macos"],
-      "layers": ["chat-ai", "performance"],
-      "features": ["chat", "chat-streaming"],
-      "criticality": "medium",
-      "confidence": "conditional",
-      "ux": "performance",
-      "notes": "macOS-only chat streaming responsiveness."
-    },
-    {
-      "spec": "zzz-browser-state-chat-switch.spec.ts",
-      "platforms": ["windows", "macos"],
-      "layers": ["real-ui-e2e", "storage-privacy"],
-      "features": ["chat", "owned-browser"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "synthetic",
-      "notes": "Synthetic E2E (zzz- prefix, search-driven): starts from a fresh chat with no conversation file, seeds browser state before the first durable save, then verifies auto-save persists that state and it survives a switch away and back. Keeps native visibility assertions out of this spec because post-zz window state is too brittle; deeper save/merge coverage lives in focused tests."
-    },
-    {
-      "spec": "chat-switch-context-loss.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-context"],
-      "criticality": "medium",
-      "confidence": "partial",
-      "ux": "synthetic",
-      "notes": "Switching conversations during streaming must not corrupt state."
-    },
-    {
-      "spec": "chat-window.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["chat-ai", "window-lifecycle", "real-ui-e2e"],
-      "features": ["chat", "window-lifecycle"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Opens Chat and focuses the composer for typing."
-    },
-    {
-      "spec": "chat-within-session-context-loss.spec.ts",
-      "platforms": ["macos"],
-      "layers": ["chat-ai"],
-      "features": ["chat", "chat-context"],
-      "criticality": "medium",
-      "confidence": "conditional",
-      "ux": "synthetic",
-      "notes": "macOS-only within-chat context retention regression."
     },
     {
       "spec": "focus-server.spec.ts",
@@ -335,16 +229,6 @@
       "notes": "Opt-in no-onboarding seed verifies onboarding redirect."
     },
     {
-      "spec": "owned-browser.spec.ts",
-      "platforms": ["windows", "macos"],
-      "layers": ["os-integration", "window-lifecycle"],
-      "features": ["owned-browser", "window-lifecycle"],
-      "criticality": "low",
-      "confidence": "smoke",
-      "ux": "command",
-      "notes": "Embedded agent browser hides safely without an attached child."
-    },
-    {
       "spec": "permission-recovery.spec.ts",
       "platforms": ["macos"],
       "layers": ["os-integration", "real-ui-e2e", "window-lifecycle"],
@@ -418,7 +302,7 @@
       "spec": "window-activation.spec.ts",
       "platforms": ["macos"],
       "layers": ["window-lifecycle", "tauri-command", "real-ui-e2e"],
-      "features": ["window-lifecycle", "chat"],
+      "features": ["window-lifecycle"],
       "criticality": "medium",
       "confidence": "conditional",
       "ux": "real-user-flow",
@@ -463,16 +347,6 @@
       "confidence": "strong",
       "ux": "real-user-flow",
       "notes": "Windows-first real UX journey across search, timeline, settings, meetings, notifications, storage, and privacy."
-    },
-    {
-      "spec": "zz-owned-browser-background-nav.spec.ts",
-      "platforms": ["windows", "macos"],
-      "layers": ["os-integration", "window-lifecycle"],
-      "features": ["owned-browser", "window-lifecycle"],
-      "criticality": "low",
-      "confidence": "smoke",
-      "ux": "command",
-      "notes": "Owned browser background navigation visibility."
     },
     {
       "spec": "updater-banner.spec.ts",
