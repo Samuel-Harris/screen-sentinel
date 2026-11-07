@@ -40,7 +40,6 @@ use crate::{
     },
     video_cache::FrameCache,
 };
-use dashmap::DashMap;
 use lru::LruCache;
 use moka::future::Cache as MokaCache;
 use std::{
@@ -107,23 +106,15 @@ pub struct AppState {
     pub ws_connection_count: Arc<AtomicUsize>,
     /// LRU cache for search results (10x faster for repeated queries)
     pub search_cache: SearchCache,
-    /// Limits concurrent pipe DB queries to prevent pipes from starving recording.
-    /// When all permits are taken, pipe requests get 503 instead of queueing.
-    pub pipe_query_semaphore: Arc<tokio::sync::Semaphore>,
     /// Enable PII removal from text content
     pub use_pii_removal: bool,
     /// Video quality preset for frame extraction (JPEG quality).
     pub video_quality: String,
-    /// Pipe manager for scheduled agent execution
-    pub pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     /// Vision pipeline metrics (shared across all monitors)
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
     /// Limits concurrent ffmpeg frame extractions to prevent CPU thrashing
     /// when many thumbnails are requested in parallel (e.g., search results).
     pub frame_extraction_semaphore: Arc<tokio::sync::Semaphore>,
-    /// Active pipe permission tokens — maps token string to resolved permissions.
-    pub pipe_permissions:
-        Arc<DashMap<String, Arc<screenpipe_core::pipes::permissions::PipePermissions>>>,
     /// Hot frame cache — in-memory cache for today's frames.
     /// Timeline WS reads from here instead of polling the DB.
     pub hot_frame_cache: Arc<HotFrameCache>,
@@ -131,22 +122,10 @@ pub struct AppState {
     pub retention_state: crate::retention::RetentionState,
     /// Vault lock manager — encrypts data at rest when locked
     pub vault: screenpipe_vault::VaultManager,
-    /// Browser extension bridge — relays JS eval requests to the connected extension
-    pub browser_bridge: Arc<crate::routes::browser::BrowserBridge>,
-    /// Registry of every browser the agent can drive — user's real browser via
-    /// the extension, the app-managed owned webview, future remote-CDP backends.
-    /// `GET /connections/browsers` lists what's here.
-    pub browser_registry: Arc<screenpipe_connect::connections::browser::BrowserRegistry>,
-    /// The owned-browser instance (Tauri-managed webview) registered into
-    /// `browser_registry`. Held separately so the desktop shell can attach a
-    /// transport handle after the engine has started.
-    pub owned_browser: Arc<screenpipe_connect::connections::browser::OwnedBrowser>,
     /// When true, non-localhost requests require Authorization: Bearer <api_key>
     pub api_auth: bool,
     /// The API key to validate against (from SCREENPIPE_API_KEY or auth.json)
     pub api_auth_key: Option<String>,
-    /// Unified credential store for OAuth tokens, API keys, etc.
-    pub secret_store: Option<Arc<screenpipe_secrets::SecretStore>>,
     /// Runtime control for the high-FPS screen-capture override. Shared
     /// with each per-monitor capture loop so HTTP toggles propagate
     /// without a restart. `None` only when the engine was started in a
@@ -162,31 +141,15 @@ pub struct SCServer {
     vision_disabled: bool,
     use_pii_removal: bool,
     video_quality: String,
-    pipe_manager: Option<crate::pipes_api::SharedPipeManager>,
     pub vision_metrics: Arc<screenpipe_screen::PipelineMetrics>,
     /// Shared hot frame cache — set this before starting the server so AppState uses it.
     pub hot_frame_cache: Option<Arc<HotFrameCache>>,
     /// Power manager handle — set this before starting to enable /power endpoints.
     pub power_manager: Option<Arc<crate::power::PowerManagerHandle>>,
-    /// Shared pipe permission token registry — set before starting so PipeManager can use it.
-    pub pipe_permissions:
-        Arc<DashMap<String, Arc<screenpipe_core::pipes::permissions::PipePermissions>>>,
-    /// Owned browser instance — set by the desktop shell so it can attach an
-    /// OwnedWebviewHandle once the Tauri WebviewWindow is created. If unset,
-    /// the engine creates a default unattached instance and owned-browser
-    /// requests return 503 until a handle is wired up.
-    pub owned_browser: Option<Arc<screenpipe_connect::connections::browser::OwnedBrowser>>,
     /// Require auth for remote API access
     pub api_auth: bool,
     /// API key for remote auth validation
     pub api_auth_key: Option<String>,
-    /// Unified credential store for OAuth tokens, API keys, etc.
-    pub secret_store: Option<Arc<screenpipe_secrets::SecretStore>>,
-    /// Background OAuth refresh scheduler. Owned here so its JoinHandle
-    /// isn't dropped (which would cancel the task) and so future
-    /// observability endpoints can call `.snapshot()` to inspect metrics.
-    pub oauth_refresher:
-        Option<Arc<screenpipe_connect::oauth_refresh_scheduler::OAuthRefreshScheduler>>,
     /// Shared high-FPS controller. Set before `start()` so AppState and
     /// the per-monitor capture loops point at the same instance.
     pub high_fps_controller: Option<Arc<crate::high_fps_controller::HighFpsController>>,
@@ -194,14 +157,6 @@ pub struct SCServer {
     /// warming the hot frame cache from the DB at startup (the cache is only
     /// read by the timeline streaming endpoint). Set before `start()`.
     pub timeline_disabled: bool,
-    /// Advertise this instance over mDNS. Disabled for loopback-only binds
-    /// because LAN clients cannot reach those addresses and Windows may show a
-    /// firewall prompt for an otherwise local-only CLI run.
-    pub advertise_mdns: bool,
-}
-
-fn should_advertise_mdns(addr: SocketAddr) -> bool {
-    !addr.ip().is_loopback()
 }
 
 impl SCServer {
@@ -221,19 +176,13 @@ impl SCServer {
             vision_disabled,
             use_pii_removal,
             video_quality,
-            pipe_manager: None,
             vision_metrics: Arc::new(screenpipe_screen::PipelineMetrics::new()),
             hot_frame_cache: None,
             power_manager: None,
-            pipe_permissions: Arc::new(DashMap::new()),
-            owned_browser: None,
             api_auth: false,
             api_auth_key: None,
-            secret_store: None,
-            oauth_refresher: None,
             high_fps_controller: None,
             timeline_disabled: false,
-            advertise_mdns: should_advertise_mdns(addr),
         }
     }
 
@@ -247,12 +196,6 @@ impl SCServer {
         self
     }
 
-    /// Set the pipe manager
-    pub fn with_pipe_manager(mut self, pm: crate::pipes_api::SharedPipeManager) -> Self {
-        self.pipe_manager = Some(pm);
-        self
-    }
-
     pub async fn start(self) -> Result<(), std::io::Error> {
         // Create the OpenAPI server
         let app = self.create_router().await;
@@ -260,15 +203,6 @@ impl SCServer {
         // Create the listener (SO_REUSEADDR on Windows to avoid TIME_WAIT conflicts)
         let listener = bind_listener(self.addr).await?;
         info!("Server listening on {}", self.addr);
-
-        // Advertise via mDNS only when this server is reachable off-machine.
-        if self.advertise_mdns {
-            if let Err(e) = screenpipe_connect::mdns::advertise(self.addr.port()) {
-                tracing::warn!("mdns advertisement failed (non-fatal): {}", e);
-            }
-        } else {
-            debug!("mdns advertisement skipped for loopback-only server");
-        }
 
         // Start serving
         serve(
@@ -348,47 +282,18 @@ impl SCServer {
                 .build(),
             use_pii_removal: self.use_pii_removal,
             video_quality: self.video_quality.clone(),
-            pipe_manager: self.pipe_manager.clone(),
             vision_metrics: self.vision_metrics.clone(),
             // Allow up to 3 concurrent ffmpeg extractions. Beyond this, requests
             // queue rather than thrashing CPU with 15+ parallel ffmpeg processes
             // (typical when search results load all thumbnails at once).
             frame_extraction_semaphore: Arc::new(tokio::sync::Semaphore::new(3)),
-            // Limit pipe queries to 3 concurrent — protects recording from pipe overload.
-            // Pipes get 503 when all permits are taken; recording writes are unaffected.
-            pipe_query_semaphore: Arc::new(tokio::sync::Semaphore::new(3)),
             hot_frame_cache,
             retention_state: crate::retention::RetentionState::new(),
-            pipe_permissions: self.pipe_permissions.clone(),
             vault: screenpipe_vault::VaultManager::new(self.screenpipe_dir.clone()),
-            browser_bridge: crate::routes::browser::BrowserBridge::new(),
-            browser_registry: screenpipe_connect::connections::browser::BrowserRegistry::new(),
-            // Reuse the desktop-shell-supplied owned browser if present so its
-            // already-attached OwnedWebviewHandle survives. Otherwise fall back
-            // to a default unattached instance — useful for CLI / tests /
-            // headless deployments.
-            owned_browser: self.owned_browser.clone().unwrap_or_else(
-                screenpipe_connect::connections::browser::OwnedBrowser::default_instance,
-            ),
             api_auth: self.api_auth,
             api_auth_key: self.api_auth_key.clone(),
-            secret_store: self.secret_store.clone(),
             high_fps_controller: self.high_fps_controller.clone(),
         });
-
-        // Populate the registry so /connections/browsers shows both kinds
-        // immediately. The user-browser is wired to the existing bridge;
-        // the owned-browser is a stub until the desktop shell attaches its
-        // OwnedWebviewHandle.
-        {
-            use screenpipe_connect::connections::browser::UserBrowser;
-            let user = UserBrowser::default_instance(app_state.browser_bridge.clone());
-            app_state.browser_registry.register(user).await;
-            app_state
-                .browser_registry
-                .register(app_state.owned_browser.clone())
-                .await;
-        }
 
         // Restrict CORS to localhost origins (Tauri webview + local development).
         // Remote origins are blocked to prevent malicious websites from making
@@ -493,151 +398,6 @@ impl SCServer {
                 axum::routing::post(crate::routes::capture::update_hd_settings),
             );
 
-        // Pipe API routes (if pipe manager is available)
-        let router = if let Some(ref pm) = self.pipe_manager {
-            let pipe_routes = Router::new()
-                .route("/", axum::routing::get(crate::pipes_api::list_pipes))
-                .route(
-                    "/install",
-                    axum::routing::post(crate::pipes_api::install_pipe),
-                )
-                // Favorites — register before `/:id` so axum doesn't match
-                // "favorites" as a pipe id.
-                .route(
-                    "/favorites",
-                    axum::routing::get(crate::pipes_api::list_favorites),
-                )
-                .route("/:id", axum::routing::get(crate::pipes_api::get_pipe))
-                .route("/:id", axum::routing::delete(crate::pipes_api::delete_pipe))
-                .route(
-                    "/:id/enable",
-                    axum::routing::post(crate::pipes_api::enable_pipe),
-                )
-                .route(
-                    "/:id/favorite",
-                    axum::routing::post(crate::pipes_api::set_pipe_favorite),
-                )
-                .route(
-                    "/:id/run",
-                    axum::routing::post(crate::pipes_api::run_pipe_now),
-                )
-                .route(
-                    "/:id/logs",
-                    axum::routing::get(crate::pipes_api::get_pipe_logs),
-                )
-                .route(
-                    "/:id/config",
-                    axum::routing::post(crate::pipes_api::update_pipe_config),
-                )
-                .route(
-                    "/:id/stop",
-                    axum::routing::post(crate::pipes_api::stop_pipe),
-                )
-                .route(
-                    "/:id/executions",
-                    axum::routing::get(crate::pipes_api::get_pipe_executions),
-                )
-                .route(
-                    "/:id/history",
-                    axum::routing::delete(crate::pipes_api::clear_pipe_history),
-                )
-                .route(
-                    "/:id/session/:exec_id",
-                    axum::routing::get(crate::pipes_api::get_pipe_session),
-                )
-                // Store/registry routes (nested under /pipes/store)
-                .route(
-                    "/store",
-                    axum::routing::get(crate::routes::pipe_store::pipe_store_search),
-                )
-                .route(
-                    "/store/publish",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_publish),
-                )
-                .route(
-                    "/store/install",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_install),
-                )
-                .route(
-                    "/store/update",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_update),
-                )
-                .route(
-                    "/store/check-updates",
-                    axum::routing::get(crate::routes::pipe_store::pipe_store_check_updates),
-                )
-                .route(
-                    "/store/auto-update",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_auto_update),
-                )
-                .route(
-                    "/store/:slug",
-                    axum::routing::get(crate::routes::pipe_store::pipe_store_detail)
-                        .delete(crate::routes::pipe_store::pipe_store_unpublish),
-                )
-                .route(
-                    "/store/:slug/review",
-                    axum::routing::post(crate::routes::pipe_store::pipe_store_review),
-                )
-                .with_state(pm.clone());
-            // Inject SecretStore as an Extension so pipe handlers can access it
-            let pipe_routes = if let Some(ref ss) = self.secret_store {
-                pipe_routes.layer(axum::Extension(ss.clone()))
-            } else {
-                pipe_routes
-            };
-            router.nest("/pipes", pipe_routes)
-        } else {
-            router
-        };
-
-        // Connections routes (pipe-facing integrations: Telegram, Slack, etc.)
-        let cm: crate::connections_api::SharedConnectionManager = Arc::new(Mutex::new(
-            screenpipe_connect::connections::ConnectionManager::new(
-                self.screenpipe_dir.clone(),
-                self.secret_store.clone(),
-            ),
-        ));
-        let wa: crate::connections_api::SharedWhatsAppGateway = Arc::new(Mutex::new(
-            screenpipe_connect::whatsapp::WhatsAppGateway::new(self.screenpipe_dir.clone()),
-        ));
-
-        // Auto-reconnect WhatsApp if a previous session exists on disk.
-        // We pass an empty hint so `start_pairing` runs its full resolver
-        // (bundled sidecar → install dirs → PATH).
-        {
-            let wa_lock = wa.lock().await;
-            if wa_lock.has_session() {
-                tracing::info!("whatsapp: found existing session, auto-reconnecting...");
-                if let Err(e) = wa_lock.start_pairing("").await {
-                    tracing::warn!("whatsapp: auto-reconnect failed: {:?}", e);
-                }
-            }
-        }
-
-        let router = router.nest(
-            "/connections",
-            crate::connections_api::router(
-                cm,
-                wa,
-                self.screenpipe_dir.clone(),
-                self.secret_store.clone(),
-                app_state.browser_bridge.clone(),
-                app_state.browser_registry.clone(),
-                self.api_auth_key.clone(),
-            ),
-        );
-
-        // User-supplied MCP servers (issue #3282).
-        // Mounted at the top level so /mcp-servers/:id doesn't shadow
-        // /connections/:id and vice versa.
-        let mcp_store: crate::mcp_servers_api::SharedMcpServerStore =
-            Arc::new(screenpipe_connect::mcp_servers::McpServerStore::new(
-                self.screenpipe_dir.clone(),
-                self.secret_store.clone(),
-            ));
-        let router = router.nest("/mcp-servers", crate::mcp_servers_api::router(mcp_store));
-
         // Power management routes (if power manager is available)
         let router = if let Some(ref pm) = self.power_manager {
             let power_routes = Router::new()
@@ -658,50 +418,7 @@ impl SCServer {
             .route("/ws/events", get(ws_events_handler))
             .route("/ws/health", get(ws_health_handler))
             .route("/ws/metrics", get(ws_metrics_handler))
-            // Browser extension bridge — DEPRECATED top-level paths.
-            // Canonical paths now live under /connections/browser/* (see connections_api.rs).
-            // These aliases stay in place because deployed Chrome extensions hardcode
-            // /browser/ws (packages/browser-extension/src/config.ts). Remove only after
-            // a coordinated extension update has shipped to all users.
-            .route(
-                "/browser/ws",
-                get({
-                    let bridge = app_state.browser_bridge.clone();
-                    move |ws| {
-                        crate::routes::browser::browser_ws_handler(ws, axum::extract::State(bridge))
-                    }
-                }),
-            )
-            .route(
-                "/browser/eval",
-                axum::routing::post({
-                    let bridge = app_state.browser_bridge.clone();
-                    move |body| {
-                        crate::routes::browser::browser_eval_handler(
-                            axum::extract::State(bridge),
-                            body,
-                        )
-                    }
-                }),
-            )
-            .route(
-                "/browser/status",
-                get({
-                    let bridge = app_state.browser_bridge.clone();
-                    move || {
-                        crate::routes::browser::browser_status_handler(axum::extract::State(bridge))
-                    }
-                }),
-            )
             .with_state(app_state.clone())
-            .layer(axum::middleware::from_fn_with_state(
-                app_state.clone(),
-                crate::pipe_permissions_middleware::pipe_backpressure_layer,
-            ))
-            .layer(axum::middleware::from_fn_with_state(
-                app_state.clone(),
-                crate::pipe_permissions_middleware::pipe_permissions_layer,
-            ))
             .layer(axum::middleware::from_fn_with_state(
                 app_state.clone(),
                 crate::routes::vault::vault_lock_middleware,
@@ -729,25 +446,10 @@ impl SCServer {
                             // Allow specific endpoints without auth:
                             // - /health: device monitor, tray status, startup polling
                             //   (called before frontend loads API key via IPC)
-                            // - /connections/oauth/callback and
-                            //   /mcp-servers/:id/oauth/callback: browser redirect from
-                            //   OAuth providers (no bearer token in redirect)
-                            // - /pipes/store/*: onboarding can fire pipe install before
-                            //   the frontend's IPC key-fetch completes on cold start /
-                            //   reinstall. Install/list/detail/update proxy the public
-                            //   registry; publish/unpublish/review enforce their own
-                            //   Bearer check inside the handler (see pipe_store.rs).
                             let path = req.uri().path();
                             if path == "/health"
                                 || path == "/ws/health"
-                                || path == "/connections/oauth/callback"
-                                || (path.starts_with("/mcp-servers/")
-                                    && path.ends_with("/oauth/callback"))
-                                || path == "/connections/browser/pair/start"
-                                || path == "/connections/browser/pair/status"
                                 || path.starts_with("/frames/")
-                                || path == "/notify"
-                                || path.starts_with("/pipes/store")
                             {
                                 return next.run(req).await;
                             }
@@ -828,35 +530,5 @@ impl SCServer {
             })
             .layer(cors)
             .layer(TraceLayer::new_for_http().make_span_with(DefaultMakeSpan::default()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::should_advertise_mdns;
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-
-    #[test]
-    fn mdns_advertising_skips_loopback_binds() {
-        assert!(!should_advertise_mdns(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::LOCALHOST),
-            3030,
-        )));
-        assert!(!should_advertise_mdns(SocketAddr::new(
-            IpAddr::V6(Ipv6Addr::LOCALHOST),
-            3030,
-        )));
-    }
-
-    #[test]
-    fn mdns_advertising_runs_for_lan_binds() {
-        assert!(should_advertise_mdns(SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            3030,
-        )));
-        assert!(should_advertise_mdns(SocketAddr::new(
-            IpAddr::V6(Ipv6Addr::UNSPECIFIED),
-            3030,
-        )));
     }
 }

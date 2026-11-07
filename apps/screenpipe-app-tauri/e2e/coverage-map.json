@@ -63,12 +63,6 @@
       "layers": ["window-lifecycle"]
     },
     {
-      "id": "pipes",
-      "label": "Pipes discover, install, and play",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["pipes"]
-    },
-    {
       "id": "chat",
       "label": "Chat window, composer, and streaming state",
       "platforms": ["windows", "macos", "linux"],
@@ -104,7 +98,7 @@
       "spec": "api.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["local-api"],
-      "features": ["health", "connections", "local-api-auth"],
+      "features": ["health", "local-api-auth"],
       "criticality": "high",
       "confidence": "partial",
       "ux": "api",
@@ -274,7 +268,7 @@
       "spec": "home-window.spec.ts",
       "platforms": ["windows", "macos", "linux"],
       "layers": ["real-ui-e2e", "window-lifecycle"],
-      "features": ["app-launch", "home-navigation", "timeline", "settings-recording", "pipes"],
+      "features": ["app-launch", "home-navigation", "timeline", "settings-recording"],
       "criticality": "high",
       "confidence": "strong",
       "ux": "real-user-flow",
@@ -359,16 +353,6 @@
       "confidence": "conditional",
       "ux": "real-user-flow",
       "notes": "macOS-only recovery window for missing TCC permissions."
-    },
-    {
-      "spec": "pipes.spec.ts",
-      "platforms": ["windows", "macos", "linux"],
-      "layers": ["pipes", "real-ui-e2e", "local-api"],
-      "features": ["pipes"],
-      "criticality": "high",
-      "confidence": "strong",
-      "ux": "real-user-flow",
-      "notes": "Pipes discover, install failure, connection modal, install, list, and play."
     },
     {
       "spec": "privacy-api-auth.spec.ts",

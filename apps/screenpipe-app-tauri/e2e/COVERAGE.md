@@ -6,9 +6,9 @@ and layer declared in the manifest, weighted by confidence and criticality.
 
 - Manifest: `e2e/coverage-map.json`
 - Specs directory: `e2e/specs`
-- Mapped specs: 43
-- Declared test blocks: 144
-- Weighted coverage points: 113.0
+- Mapped specs: 42
+- Declared test blocks: 134
+- Weighted coverage points: 103.6
 
 Confidence weights: strong=1.0, partial=0.7, conditional=0.4, smoke=0.3.
 Criticality weights: high=1.0, medium=0.7, low=0.4.
@@ -19,9 +19,9 @@ can execute more runtime cases than this number shows.
 
 | Platform | Specs | Declared tests | Weighted points | Layers | Features | Critical score |
 | --- | --- | --- | --- | --- | --- | --- |
-| windows | 37 | 134 | 109.9 | 15 | 45 | 91% |
-| macos | 40 | 110 | 85.6 | 14 | 45 | 91% |
-| linux | 31 | 99 | 82.3 | 13 | 40 | 91% |
+| windows | 36 | 124 | 100.5 | 14 | 43 | 90% |
+| macos | 39 | 100 | 76.2 | 13 | 43 | 90% |
+| linux | 30 | 89 | 72.9 | 12 | 38 | 90% |
 
 ## Runtime Results
 
@@ -37,13 +37,12 @@ pass/fail/skip counts.
 | billing | 1 specs / 1 tests / 1.0 pts | 1 specs / 1 tests / 1.0 pts | 1 specs / 1 tests / 1.0 pts |
 | capture-ocr | 2 specs / 13 tests / 5.2 pts | 2 specs / 3 tests / 1.2 pts | 1 specs / 2 tests / 0.8 pts |
 | chat-ai | 7 specs / 7 tests / 3.9 pts | 9 specs / 10 tests / 4.8 pts | 7 specs / 7 tests / 3.9 pts |
-| local-api | 9 specs / 72 tests / 60.4 pts | 8 specs / 47 tests / 41.4 pts | 7 specs / 46 tests / 41.0 pts |
+| local-api | 8 specs / 62 tests / 51.0 pts | 7 specs / 37 tests / 32.0 pts | 6 specs / 36 tests / 31.6 pts |
 | notifications | 2 specs / 11 tests / 10.1 pts | 1 specs / 3 tests / 2.1 pts | 1 specs / 3 tests / 2.1 pts |
 | onboarding | 1 specs / 3 tests / 1.2 pts | 1 specs / 3 tests / 1.2 pts | 1 specs / 3 tests / 1.2 pts |
 | os-integration | 3 specs / 16 tests / 15.1 pts | 3 specs / 3 tests / 0.9 pts | - |
 | performance | 2 specs / 41 tests / 41.0 pts | 4 specs / 31 tests / 27.5 pts | 1 specs / 26 tests / 26.0 pts |
-| pipes | 1 specs / 8 tests / 8.0 pts | 1 specs / 8 tests / 8.0 pts | 1 specs / 8 tests / 8.0 pts |
-| real-ui-e2e | 19 specs / 68 tests / 55.8 pts | 20 specs / 55 tests / 45.3 pts | 16 specs / 49 tests / 43.4 pts |
+| real-ui-e2e | 18 specs / 60 tests / 47.8 pts | 19 specs / 47 tests / 37.3 pts | 15 specs / 41 tests / 35.4 pts |
 | settings | 7 specs / 21 tests / 20.1 pts | 6 specs / 13 tests / 12.1 pts | 6 specs / 13 tests / 12.1 pts |
 | storage-privacy | 6 specs / 19 tests / 18.1 pts | 5 specs / 11 tests / 10.1 pts | 4 specs / 11 tests / 10.1 pts |
 | tauri-command | 8 specs / 17 tests / 10.3 pts | 9 specs / 19 tests / 10.8 pts | 8 specs / 17 tests / 10.3 pts |
@@ -57,13 +56,12 @@ pass/fail/skip counts.
 | Home to floating Search | real-ui-e2e | covered (strong; windows-user-journey, tray-search) | covered (partial; tray-search) | covered (partial; tray-search) |
 | Timeline navigation and frames | real-ui-e2e | covered (strong; windows-user-journey, windows-core-recording) | covered (strong; home-window, timeline) | covered (strong; home-window, timeline) |
 | Real capture, OCR, and indexing | capture-ocr | weak (conditional; windows-core-recording, timeline) | weak (conditional; timeline, hd-recording-pipeline) | weak (conditional; timeline) |
-| Local API auth enforcement | local-api | covered (strong; api-search-stress, windows-system-integration) | covered (strong; api-search-stress, api) | covered (strong; api-search-stress, api) |
+| Local API auth enforcement | local-api | covered (strong; api-search-stress, windows-system-integration) | covered (strong; api-search-stress, api-key-cold-spawn) | covered (strong; api-search-stress, api-key-cold-spawn) |
 | Local API search stability | local-api | covered (strong; api-search-stress, windows-core-recording) | covered (strong; api-search-stress) | covered (strong; api-search-stress) |
 | Recording settings UX | settings | covered (strong; settings-sections, windows-user-journey) | covered (strong; settings-sections) | covered (strong; settings-sections) |
 | Privacy API auth settings UX | settings | covered (strong; settings-sections, windows-user-journey) | covered (strong; settings-sections, privacy-api-auth) | covered (strong; settings-sections, privacy-api-auth) |
 | Notification history and viewer paths | notifications | covered (strong; windows-user-journey, notification-viewer-link) | covered (partial; notification-viewer-link) | covered (partial; notification-viewer-link) |
 | Window lifecycle, focus, and dedupe | window-lifecycle | covered (strong; windows-system-integration, window-lifecycle) | covered (strong; window-lifecycle, viewer-deeplink) | covered (strong; window-lifecycle, viewer-deeplink) |
-| Pipes discover, install, and play | pipes | covered (strong; pipes) | covered (strong; pipes) | covered (strong; pipes) |
 | Chat window, composer, and streaming state | chat-ai | covered (strong; chat-window, chat-composer-isolation) | covered (strong; chat-window, chat-streaming-performance) | covered (strong; chat-window, chat-composer-isolation) |
 | Tray/search window behavior | window-lifecycle | covered (strong; window-lifecycle, tray-search) | covered (strong; window-lifecycle, tray-search) | covered (strong; window-lifecycle, tray-search) |
 | Storage retention safety UX | storage-privacy | covered (strong; settings-sections, windows-user-journey) | covered (strong; settings-sections) | covered (strong; settings-sections) |
@@ -90,7 +88,7 @@ pass/fail/skip counts.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | api-key-cold-spawn.spec.ts | windows, macos, linux | local-api, tauri-command | local-api-auth, app-launch | medium | partial | command | 3 | Cold-spawn local API config regression coverage. |
 | api-search-stress.spec.ts | windows, macos, linux | local-api, performance | local-api-auth, local-api-search, health, local-api-load | high | strong | api | 26 | Broad readonly API, auth, search, and load coverage. |
-| api.spec.ts | windows, macos, linux | local-api | health, connections, local-api-auth | high | partial | api | 3 | Smoke coverage for local HTTP API shape and auth behavior. |
+| api.spec.ts | windows, macos, linux | local-api | health, local-api-auth | high | partial | api | 1 | Smoke coverage for local HTTP API shape and auth behavior. |
 | app-lifecycle.spec.ts | windows, macos, linux | real-ui-e2e, window-lifecycle | app-launch, home-navigation, webview-stability, route-churn, browser-storage | high | strong | mixed | 14 | Home webview, routing, reload, focus, resize, and storage stability. |
 | chat-composer-isolation.spec.ts | windows, macos, linux | chat-ai, real-ui-e2e | chat, chat-drafts | medium | partial | mixed | 1 | Composer draft isolation across conversations. |
 | chat-newchat-duplicate.spec.ts | windows, macos, linux | chat-ai | chat, chat-sidebar-dedupe | medium | partial | synthetic | 1 | Synthetic chat event regression for duplicate sidebar rows. |
@@ -104,7 +102,7 @@ pass/fail/skip counts.
 | focus-server.spec.ts | windows, macos, linux | local-api, window-lifecycle, tauri-command | window-lifecycle, focus-server, deeplink | medium | partial | api | 2 | Focus server opens windows and forwards deeplink args. |
 | hd-recording-pipeline.spec.ts | macos | capture-ocr, local-api, performance | capture-ocr, hd-recording, timeline | high | conditional | api | 1 | Opt-in macOS HD capture and OCR indexing. |
 | help-discord-link.spec.ts | windows, macos, linux | real-ui-e2e | help | low | smoke | real-user-flow | 1 | Help section Discord invite link. |
-| home-window.spec.ts | windows, macos, linux | real-ui-e2e, window-lifecycle | app-launch, home-navigation, timeline, settings-recording, pipes | high | strong | real-user-flow | 1 | Clicks through Home, Pipes, Timeline, Help, and Settings. |
+| home-window.spec.ts | windows, macos, linux | real-ui-e2e, window-lifecycle | app-launch, home-navigation, timeline, settings-recording | high | strong | real-user-flow | 1 | Clicks through Home, Pipes, Timeline, Help, and Settings. |
 | macos-ui-performance.spec.ts | macos | performance, real-ui-e2e | timeline, audio-device-health | medium | conditional | performance | 2 | macOS-only timeline/audio UI performance guards. |
 | main-overlay-visibility.spec.ts | windows, macos, linux | window-lifecycle, tauri-command | window-lifecycle, main-overlay | medium | partial | command | 1 | Main overlay show/hide without duplicate handles. |
 | main-window-close-reopen.spec.ts | windows, macos, linux | window-lifecycle, tauri-command | window-lifecycle, main-window | medium | partial | command | 1 | Main close/reopen without handle leaks. |
@@ -113,7 +111,6 @@ pass/fail/skip counts.
 | onboarding-redirect.spec.ts | windows, macos, linux | onboarding, real-ui-e2e, window-lifecycle | onboarding, app-launch | high | conditional | real-user-flow | 3 | Opt-in no-onboarding seed verifies onboarding redirect. |
 | owned-browser.spec.ts | windows, macos | os-integration, window-lifecycle | owned-browser, window-lifecycle | low | smoke | command | 1 | Embedded agent browser hides safely without an attached child. |
 | permission-recovery.spec.ts | macos | os-integration, real-ui-e2e, window-lifecycle | permission-recovery, window-lifecycle | high | conditional | real-user-flow | 2 | macOS-only recovery window for missing TCC permissions. |
-| pipes.spec.ts | windows, macos, linux | pipes, real-ui-e2e, local-api | pipes | high | strong | real-user-flow | 8 | Pipes discover, install failure, connection modal, install, list, and play. |
 | privacy-api-auth-enforcement.spec.ts | windows, macos, linux | settings, local-api, storage-privacy | settings-privacy-api-auth, local-api-auth, restart-flow | high | conditional | mixed | 1 | Opt-in restart smoke toggles API auth and verifies backend behavior. |
 | privacy-api-auth.spec.ts | windows, macos, linux | settings, storage-privacy, real-ui-e2e | settings-privacy-api-auth, local-api-auth | high | strong | real-user-flow | 1 | Privacy settings reveal/copy local API key flow. |
 | privacy-installed-apps.spec.ts | windows, macos, linux | settings, storage-privacy, real-ui-e2e | settings-privacy-filters, installed-apps | medium | strong | real-user-flow | 1 | Privacy content filters surface installed-but-not-captured apps as typeable options with the not-captured hint (fetch-intercepted /installed-apps for determinism). |

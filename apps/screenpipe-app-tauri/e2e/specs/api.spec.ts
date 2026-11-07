@@ -12,9 +12,6 @@
  *     ping the tray + permission monitor + cold-start poll already use.
  *   - get_local_api_config IPC — resolves the in-memory bearer key the
  *     server core holds; needed for any authed call.
- *   - GET /connections        — authed; list of available integrations.
- *     Returns a JSON array regardless of which connections the user has
- *     configured (≥0 entries).
  *
  * If the server early-returned at the permission gate, /health would
  * never respond and this spec would fail at the first request — which is
@@ -89,7 +86,6 @@ describe("Local HTTP API", function () {
   this.timeout(120_000);
 
   let port = 3030;
-  let key: string | null = null;
 
   before(async () => {
     await waitForAppReady();
@@ -121,7 +117,6 @@ describe("Local HTTP API", function () {
 
     const cfg = await getLocalApiConfig();
     port = cfg.port;
-    key = cfg.key;
   });
 
   it("GET /health — unauthed, returns shape", async () => {
@@ -131,40 +126,5 @@ describe("Local HTTP API", function () {
     // Health payload always includes a top-level `status` string. Don't
     // assert exact value — startup races can briefly report "warning".
     expect(res.body).toHaveProperty("status");
-  });
-
-  it("GET /connections — authed, returns 2xx with an array body", async function () {
-    if (!key) {
-      // api_auth defaults TRUE — if this is null the server didn't seed a
-      // key, which is itself a bug worth surfacing. Skip cleanly so the
-      // failure attributes correctly to a separate spec.
-      this.skip();
-    }
-    const res = await fetchJson(`http://127.0.0.1:${port}/connections`, {
-      Authorization: `Bearer ${key}`,
-    });
-    if (!res.ok) {
-      // Surface server response in the failure message so CI logs don't
-      // require a separate `app` log dump to attribute the regression.
-      throw new Error(
-        `/connections authed failed status=${res.status} body=${JSON.stringify(res.body).slice(0, 200)} err=${res.error ?? ""}`,
-      );
-    }
-    // Server wraps the array under `data` — connections_api.rs:
-    // `Json(json!({ "data": data }))`.
-    const body = res.body as { data?: unknown };
-    expect(body).toHaveProperty("data");
-    expect(Array.isArray(body.data)).toBe(true);
-  });
-
-  it("rejects unauthed /connections with a 4xx when api_auth is on", async function () {
-    if (!key) this.skip();
-    const res = await fetchJson(`http://127.0.0.1:${port}/connections`);
-    // Auth middleware can return 401 (missing token) or 403 (bad token);
-    // both are correct rejections. Anything outside the 4xx range is the
-    // real regression we'd want to flag.
-    expect(res.ok).toBe(false);
-    expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.status).toBeLessThan(500);
   });
 });

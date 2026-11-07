@@ -12,14 +12,12 @@ use clap::{CommandFactory, FromArgMatches};
 use colored::Colorize;
 use futures::pin_mut;
 use port_check::is_local_ipv4_port_free;
-use screenpipe_core::agents::AgentExecutor;
 use screenpipe_core::find_ffmpeg_path;
 use screenpipe_core::paths;
 use screenpipe_db::DatabaseManager;
 use screenpipe_engine::{
     cli::{
         mcp::handle_mcp_command,
-        pipe::handle_pipe_command,
         search::handle_search_command,
         status::handle_status_command,
         vision::handle_vision_command,
@@ -257,10 +255,6 @@ async fn main() -> anyhow::Result<()> {
             handle_search_command(args).await?;
             return Ok(());
         }
-        Command::Pipe { ref subcommand } => {
-            handle_pipe_command(subcommand).await?;
-            return Ok(());
-        }
         Command::Vision { ref subcommand } => {
             handle_vision_command(subcommand).await?;
             return Ok(());
@@ -270,31 +264,8 @@ async fn main() -> anyhow::Result<()> {
             handle_mcp_command(subcommand, &local_data_dir).await?;
             return Ok(());
         }
-        Command::Connection { ref subcommand } => {
-            screenpipe_engine::cli::connection::handle_connection_command(subcommand).await?;
-            return Ok(());
-        }
         Command::Vault { ref subcommand } => {
             screenpipe_engine::cli::vault::handle_vault_command(subcommand).await?;
-            return Ok(());
-        }
-        Command::Install {
-            ref url,
-            allow_untrusted,
-        } => {
-            screenpipe_engine::cli::install::handle_install(url, allow_untrusted).await?;
-            return Ok(());
-        }
-        Command::Login => {
-            screenpipe_engine::cli::login::handle_login_command().await?;
-            return Ok(());
-        }
-        Command::Logout => {
-            screenpipe_engine::cli::login::handle_logout_command().await?;
-            return Ok(());
-        }
-        Command::Whoami => {
-            screenpipe_engine::cli::login::handle_whoami_command().await?;
             return Ok(());
         }
         Command::Survey => {
@@ -371,10 +342,6 @@ async fn main() -> anyhow::Result<()> {
         .clone()
         .into_recording_config(local_data_dir.clone(), &record_arg_sources)
         .await?;
-
-    // mDNS LAN discovery is opt-in (off by default) so we don't trigger the
-    // macOS "Local Network" permission prompt unless the user wants it.
-    screenpipe_connect::mdns::set_enabled(record_args.enable_mdns);
 
     // Store the guard in a variable that lives for the entire main function
     let _log_guard = Some(setup_logging(&local_data_dir, record_args.debug)?);
@@ -641,7 +608,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Build the shared high-FPS controller once. Same instance feeds the
     // VisionManager (so each capture loop reacts on the next tick) and the
-    // SCServer (so HTTP toggles, the tray menu, and pipes can all hit it
+    // SCServer (so HTTP toggles and the tray menu can hit it
     // without an engine restart). Seed the interval from the persisted
     // RecordingSettings.
     let high_fps_controller = Arc::new(HighFpsController::new(config.hd_recording_interval_ms));
@@ -809,8 +776,6 @@ async fn main() -> anyhow::Result<()> {
                     }
                     Err(e) => warn!("legacy secret migration failed: {}", e),
                 }
-
-                server.secret_store = Some(Arc::new(store));
             }
             Err(e) => {
                 warn!("failed to initialize secret store: {}", e);
@@ -818,15 +783,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // Initialize pipe manager
-    let pipes_dir = local_data_dir.join("pipes");
-    std::fs::create_dir_all(&pipes_dir).ok();
-
     let user_token = std::env::var("SCREENPIPE_API_KEY").ok();
-    let pi_executor = std::sync::Arc::new(
-        screenpipe_core::agents::pi::PiExecutor::new(user_token.clone())
-            .with_api_auth_key(config.api_auth_key.clone()),
-    );
 
     // Workflow event classifier — opt-in cloud feature. Polls recent activity
     // and emits `WorkflowEvent`s on the bus so pipes with `trigger.events`
@@ -850,82 +807,7 @@ async fn main() -> anyhow::Result<()> {
         });
     }
 
-    let mut agent_executors: std::collections::HashMap<
-        String,
-        std::sync::Arc<dyn screenpipe_core::agents::AgentExecutor>,
-    > = std::collections::HashMap::new();
-    agent_executors.insert("pi".to_string(), pi_executor.clone());
-
-    // Create pipe store backed by the main SQLite DB
-    let pipe_store: Option<std::sync::Arc<dyn screenpipe_core::pipes::PipeStore>> =
-        Some(std::sync::Arc::new(
-            screenpipe_engine::pipe_store::SqlitePipeStore::new(db.clone()),
-        ));
-
-    let mut pipe_manager = screenpipe_core::pipes::PipeManager::new(
-        pipes_dir,
-        agent_executors,
-        pipe_store,
-        config.port,
-    );
-    // Wire pipe permission token registry (bridges PipeManager ↔ server middleware)
-    pipe_manager.set_token_registry(std::sync::Arc::new(
-        screenpipe_engine::pipe_permissions_middleware::DashMapTokenRegistry::new(
-            server.pipe_permissions.clone(),
-        ),
-    ));
-    // Gate scheduled pipe runs on connection readiness — same predicate the
-    // manual /pipes/:id/run endpoint uses (pipes_api.rs). Avoids running
-    // pipes that are still in "setup mode" (declared connections not paired).
-    {
-        let secret_store_for_check = server.secret_store.clone();
-        let screenpipe_dir_for_check = local_data_dir.clone();
-        pipe_manager.set_connection_check(std::sync::Arc::new(move |required| {
-            let ss = secret_store_for_check.clone();
-            let dir = screenpipe_dir_for_check.clone();
-            Box::pin(async move {
-                let mut missing = Vec::new();
-                for conn_id in required {
-                    let configured = screenpipe_connect::connections::load_connection(
-                        ss.as_deref(),
-                        &dir,
-                        &conn_id,
-                    )
-                    .await
-                    .map(|c| c.enabled && !c.credentials.is_empty())
-                    .unwrap_or(false);
-                    if !configured {
-                        missing.push(conn_id);
-                    }
-                }
-                missing
-            })
-        }));
-    }
-    // Inject local API key so pipe subprocesses can authenticate to localhost
-    if config.api_auth {
-        pipe_manager.set_local_api_key(config.api_auth_key.clone());
-    }
-    pipe_manager.install_builtin_pipes().ok();
-    if let Err(e) = pipe_manager.load_pipes().await {
-        tracing::warn!("failed to load pipes: {}", e);
-    }
-    // Mark any executions left 'running' from a previous crash as failed
-    pipe_manager.startup_recovery().await;
-    if let Err(e) = pipe_manager.start_scheduler().await {
-        tracing::warn!("failed to start pipe scheduler: {}", e);
-    }
-    let shared_pipe_manager = std::sync::Arc::new(tokio::sync::Mutex::new(pipe_manager));
-    let server = server
-        .with_pipe_manager(shared_pipe_manager.clone())
-        .with_high_fps_controller(high_fps_controller.clone());
-
-    // Install pi agent in background
-    tokio::spawn(async move {
-        if let Err(e) = pi_executor.ensure_installed().await {
-            tracing::warn!("pi agent install failed: {}", e);
-        }
-    });
+    let server = server.with_high_fps_controller(high_fps_controller.clone());
 
     // print screenpipe in gradient
     println!("\n\n{}", DISPLAY.truecolor(147, 112, 219).bold());
