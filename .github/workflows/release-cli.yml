@@ -130,14 +130,6 @@ jobs:
             cargo build --release -p screenpipe-engine --bin screenpipe --features metal,redact-onnx-coreml --target ${{ matrix.target }}
           fi
 
-      - name: Upload debug symbols to Sentry
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: mediar
-        run: |
-          curl -sL https://sentry.io/get-cli/ | bash
-          sentry-cli debug-files upload --org $SENTRY_ORG --project screenpipe-cli target/${{ matrix.target }}/release/
-
       - name: Codesign binary
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -348,15 +340,6 @@ jobs:
         run: |
           cargo build --release -p screenpipe-engine --bin screenpipe --features directml,redact-onnx-directml --target x86_64-pc-windows-msvc
 
-      - name: Upload debug symbols to Sentry
-        shell: powershell
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: mediar
-        run: |
-          Invoke-WebRequest -Uri "https://release-registry.services.sentry.io/apps/sentry-cli/latest?response=download&arch=x86_64&platform=Windows&package=sentry-cli" -OutFile sentry-cli.exe
-          .\sentry-cli.exe debug-files upload --org $env:SENTRY_ORG --project screenpipe-cli target/x86_64-pc-windows-msvc/release/
-
       - name: Install CodeSignTool for SSL.com EV signing (Windows)
         shell: powershell
         run: |
@@ -544,14 +527,6 @@ jobs:
       - name: Build CLI
         run: |
           cargo build --release -p screenpipe-engine --bin screenpipe --features redact-onnx-cpu --target ${{ matrix.target }}
-
-      - name: Upload debug symbols to Sentry
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: mediar
-        run: |
-          curl -sL https://sentry.io/get-cli/ | bash
-          sentry-cli debug-files upload --org $SENTRY_ORG --project screenpipe-cli target/${{ matrix.target }}/release/
 
       - name: Set version
         run: |

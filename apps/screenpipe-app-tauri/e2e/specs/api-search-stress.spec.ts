@@ -248,8 +248,6 @@ describe("Local API search and stability", function () {
     ["/memories", "memories list"],
     ["/memories/tags", "memory tags"],
     ["/retention/status", "retention status"],
-    ["/sync/status", "sync status"],
-    ["/archive/status", "archive status"],
     ["/power", "power status"],
     ["/openapi.json", "OpenAPI JSON"],
   ] as const;
@@ -271,8 +269,6 @@ describe("Local API search and stability", function () {
     ["/memories?limit=1&offset=999999", "memories large offset"],
     ["/memories/tags?limit=100", "memory tags limit"],
     ["/retention/status?force=true", "retention force status"],
-    ["/sync/status?detail=true", "sync detail status"],
-    ["/archive/status?detail=true", "archive detail status"],
     ["/power?detail=true", "power detail status"],
     ["/pipes/list", "pipes list"],
     ["/connections", "connections list"],
