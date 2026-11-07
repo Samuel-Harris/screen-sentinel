@@ -19,5 +19,11 @@
   },
   "devDependencies": {
     "@types/bun": "latest"
+  },
+  "nx": {
+    "includedScripts": [],
+    "targets": {
+      "e2e": { "command": "bun run test", "options": { "cwd": "{projectRoot}" } }
+    }
   }
 }

@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "neverConnectToCloud": true,
+  "analytics": false,
+  "useDaemonProcess": false,
+  "plugins": ["./scripts/nx-cargo-plugin.js"],
+  "namedInputs": {
+    "sharedGlobals": ["{workspaceRoot}/package.json"],
+    "default": ["{projectRoot}/**/*", "!{projectRoot}/**/*.md", "sharedGlobals"],
+    "cargo": [
+      "{workspaceRoot}/Cargo.toml",
+      "{workspaceRoot}/Cargo.lock",
+      "{workspaceRoot}/rust-toolchain.toml",
+      "{workspaceRoot}/.cargo/config.toml",
+      "{workspaceRoot}/rustfmt.toml",
+      "{workspaceRoot}/.rustfmt.toml",
+      "{workspaceRoot}/clippy.toml",
+      "{workspaceRoot}/.clippy.toml",
+      "{workspaceRoot}/scripts/nx-cargo-plugin.js",
+      { "runtime": "node -p \"process.platform+'-'+process.arch\"" },
+      { "env": "RUSTFLAGS" },
+      { "externalDependencies": [] }
+    ]
+  },
+  "targetDefaults": {
+    "build": { "cache": true },
+    "test": { "cache": true },
+    "lint": { "cache": true },
+    "typecheck": { "cache": true },
+    "check": { "executor": "nx:noop", "dependsOn": ["lint", "typecheck", "test"] }
+  }
+}

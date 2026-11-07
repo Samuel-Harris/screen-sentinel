@@ -122,5 +122,23 @@
     "typescript": "^5.9.3",
     "vitest": "^1.6.1",
     "wdio-video-reporter": "^6.0.0"
+  },
+  "nx": {
+    "implicitDependencies": ["screen-sentinel-app"],
+    "targets": {
+      "build": { "outputs": ["{projectRoot}/out"], "inputs": ["default", "^default"] },
+      "test": { "inputs": ["default", "^default"] },
+      "typecheck": { "inputs": ["default", "^default"] },
+      "lint": {
+        "command": "bunx --bun @biomejs/biome check",
+        "options": { "cwd": "{workspaceRoot}" },
+        "inputs": [
+          "default",
+          "{workspaceRoot}/biome.json",
+          "{workspaceRoot}/apps/screen-sentinel-app-tauri/src-tauri/**/*.{ts,tsx,js,jsx}"
+        ]
+      },
+      "check": {}
+    }
   }
 }
