@@ -1,6 +1,6 @@
-# Screenpipe Coverage
+# Screen Sentinel Coverage
 
-Screenpipe tracks coverage at two complementary layers:
+Screen Sentinel tracks coverage at two complementary layers:
 
 - Tauri/WebDriver E2E coverage: real product UX and local API behavior by platform.
 - Core engine coverage: Rust behavioral flow coverage across capture, audio, DB, accessibility, and engine crates.
@@ -11,7 +11,7 @@ results and `cargo llvm-cov` data on top when judging release confidence.
 
 ## Dashboards
 
-- E2E dashboard: [apps/screenpipe-app-tauri/e2e/COVERAGE.md](apps/screenpipe-app-tauri/e2e/COVERAGE.md)
+- E2E dashboard: [apps/screen-sentinel-app-tauri/e2e/COVERAGE.md](apps/screen-sentinel-app-tauri/e2e/COVERAGE.md)
 - Core engine dashboard: [coverage/CORE.md](coverage/CORE.md)
 
 ## Current Snapshot
@@ -44,7 +44,7 @@ results and `cargo llvm-cov` data on top when judging release confidence.
 
 ## Refresh
 
-From `apps/screenpipe-app-tauri`:
+From `apps/screen-sentinel-app-tauri`:
 
 ```bash
 bun run coverage:all

@@ -1,4 +1,4 @@
-👋 Welcome to Screenpipe!
+👋 Welcome to Screen Sentinel!
 
 🛠️  Your environment is fully setup with all the required dependencies.
 

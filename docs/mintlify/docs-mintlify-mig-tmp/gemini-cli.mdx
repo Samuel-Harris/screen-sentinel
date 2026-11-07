@@ -1,19 +1,19 @@
 ---
 title: "gemini CLI - google's AI with screen context"
 sidebarTitle: "gemini cli"
-description: "Connect screenpipe to Gemini CLI via MCP so Google's terminal AI assistant can reference your screen history and meeting transcriptions while you code."
+description: "Connect Screen Sentinel to Gemini CLI via MCP so Google's terminal AI assistant can reference your screen history and meeting transcriptions while you code."
 icon: "wand-magic-sparkles"
 ---
 
-[Gemini CLI](https://github.com/google/gemini-cli) is Google's terminal-based AI coding assistant. it supports MCP servers, so you can connect screenpipe to give Gemini context about what you've been working on.
+[Gemini CLI](https://github.com/google/gemini-cli) is Google's terminal-based AI coding assistant. it supports MCP servers, so you can connect Screen Sentinel to give Gemini context about what you've been working on.
 
 ## setup
 
-Gemini CLI uses MCP for external tools. add screenpipe to your config:
+Gemini CLI uses MCP for external tools. add Screen Sentinel to your config:
 
 ```bash
-# add screenpipe MCP server
-gemini config mcp add screenpipe "npx -y screenpipe-mcp"
+# add screen-sentinel MCP server
+gemini config mcp add screen-sentinel "npx -y screen-sentinel-mcp"
 ```
 
 or edit your config file directly:
@@ -21,9 +21,9 @@ or edit your config file directly:
 ```json
 {
   "mcpServers": {
-    "screenpipe": {
+    "screen-sentinel": {
       "command": "npx",
-      "args": ["-y", "screenpipe-mcp"]
+      "args": ["-y", "screen-sentinel-mcp"]
     }
   }
 }
@@ -47,7 +47,7 @@ gemini
 
 ## available tools
 
-screenpipe provides these MCP tools to Gemini:
+Screen Sentinel provides these MCP tools to Gemini:
 
 - **search-content** - search accessibility-first screen text, audio transcriptions, and input events
 - **export-video** - create video exports from screen recordings
@@ -72,7 +72,7 @@ screenpipe provides these MCP tools to Gemini:
 
 ## requirements
 
-- screenpipe running on localhost:3030
+- Screen Sentinel running on localhost:3130
 - Gemini CLI installed
 - Node.js >= 18.0.0
 

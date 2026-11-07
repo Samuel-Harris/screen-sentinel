@@ -1,7 +1,7 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
 {
-    "name": "Screenpipe",
+    "name": "Screen Sentinel",
     // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
     "build": {
         "dockerfile": "Dockerfile"
@@ -14,10 +14,10 @@
 	// },
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	"forwardPorts": [3000, 3030],
+	"forwardPorts": [3000, 3130],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "bash /workspaces/screenpipe/.devcontainer/scripts/postCreateCommand.sh",
+	"postCreateCommand": "bash /workspaces/screen-sentinel/.devcontainer/scripts/postCreateCommand.sh",
 
 	"onCreateCommand": "sudo cp .devcontainer/scripts/welcome-message.txt /usr/local/etc/vscode-dev-containers/first-run-notice.txt"
 

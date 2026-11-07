@@ -2,7 +2,7 @@
 
 ## Current Architecture
 
-All pipe state lives in-memory (`Arc<Mutex<HashMap>>`). Logs written as JSON files to `~/.screenpipe/pipes/{name}/logs/`. A global `Semaphore::new(1)` serializes all pipe execution. The Pi agent subprocess uses `wait_with_output()` with **no timeout**. PID is captured from `child.id()` at spawn (line 198 of pi.rs) but stored as `ExecutionHandle { pid: 0 }` in the running map (lines 371, 756 of mod.rs) — the real PID from spawn is never written back.
+All pipe state lives in-memory (`Arc<Mutex<HashMap>>`). Logs written as JSON files to `~/.screen-sentinel/pipes/{name}/logs/`. A global `Semaphore::new(1)` serializes all pipe execution. The Pi agent subprocess uses `wait_with_output()` with **no timeout**. PID is captured from `child.id()` at spawn (line 198 of pi.rs) but stored as `ExecutionHandle { pid: 0 }` in the running map (lines 371, 756 of mod.rs) — the real PID from spawn is never written back.
 
 ### State Dependencies (what a single pipe run touches)
 
@@ -13,10 +13,10 @@ pipe.md (config + prompt)
     ├── ~/.pi/agent/models.json (provider config, merged on every run)
     ├── ~/.pi/agent/auth.json (API keys, merged on every run)
     ├── pi binary (found via PATH/known locations)
-    ├── screenpipe API at localhost:3030 (queried by pipe during execution)
+    ├── screen-sentinel API at localhost:3130 (queried by pipe during execution)
     │     └── SQLite DB (OCR, audio, UI data the pipe reads)
     ├── LLM provider API (external network call)
-    │     └── API key (from auth.json or SCREENPIPE_API_KEY env)
+    │     └── API key (from auth.json or SCREEN_SENTINEL_API_KEY env)
     ├── ./output/ directory (pipe writes results here)
     └── ./logs/ directory (execution logs written after completion)
 ```
@@ -47,7 +47,7 @@ Every one of these can fail independently, mid-execution.
 **Required:** Parse common LLM API errors (model_not_found, invalid_api_key, rate_limited) from stderr. Surface structured `error_type` in API response so UI can show actionable message.
 
 #### A5. Provider requires API key but key is missing/expired
-**Current:** `ensure_pi_config()` writes `SCREENPIPE_API_KEY` env var and merges auth.json. But if screenpipe cloud token expires, pi gets a 401. Stderr says "unauthorized" but user sees generic failure.
+**Current:** `ensure_pi_config()` writes `SCREEN_SENTINEL_API_KEY` env var and merges auth.json. But if Screen Sentinel cloud token expires, pi gets a 401. Stderr says "unauthorized" but user sees generic failure.
 **Required:** Detect auth errors. Surface "API key expired" or "API key missing for provider X" in execution error.
 
 #### A6. Custom provider URL changed/unreachable
@@ -85,11 +85,11 @@ Every one of these can fail independently, mid-execution.
 - If process resumed but hung (no output for >60s after wake): timeout and kill
 - Consider: detect sleep/wake events (already done in `sleep_monitor.rs`) and proactively kill running pipes before sleep
 
-#### B3. macOS App Nap throttles screenpipe
+#### B3. macOS App Nap throttles Screen Sentinel
 **Current:** App Nap can suspend the server process → scheduler stops ticking → pipes don't run on schedule. When un-napped, scheduler resumes but missed windows are gone.
 **Required:**
 - Already mitigated by `NSProcessInfo` activity assertion in Tauri app
-- But CLI (`screenpipe` binary) doesn't have this protection
+- But CLI (`screen-sentinel` binary) doesn't have this protection
 - For CLI: document that App Nap can affect scheduling reliability
 
 #### B4. Computer clock jumps (NTP sync, timezone change, DST)
@@ -117,7 +117,7 @@ Every one of these can fail independently, mid-execution.
 **Required:** At minimum, log to stderr (tracing). For DB: SQLite will return SQLITE_FULL — handle gracefully, don't crash.
 
 #### C3. Logs accumulate indefinitely
-**Current:** No rotation. Every run creates a new JSON file in `~/.screenpipe/pipes/{name}/logs/`. Over months, thousands of small files.
+**Current:** No rotation. Every run creates a new JSON file in `~/.screen-sentinel/pipes/{name}/logs/`. Over months, thousands of small files.
 **Required:**
 - DB: prune executions older than 30 days (configurable)
 - File cleanup: delete JSON logs older than 7 days on startup
@@ -127,7 +127,7 @@ Every one of these can fail independently, mid-execution.
 **Current:** stdout/stderr may contain OCR text, transcriptions, personal data. Stored as plaintext JSON files.
 **Required:**
 - JSON log files should have restrictive permissions (0600)
-- DB: same file permissions as main screenpipe DB
+- DB: same file permissions as main Screen Sentinel DB
 - Consider: option to redact logs (strip API keys, PII) — but complex, phase 3+
 
 #### C5. Log truncation loses critical debug info
@@ -148,8 +148,8 @@ Every one of these can fail independently, mid-execution.
 **Current:** Manual run and scheduled run can't overlap (semaphore=1). But if semaphore increases, two runs of same pipe could write to same log directory.
 **Required:** Execution-scoped output dirs (see C6). Log writes go to DB row (no file conflicts).
 
-#### C8. Cannot correlate pipe output with screenpipe data
-**Current:** Pipe queries screenpipe API with a time range. Output written to files. No link between "which frames/audio the pipe saw" and "what it produced".
+#### C8. Cannot correlate pipe output with Screen Sentinel data
+**Current:** Pipe queries Screen Sentinel API with a time range. Output written to files. No link between "which frames/audio the pipe saw" and "what it produced".
 **Required (future):** Store the time range and query parameters in the execution row. Enables: "show me what data this pipe run was based on."
 
 ---
@@ -186,7 +186,7 @@ Every one of these can fail independently, mid-execution.
 **Current:** No version check. Pi is installed via `bun add -g @earendil-works/pi-coding-agent` with no pinned version. Auto-update could break compatibility.
 **Required:** Pin pi version in `ensure_installed()`. Or at minimum, check `pi --version` output and warn if unexpected.
 
-#### D6. Multiple screenpipe instances running pipes
+#### D6. Multiple Screen Sentinel instances running pipes
 **Current:** Each instance has its own PipeManager with its own in-memory state. Both could try to run the same pipe, spawn duplicate pi processes.
 **Required:** DB-based locking. Before starting execution, `INSERT INTO pipe_executions` with a unique constraint or advisory lock. Second instance gets conflict.
 
@@ -248,12 +248,12 @@ Every one of these can fail independently, mid-execution.
 
 ### G. Network & API Dependencies
 
-#### G1. Screenpipe API not ready when pipe runs
-**Current:** Pipe prompt says "Screenpipe API: http://localhost:3030". Pi queries this. If server still booting, pi gets connection refused. Fails.
-**Required:** Pipe scheduler should only start after server is listening. Currently scheduler starts at line 912 of screenpipe-server.rs, server starts at line ~950. There's a potential race.
+#### G1. Screen Sentinel API not ready when pipe runs
+**Current:** Pipe prompt says "Screen Sentinel API: http://localhost:3130". Pi queries this. If server still booting, pi gets connection refused. Fails.
+**Required:** Pipe scheduler should only start after server is listening. Currently scheduler starts at line 912 of screen-sentinel-server.rs, server starts at line ~950. There's a potential race.
 
-#### G2. Screenpipe API port is not 3030
-**Current:** Hardcoded in `render_prompt()` (line 992): `Screenpipe API: http://localhost:3030`. If user runs on port 3031, pipe queries wrong port.
+#### G2. Screen Sentinel API port is not 3130
+**Current:** Hardcoded in `render_prompt()` (line 992): `Screen Sentinel API: http://localhost:3130`. If user runs on port 3131, pipe queries wrong port.
 **Required:** Pass actual server port to PipeManager. Inject into prompt template.
 
 #### G3. LLM provider rate limited
@@ -311,7 +311,7 @@ Every one of these can fail independently, mid-execution.
 
 #### I4. Permissions dialog blocks during execution
 **Current:** macOS may show permission dialog (screen recording, mic access). Dialog blocks the thread.
-**Required:** Not directly related to pipes (pipes query API, not hardware). But if screenpipe server is blocked on a permission dialog, API requests from pi hang → pi hangs → timeout kills it. Acceptable with timeout in place.
+**Required:** Not directly related to pipes (pipes query API, not hardware). But if Screen Sentinel server is blocked on a permission dialog, API requests from pi hang → pi hangs → timeout kills it. Acceptable with timeout in place.
 
 ---
 
@@ -340,7 +340,7 @@ CREATE TABLE pipe_executions (
     preset_snapshot   TEXT,          -- JSON: full preset config at queue time
     trigger           TEXT NOT NULL,  -- 'manual' | 'scheduled' | 'retry'
     rendered_prompt   TEXT,          -- full prompt sent to agent (for debugging)
-    api_port          INTEGER,       -- screenpipe port used in prompt
+    api_port          INTEGER,       -- screen-sentinel port used in prompt
 
     -- output (updated during/after execution)
     stdout            TEXT DEFAULT '',
@@ -356,7 +356,7 @@ CREATE TABLE pipe_executions (
     retry_of          INTEGER REFERENCES pipe_executions(id),
     retry_count       INTEGER DEFAULT 0,
 
-    -- data context (what screenpipe data window this execution covered)
+    -- data context (what screen-sentinel data window this execution covered)
     context_start     TIMESTAMP,     -- start of time range in rendered prompt
     context_end       TIMESTAMP      -- end of time range in rendered prompt
 );
@@ -424,7 +424,7 @@ CREATE TABLE pipe_scheduler_state (
 | **P0** | `pipe_executions` + `pipe_scheduler_state` tables | Restart recovery, observability, everything |
 | **P0** | Startup orphan recovery | Clean state guarantee |
 | **P1** | Snapshot preset/model at queue time | Correct execution after user changes settings |
-| **P1** | Inject actual API port into prompt (not hardcoded 3030) | Correctness for non-default port |
+| **P1** | Inject actual API port into prompt (not hardcoded 3130) | Correctness for non-default port |
 | **P1** | Structured error types (parse stderr for common failures) | Actionable UI errors |
 | **P1** | Scheduler state in DB (last_run, consecutive_failures) | Survives restart, prevents re-runs |
 | **P1** | Graceful shutdown: cancel pipes on app quit | Clean exit |

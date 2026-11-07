@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the alias
-ALIAS_CMD="alias test-linux=\"/workspaces/screenpipe/.devcontainer/scripts/linux_integration.sh\""
+ALIAS_CMD="alias test-linux=\"/workspaces/screen-sentinel/.devcontainer/scripts/linux_integration.sh\""
 
 # Add alias to .bashrc if it exists
 grep -qxF "$ALIAS_CMD" ~/.bashrc || echo "$ALIAS_CMD" >> ~/.bashrc

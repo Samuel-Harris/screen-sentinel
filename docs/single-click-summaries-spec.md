@@ -8,7 +8,7 @@
 
 ## Problem
 
-Screenpipe records everything you see, say, and hear — but most users never ask the AI anything meaningful. The current empty chat state shows a few auto-suggestions ("What did I do in the last hour?"), but they're small, text-only, and easy to ignore. Users who don't know what to ask just stare at the input box and leave.
+Screen Sentinel records everything you see, say, and hear — but most users never ask the AI anything meaningful. The current empty chat state shows a few auto-suggestions ("What did I do in the last hour?"), but they're small, text-only, and easy to ignore. Users who don't know what to ask just stare at the input box and leave.
 
 **Evidence:**
 - Auto-suggestions exist (via `suggestions.rs`) but are small text buttons at the bottom of the empty chat
@@ -16,13 +16,13 @@ Screenpipe records everything you see, say, and hear — but most users never as
 - Daily Summary exists but is limited to timeline view, auto-triggers only at 6 PM, and only covers audio transcriptions
 - Menelaus (power user): "A lot of users might not know what to ask but having these auto-suggestions and one-click prompts makes everything a lot easier"
 
-**Core tension:** Screenpipe collects 2K-13K+ memories per day, but the value is locked behind a blank text box.
+**Core tension:** Screen Sentinel collects 2K-13K+ memories per day, but the value is locked behind a blank text box.
 
 ---
 
 ## Solution
 
-**"Single-Click Summaries"** — a prompt template library and visual builder that makes screenpipe's value immediately obvious. Instead of a blank chat, users see curated one-click actions that generate structured summaries from their data.
+**"Single-Click Summaries"** — a prompt template library and visual builder that makes Screen Sentinel's value immediately obvious. Instead of a blank chat, users see curated one-click actions that generate structured summaries from their data.
 
 Menelaus calls this an "Enhanced AI Prompt Builder" — consumer-friendly, visually pleasing, accessible to non-technical users.
 
@@ -166,7 +166,7 @@ Advanced modal for power users. The main differentiator from simple one-click te
 ```
 
 **Left Panel — Filters:**
-- **Time Period:** Predefined ranges with live memory counts from screenpipe DB
+- **Time Period:** Predefined ranges with live memory counts from Screen Sentinel DB
 - **Signals:** Filter by content type (OCR, audio, UI/accessibility) — maps to `content_type` in search API
 - **Apps:** Multi-select app filter (from recorded apps) — maps to `app_name`
 - **Websites:** Multi-select website/URL filter — maps to `window_name` or new `browser_url` field
@@ -275,7 +275,7 @@ what I used them for, and patterns in my AI usage.
 ### Custom Summary Builder
 - **Filter combinatorics:** User selects "Last Week" + "Chrome" + "Audio only" — the intersection might be empty. Show live count to set expectations.
 - **App/website list loading:** Must query distinct apps from DB. Existing `/search` doesn't expose this — may need new endpoint or cache from `suggestions.rs` activity detection.
-- **"Save as Template" persistence:** Where to store? Options: (a) localStorage — simplest, lost on reinstall, (b) screenpipe DB — survives reinstalls, (c) as a Pipe — enables scheduling.
+- **"Save as Template" persistence:** Where to store? Options: (a) localStorage — simplest, lost on reinstall, (b) Screen Sentinel DB — survives reinstalls, (c) as a Pipe — enables scheduling.
 
 ### Pipes Integration
 - Louis noted: "I think it would go well with the pipes, which is basically scheduled prompt, so you could easily end a good chat and then wanting to have this kind of summary on schedule"

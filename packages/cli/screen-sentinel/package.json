@@ -1,0 +1,27 @@
+{
+  "name": "screen-sentinel",
+  "version": "0.1.0",
+  "description": "Screen Sentinel CLI — AI that knows everything you've seen, said, or heard",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
+  "bin": {
+    "screen-sentinel": "lib/cli.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "optionalDependencies": {
+    "@screen-sentinel/cli-darwin-arm64": "0.1.0",
+    "@screen-sentinel/cli-darwin-x64": "0.1.0",
+    "@screen-sentinel/cli-linux-x64": "0.1.0",
+    "@screen-sentinel/cli-win32-x64": "0.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Samuel-Harris/screen-sentinel"
+  },
+  "license": "MIT",
+  "keywords": ["screen-sentinel", "screen-recording", "ai", "memory", "cli"]
+}

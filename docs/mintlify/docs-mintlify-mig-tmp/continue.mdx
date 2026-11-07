@@ -1,7 +1,7 @@
 ---
 title: "continue - open-source copilot with screen context"
 sidebarTitle: "continue"
-description: "Set up screenpipe with Continue, the open-source AI copilot for VS Code and JetBrains, so it can reference your screen history while you code."
+description: "Set up Screen Sentinel with Continue, the open-source AI copilot for VS Code and JetBrains, so it can reference your screen history while you code."
 icon: "forward"
 ---
 
@@ -19,9 +19,9 @@ icon: "forward"
 {
   "mcpServers": [
     {
-      "name": "screenpipe",
+      "name": "screen-sentinel",
       "command": "npx",
-      "args": ["-y", "screenpipe-mcp"]
+      "args": ["-y", "screen-sentinel-mcp"]
     }
   ]
 }
@@ -41,7 +41,7 @@ icon: "forward"
 once configured, Continue can access your screen history:
 
 ```
-> @screenpipe what was I working on this morning?
+> @screen-sentinel what was I working on this morning?
 
 > find the error I saw in my terminal and help me fix it
 
@@ -50,15 +50,15 @@ once configured, Continue can access your screen history:
 
 ## context providers
 
-Continue also supports context providers. you can add screenpipe as a custom context provider for more control:
+Continue also supports context providers. you can add Screen Sentinel as a custom context provider for more control:
 
 ```json
 {
   "contextProviders": [
     {
-      "name": "screenpipe",
+      "name": "screen-sentinel",
       "params": {
-        "apiUrl": "http://localhost:3030"
+        "apiUrl": "http://localhost:3130"
       }
     }
   ]
@@ -94,7 +94,7 @@ via MCP, Continue gets access to:
 
 ## requirements
 
-- screenpipe running on localhost:3030
+- Screen Sentinel running on localhost:3130
 - Continue extension in VS Code or JetBrains
 - Node.js >= 18.0.0
 

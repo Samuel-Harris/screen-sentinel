@@ -1,0 +1,25 @@
+{
+    "bundle": {
+        "publisher": "Screen Sentinel",
+        "windows": {
+            "nsis": {
+                "installerIcon": "icons/icon.ico",
+                "installerHooks": "windows/hooks.nsh"
+            }
+        },
+        "externalBin": [],
+        "targets": [
+            "nsis"
+        ],
+        "resources": {
+            "ffmpeg\\bin\\ffmpeg.exe": "./",
+            "ffmpeg\\bin\\ffprobe.exe": "./",
+            "ffmpeg\\bin\\*.dll": "./",
+            "ffmpeg\\lib\\*": "./",
+            "onnxruntime*\\lib\\onnxruntime.dll": "./",
+            "openblas\\bin\\*.dll": "./",
+            "vcredist\\*.dll": "./",
+            "assets/*": "./assets/"
+        }
+    }
+}

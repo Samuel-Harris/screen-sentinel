@@ -38,25 +38,25 @@ jobs:
           echo "npm authed as: $USER"
 
       - name: Install dependencies
-        working-directory: packages/screenpipe-mcp
+        working-directory: packages/screen-sentinel-mcp
         run: npm install
 
       - name: Build
-        working-directory: packages/screenpipe-mcp
+        working-directory: packages/screen-sentinel-mcp
         run: npm run build
 
       - name: Publish to npm
-        working-directory: packages/screenpipe-mcp
+        working-directory: packages/screen-sentinel-mcp
         run: |
           VER=$(node -p "require('./package.json').version")
-          if npm view "screenpipe-mcp@$VER" version >/dev/null 2>&1; then
-            echo "screenpipe-mcp@$VER already on npm — skipping publish"
+          if npm view "screen-sentinel-mcp@$VER" version >/dev/null 2>&1; then
+            echo "screen-sentinel-mcp@$VER already on npm — skipping publish"
           else
             npm publish --access public
           fi
 
       - name: Sync manifest.json version from package.json
-        working-directory: packages/screenpipe-mcp
+        working-directory: packages/screen-sentinel-mcp
         run: |
           VER=$(node -p "require('./package.json').version")
           jq --arg v "$VER" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
@@ -66,12 +66,12 @@ jobs:
         run: npm install -g @anthropic-ai/mcpb
 
       - name: Build mcpb bundle
-        working-directory: packages/screenpipe-mcp
+        working-directory: packages/screen-sentinel-mcp
         run: mcpb pack
 
       - name: Get version
         id: version
-        working-directory: packages/screenpipe-mcp
+        working-directory: packages/screen-sentinel-mcp
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
@@ -92,6 +92,6 @@ jobs:
             --title "MCP Server $TAG" \
             --generate-notes \
             --prerelease \
-            packages/screenpipe-mcp/screenpipe-mcp.mcpb \
+            packages/screen-sentinel-mcp/screen-sentinel-mcp.mcpb \
             || gh release upload "$TAG" \
-            packages/screenpipe-mcp/screenpipe-mcp.mcpb --clobber
+            packages/screen-sentinel-mcp/screen-sentinel-mcp.mcpb --clobber

@@ -1,15 +1,15 @@
 ---
-title: "screenpipe vs Microsoft Recall - privacy-focused alternative"
+title: "Screen Sentinel vs Microsoft Recall - privacy-focused alternative"
 sidebarTitle: "vs microsoft recall"
-description: "Compare screenpipe and Microsoft Recall: an open-source Windows Recall alternative that runs on Mac, Windows, and Linux with no cloud dependency."
+description: "Compare Screen Sentinel and Microsoft Recall: an open-source Windows Recall alternative that runs on Mac, Windows, and Linux with no cloud dependency."
 icon: "scale-balanced"
 ---
 
-Microsoft Recall is a Windows 11 feature that captures screenshots and makes them searchable. screenpipe offers similar functionality but with complete privacy, open source code, and cross-platform support.
+Microsoft Recall is a Windows 11 feature that captures screenshots and makes them searchable. Screen Sentinel offers similar functionality but with complete privacy, open source code, and cross-platform support.
 
 ## comparison
 
-| feature | screenpipe | microsoft recall |
+| feature | Screen Sentinel | microsoft recall |
 |---------|-----------|------------------|
 | **open source** | yes (MIT) | no |
 | **platforms** | macOS, Windows, Linux | Windows 11 only |
@@ -19,7 +19,7 @@ Microsoft Recall is a Windows 11 feature that captures screenshots and makes the
 | **AI provider** | your choice (local or cloud) | Microsoft AI |
 | **extensibility** | plugins (pipes) | none |
 
-## why choose screenpipe?
+## why choose Screen Sentinel?
 
 ### true privacy
 
@@ -45,7 +45,7 @@ Microsoft Recall is a Windows 11 feature that captures screenshots and makes the
 build custom integrations with the REST API or pipes:
 
 ```bash
-curl "http://localhost:3030/search?q=meeting+notes&content_type=all"
+curl "http://localhost:3130/search?q=meeting+notes&content_type=all"
 ```
 
 ## recall privacy concerns
@@ -57,7 +57,7 @@ Microsoft Recall has faced criticism for:
 - data being accessible to other apps
 - unclear data handling policies
 
-screenpipe addresses these:
+Screen Sentinel addresses these:
 
 - **PII removal**: optional automatic redaction of sensitive data
 - **window filtering**: exclude apps like password managers
@@ -87,18 +87,18 @@ in the desktop app settings, you can exclude specific windows (like password man
 
 - [AI recall tools guide](https://screenpi.pe/resources/use-cases/ai-recall-tools) - how screen memory works
 - [local AI assistant setup](https://screenpi.pe/resources/use-cases/local-ai-assistant) - complete privacy with Ollama
-- [screenpipe blog](https://screenpi.pe/blog) - latest updates and tutorials
+- [Screen Sentinel blog](https://screenpi.pe/blog) - latest updates and tutorials
 
 ## frequently asked questions
 
 ### is there a privacy-focused alternative to Windows Recall?
 
-yes. screenpipe is the privacy-focused, open source alternative to Microsoft Recall. unlike Recall, screenpipe is fully open source (MIT licensed), works on macOS, Windows, and Linux, requires no special hardware (no NPU needed), and stores all data 100% locally with no cloud dependency. you can use local AI models (Ollama) for complete privacy and audit every line of code.
+yes. Screen Sentinel is the privacy-focused, open source alternative to Microsoft Recall. unlike Recall, Screen Sentinel is fully open source (MIT licensed), works on macOS, Windows, and Linux, requires no special hardware (no NPU needed), and stores all data 100% locally with no cloud dependency. you can use local AI models (Ollama) for complete privacy and audit every line of code.
 
-### does screenpipe work on Windows without a Copilot+ PC?
+### does Screen Sentinel work on Windows without a Copilot+ PC?
 
-yes. screenpipe runs on any modern Windows computer — no NPU or Copilot+ hardware required. it uses Windows accessibility APIs for structured app text, with CPU-based OCR fallback, and works on Windows 10 and 11.
+yes. Screen Sentinel runs on any modern Windows computer — no NPU or Copilot+ hardware required. it uses Windows accessibility APIs for structured app text, with CPU-based OCR fallback, and works on Windows 10 and 11.
 
-### how is screenpipe different from Windows Recall?
+### how is Screen Sentinel different from Windows Recall?
 
-screenpipe is open source, cross-platform, and has no cloud dependency. Recall is closed source, Windows 11 only, requires Copilot+ hardware, and has faced privacy concerns. screenpipe also offers extensibility through pipes (scheduled AI agents) and a full REST API that Recall doesn't provide.
+Screen Sentinel is open source, cross-platform, and has no cloud dependency. Recall is closed source, Windows 11 only, requires Copilot+ hardware, and has faced privacy concerns. Screen Sentinel also offers extensibility through pipes (scheduled AI agents) and a full REST API that Recall doesn't provide.

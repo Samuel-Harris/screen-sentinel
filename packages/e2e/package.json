@@ -1,8 +1,8 @@
 {
-  "name": "@screenpipe/e2e",
+  "name": "@screen-sentinel/e2e",
   "private": true,
   "version": "0.1.0",
-  "description": "Unified E2E tests for screenpipe — CLI, API, and app UI. Runs locally (Tart VM) or in CI.",
+  "description": "Unified E2E tests for Screen Sentinel — CLI, API, and app UI. Runs locally (Tart VM) or in CI.",
   "scripts": {
     "test": "bun run src/runner.ts",
     "test:api": "bun run src/runner.ts --suite api",

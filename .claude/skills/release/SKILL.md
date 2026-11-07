@@ -1,35 +1,35 @@
 ---
 name: release
-description: "Release the screenpipe monorepo. Bumps versions, triggers GitHub Actions for app, CLI, MCP, and JS packages."
+description: "Release the Screen Sentinel monorepo. Bumps versions, triggers GitHub Actions for app, CLI, MCP, and JS packages."
 allowed-tools: Bash, Read, Edit, Grep, Write
 ---
 
-# Screenpipe Monorepo Release Skill
+# Screen Sentinel Monorepo Release Skill
 
-Automate releasing all components of the screenpipe monorepo.
+Automate releasing all components of the Screen Sentinel monorepo.
 
 ## Components & Versions
 
 | Component | Version File | Current Pattern | Workflow |
 |-----------|--------------|-----------------|----------|
-| Desktop App | `apps/screenpipe-app-tauri/src-tauri/Cargo.toml` | `version = "X.Y.Z"` | `release-app.yml` |
+| Desktop App | `apps/screen-sentinel-app-tauri/src-tauri/Cargo.toml` | `version = "X.Y.Z"` | `release-app.yml` |
 | CLI/Server | `Cargo.toml` (workspace.package) | `version = "0.2.X"` | `release-cli.yml` |
-| MCP | `packages/screenpipe-mcp/package.json` | `"version": "X.Y.Z"` | `release-mcp.yml` |
+| MCP | `packages/screen-sentinel-mcp/package.json` | `"version": "X.Y.Z"` | `release-mcp.yml` |
 
 ## When to Release What
 
-**Always release CLI** when there are changes to core screenpipe code:
-- `screenpipe-core/`
-- `screenpipe-vision/`
-- `screenpipe-audio/`
-- `screenpipe-server/`
-- `screenpipe-db/`
-- `screenpipe-events/`
-- `screenpipe-integrations/`
+**Always release CLI** when there are changes to core Screen Sentinel code:
+- `screen-sentinel-core/`
+- `screen-sentinel-vision/`
+- `screen-sentinel-audio/`
+- `screen-sentinel-server/`
+- `screen-sentinel-db/`
+- `screen-sentinel-events/`
+- `screen-sentinel-integrations/`
 
 **App-only release** is fine when changes are only in:
-- `apps/screenpipe-app-tauri/` (UI/frontend changes)
-- If the release includes new or changed `#[tauri::command]` handlers: from `apps/screenpipe-app-tauri/`, run `bun run bindings:generate` and verify `bun run bindings:check` before tagging
+- `apps/screen-sentinel-app-tauri/` (UI/frontend changes)
+- If the release includes new or changed `#[tauri::command]` handlers: from `apps/screen-sentinel-app-tauri/`, run `bun run bindings:generate` and verify `bun run bindings:check` before tagging
 
 To check what changed since last CLI release:
 ```bash
@@ -37,21 +37,21 @@ To check what changed since last CLI release:
 git log --oneline --all | grep -E "CLI to v" | head -1
 
 # Check if core code changed since then
-git diff <COMMIT>..HEAD --stat -- screenpipe-core screenpipe-vision screenpipe-audio screenpipe-server screenpipe-db screenpipe-events screenpipe-integrations
+git diff <COMMIT>..HEAD --stat -- screen-sentinel-core screen-sentinel-vision screen-sentinel-audio screen-sentinel-server screen-sentinel-db screen-sentinel-events screen-sentinel-integrations
 ```
 
 ## Release Workflow
 
 ### 1. Check Current Versions
 ```bash
-echo "=== App ===" && grep '^version' apps/screenpipe-app-tauri/src-tauri/Cargo.toml | head -1
+echo "=== App ===" && grep '^version' apps/screen-sentinel-app-tauri/src-tauri/Cargo.toml | head -1
 echo "=== CLI ===" && grep '^version' Cargo.toml | head -1
-echo "=== MCP ===" && grep '"version"' packages/screenpipe-mcp/package.json | head -1
+echo "=== MCP ===" && grep '"version"' packages/screen-sentinel-mcp/package.json | head -1
 ```
 
 ### 2. Bump Version
 
-Edit `apps/screenpipe-app-tauri/src-tauri/Cargo.toml` and bump the `version = "X.Y.Z"` line at the top of `[package]`.
+Edit `apps/screen-sentinel-app-tauri/src-tauri/Cargo.toml` and bump the `version = "X.Y.Z"` line at the top of `[package]`.
 
 ### 3. Commit & Push (Triggers Release)
 ```bash
@@ -85,7 +85,7 @@ git commit --allow-empty -m "release-app-publish" && git push
 ## Quick Release (App Only)
 
 ```bash
-# 1. Bump version in apps/apps/screenpipe-app-tauri/src-tauri/Cargo.toml
+# 1. Bump version in apps/apps/screen-sentinel-app-tauri/src-tauri/Cargo.toml
 # 2. Commit and push — the "Bump app" prefix triggers release-app.yml automatically
 git add -A && git commit -m "Bump app to vX.Y.Z" && git push
 
@@ -129,7 +129,7 @@ The CI copies `tauri.prod.conf.json` to `tauri.conf.json` before building. If ar
 ## Configuration
 
 ### Dev vs Prod Configs
-- `tauri.conf.json` - Dev config (identifier: `screenpi.pe.dev`)
+- `tauri.conf.json` - Dev config (identifier: `io.github.samuel-harris.screen-sentinel.dev`)
 - `tauri.prod.conf.json` - Prod config (identifier: `screenpi.pe`, updater enabled)
 
 CI automatically uses prod config for releases by copying it before build.

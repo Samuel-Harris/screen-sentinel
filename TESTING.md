@@ -1,4 +1,4 @@
-# screenpipe regression testing checklist
+# Screen Sentinel regression testing checklist
 
 > **purpose**: prevent regressions. test core features rigorously every time
 
@@ -75,12 +75,12 @@ commits that broke this area: `0752ea59`, `7562ec62`, `2a2bd9b5`, `f2f7f770`, `5
 - [ ] **tray icon visible on launch** — tray icon appears in menu bar on startup.
 - [ ] **dock icon persists after overlay show/hide** — show and hide overlay 5 times. dock icon must remain visible every time. was broken by Accessory mode switches.
 - [ ] **tray icon persists after overlay show/hide** — same test. tray icon must remain visible.
-- [ ] **dock right-click menu works** — right-click dock icon. "Show screenpipe", "Settings", "Check for updates" all work (`d794176a`).
+- [ ] **dock right-click menu works** — right-click dock icon. "Show Screen Sentinel", "Settings", "Check for updates" all work (`d794176a`).
 - [ ] **tray menu items don't fire twice** — click any tray menu item. action happens once, not twice (`9e151265`).
 - [ ] **tray health indicator** — tray icon shows green (healthy) or yellow/red (issues) based on recording status.
 - [ ] **tray doesn't show false "Error" on transient issues** — Under load (running many pipes, high CPU), tray icon should not flip to "Error" if recording is actually working. Only sustained errors (>2min) show red. Tests under transient DB/OCR/audio pressure. (`abc234aae`)
 - [ ] **tray on notched MacBook** — on 14"/16" MacBook Pro, tray icon is visible (not hidden behind notch). if hidden, user can Cmd+drag to reposition.
-- [ ] **activation policy never changes** — after ANY user interaction, dock icon should remain visible. no Accessory mode switches. verify with: `ps aux | grep screenpipe`.
+- [ ] **activation policy never changes** — after ANY user interaction, dock icon should remain visible. no Accessory mode switches. verify with: `ps aux | grep screen-sentinel`.
 - [ ] **no autosave_name crash** — removed in `2a2bd9b5`. objc2→objc pointer cast was causing `panic_cannot_unwind`.
 - [ ] **no recreate_tray** — recreating tray pushes icon LEFT (behind notch). must only create once (`f2f7f770`).
 - [ ] **tray upgrade button opens in-app checkout** — Verify that clicking the tray's upgrade button correctly opens the in-app checkout experience. (`078fcfb2`)
@@ -147,26 +147,26 @@ commits: `28e5c247`
 
 commits: device_monitor.rs atomic swap, tiered backoff, empty device list guard
 
-- [ ] **unplug monitor during active Zoom call** — output audio recovers within 15 seconds. Verify: `grep "DEVICE_RECOVERY.*output.*restored" ~/.screenpipe/screenpipe-app.*.log`. Verify: `curl localhost:3030/search?content_type=audio&limit=5` shows output device transcriptions resume.
+- [ ] **unplug monitor during active Zoom call** — output audio recovers within 15 seconds. Verify: `grep "DEVICE_RECOVERY.*output.*restored" ~/.screen-sentinel/screen-sentinel-app.*.log`. Verify: `curl localhost:3130/search?content_type=audio&limit=5` shows output device transcriptions resume.
 - [ ] **unplug and replug monitor within 5 seconds** — no audio gap. both input and output continue. Verify: no "stopping" log for input device.
 - [ ] **unplug monitor, wait 2 minutes, replug** — output recovers both times. Verify: two `DEVICE_RECOVERY` log entries.
 - [ ] **switch audio output (AirPods → speakers) during call** — output audio continues with <5s gap. Old device kept running until new one starts (atomic swap).
-- [ ] **health endpoint during output recovery** — `curl localhost:3030/health` shows `device_status_details` with output device present within 15 seconds of recovery.
-- [ ] **SCK transient failure doesn't cascade** — if ScreenCaptureKit returns empty device list, running devices are NOT disconnected. Verify: `grep "device list returned empty" ~/.screenpipe/screenpipe-app.*.log` shows warning but no disconnections.
-- [ ] **DB gap query after device switch** — run: `sqlite3 ~/.screenpipe/db.sqlite "SELECT t1.timestamp as gap_start, t2.timestamp as gap_end, (julianday(t2.timestamp) - julianday(t1.timestamp)) * 86400 as gap_seconds FROM audio_transcriptions t1 JOIN audio_transcriptions t2 ON t2.id = (SELECT MIN(id) FROM audio_transcriptions WHERE id > t1.id AND is_input_device = 0) WHERE t1.is_input_device = 0 AND (julianday(t2.timestamp) - julianday(t1.timestamp)) * 86400 > 60 ORDER BY t1.timestamp;"` — should return no rows if output was continuously captured.
+- [ ] **health endpoint during output recovery** — `curl localhost:3130/health` shows `device_status_details` with output device present within 15 seconds of recovery.
+- [ ] **SCK transient failure doesn't cascade** — if ScreenCaptureKit returns empty device list, running devices are NOT disconnected. Verify: `grep "device list returned empty" ~/.screen-sentinel/screen-sentinel-app.*.log` shows warning but no disconnections.
+- [ ] **DB gap query after device switch** — run: `sqlite3 ~/.screen-sentinel/db.sqlite "SELECT t1.timestamp as gap_start, t2.timestamp as gap_end, (julianday(t2.timestamp) - julianday(t1.timestamp)) * 86400 as gap_seconds FROM audio_transcriptions t1 JOIN audio_transcriptions t2 ON t2.id = (SELECT MIN(id) FROM audio_transcriptions WHERE id > t1.id AND is_input_device = 0) WHERE t1.is_input_device = 0 AND (julianday(t2.timestamp) - julianday(t1.timestamp)) * 86400 > 60 ORDER BY t1.timestamp;"` — should return no rows if output was continuously captured.
 - [ ] **Bluetooth audio device hijack recovery** — Join a video call (e.g., Zoom, Proton Meet) on AirPods, end the call, join another call ~1 min later on same AirPods. Verify the second call is fully captured (audio_chunks created throughout). CoreAudio sometimes delivers zero-fill when another app has exclusive claim; the watchdog detects sustained silence (>30s of exact zeros) after initial healthy audio and rebuilds the device. Regression: `a2e89b2ae` (initial detection), fixed by `357e4dfcc` (only trip watchdog after stream is healthy). USB devices that never produce real audio should NOT trigger rebuild storms.
-- [ ] **Manual-mode pinned-input fallback** — In manual mode (NOT "Follow System Default"), pin only AirPods (input) as your mic. Mid-recording, turn off the AirPods. Verify: within ~20-25s the monitor engages the system default mic as a substitute and capture continues. Re-connect AirPods. Verify the substitute is torn down and capture returns to AirPods. Log markers: `grep "PINNED_FALLBACK" ~/.screenpipe/screenpipe-app.*.log` shows `pinned input '...' missing > 20s, capturing from system default '...' until it returns` then `clearing fallback '...': pinned input returned`. Edge: if you also user-disabled the default mic (privacy mode), expect "system default ... is user-disabled — no fallback engaged" log + zero capture rather than auto-fallback.
+- [ ] **Manual-mode pinned-input fallback** — In manual mode (NOT "Follow System Default"), pin only AirPods (input) as your mic. Mid-recording, turn off the AirPods. Verify: within ~20-25s the monitor engages the system default mic as a substitute and capture continues. Re-connect AirPods. Verify the substitute is torn down and capture returns to AirPods. Log markers: `grep "PINNED_FALLBACK" ~/.screen-sentinel/screen-sentinel-app.*.log` shows `pinned input '...' missing > 20s, capturing from system default '...' until it returns` then `clearing fallback '...': pinned input returned`. Edge: if you also user-disabled the default mic (privacy mode), expect "system default ... is user-disabled — no fallback engaged" log + zero capture rather than auto-fallback.
 
 #### meeting detection & speaker identification
 
 commits: calendar_speaker_id.rs, meetings.rs, meeting_persister.rs
 
-- [ ] **restart during active meeting** — start a 1:1 calendar meeting (2 attendees), quit app mid-meeting, relaunch. meeting re-detected via calendar event still in progress. speaker names assigned. verify: `grep "meeting detected via calendar" ~/.screenpipe/screenpipe-app.*.log` shows detection after restart. verify: `sqlite3 ~/.screenpipe/db.sqlite "SELECT id, name FROM speakers WHERE name != ''"` shows both user and attendee names.
-- [ ] **calendar-only meeting detection** — schedule a 1:1 meeting with 2 attendees, no meeting app (Zoom/Meet) open. meeting detected purely via calendar. verify: `grep "meeting_started" ~/.screenpipe/screenpipe-app.*.log`.
-- [ ] **calendar meeting auto-end** — calendar meeting detected, wait past the calendar event end time. meeting_ended fires. verify: `grep "meeting ended via calendar" ~/.screenpipe/screenpipe-app.*.log`.
-- [ ] **speaker naming in 1:1** — during 1:1 call with userName set in settings, input speaker named as user, output speaker named as other attendee. verify: `curl 'localhost:3030/search?content_type=audio&speaker_name=<attendee>&limit=5'` returns results.
-- [ ] **auto-name input speaker** — with userName set, after ~2 minutes of speaking into mic, dominant input speaker named. verify: `grep "auto speaker identification: named" ~/.screenpipe/screenpipe-app.*.log`.
-- [ ] **speaker names survive restart** — speaker named pre-restart stays named post-restart. verify: `sqlite3 ~/.screenpipe/db.sqlite "SELECT id, name FROM speakers WHERE name != ''"` shows same speakers before and after restart.
+- [ ] **restart during active meeting** — start a 1:1 calendar meeting (2 attendees), quit app mid-meeting, relaunch. meeting re-detected via calendar event still in progress. speaker names assigned. verify: `grep "meeting detected via calendar" ~/.screen-sentinel/screen-sentinel-app.*.log` shows detection after restart. verify: `sqlite3 ~/.screen-sentinel/db.sqlite "SELECT id, name FROM speakers WHERE name != ''"` shows both user and attendee names.
+- [ ] **calendar-only meeting detection** — schedule a 1:1 meeting with 2 attendees, no meeting app (Zoom/Meet) open. meeting detected purely via calendar. verify: `grep "meeting_started" ~/.screen-sentinel/screen-sentinel-app.*.log`.
+- [ ] **calendar meeting auto-end** — calendar meeting detected, wait past the calendar event end time. meeting_ended fires. verify: `grep "meeting ended via calendar" ~/.screen-sentinel/screen-sentinel-app.*.log`.
+- [ ] **speaker naming in 1:1** — during 1:1 call with userName set in settings, input speaker named as user, output speaker named as other attendee. verify: `curl 'localhost:3130/search?content_type=audio&speaker_name=<attendee>&limit=5'` returns results.
+- [ ] **auto-name input speaker** — with userName set, after ~2 minutes of speaking into mic, dominant input speaker named. verify: `grep "auto speaker identification: named" ~/.screen-sentinel/screen-sentinel-app.*.log`.
+- [ ] **speaker names survive restart** — speaker named pre-restart stays named post-restart. verify: `sqlite3 ~/.screen-sentinel/db.sqlite "SELECT id, name FROM speakers WHERE name != ''"` shows same speakers before and after restart.
 - [ ] **no duplicate speaker naming on restart** — restart during meeting, speakers already named aren't overwritten or duplicated. verify: no duplicate names in speakers table.
 - [ ] **meeting detection stability** — Verify that meeting detection does not drop when alt-tabbing during long calls. (`7684f1d47`)
 - [ ] **speaker search deduplication** — Search for speakers in the UI. Verify that results are deduplicated and reassignment targets are stable. (`34a62c053`)
@@ -206,7 +206,7 @@ commits: `6dd5d98e`, `831ad258`
 - [ ] **reduced CPU spikes in vision/capture pipeline** — Actively browse and use applications, verifying that CPU spikes in the vision/capture pipeline are significantly reduced. (`8f7294e6`)
 - [ ] **OCR bounding boxes normalized on Windows/Linux** — On Windows and Linux, verify that OCR bounding boxes are correctly normalized to the 0-1 range, ensuring consistent text overlay and interaction. (`aba74513`)
 - [ ] **Debounced monitor capture errors** — Simulate transient monitor capture errors. Verify that these errors are debounced and do not lead to excessive error logging or app crashes.
-- [ ] **Focus-aware capture** — Enable "Only record focused monitor" in settings. Verify that Screenpipe only captures frames and runs OCR for the monitor that currently has the focused window. (`886b5c05d`)
+- [ ] **Focus-aware capture** — Enable "Only record focused monitor" in settings. Verify that Screen Sentinel only captures frames and runs OCR for the monitor that currently has the focused window. (`886b5c05d`)
 
 ### 6. Battery Saver Mode
 
@@ -269,8 +269,8 @@ commits: `94531265`, `d794176a`, `9070639c`, `0378cab1`, `4a3313d3`, `7ffdd4f1`,
 - [ ] **update without tray** — user can update via dock menu "Check for updates" or Apple menu "Check for Updates..." (`d794176a`, `94531265`).
 - [ ] **update banner in main window** — when update available, banner appears at top of main window.
 - [ ] **source build update dialog** — source builds show "source build detected" dialog with link to pre-built version.
-- [ ] **port conflict on restart** — if old process is holding port 3030, new process kills it and starts cleanly (`0378cab1`, `4a3313d3`, `8c435a10`).
-- [ ] **no orphaned processes** — after quit, `ps aux | grep screenpipe` shows nothing. `lsof -i :3030` shows nothing.
+- [ ] **port conflict on restart** — if old process is holding port 3130, new process kills it and starts cleanly (`0378cab1`, `4a3313d3`, `8c435a10`).
+- [ ] **no orphaned processes** — after quit, `ps aux | grep screen-sentinel` shows nothing. `lsof -i :3130` shows nothing.
 - [ ] **rollback** — user can rollback to previous version via tray menu (`c7fbc3ea`).
 - [ ] **Zombie CPU drain prevention** — Verify that `lsof` calls have a 5-second timeout, preventing zombie CPU drain, especially on quit. Check logs for `lsof` timeouts if applicable.
 - [ ] **Tokio shutdown stability** — Verify that the `tokio` shutdown process is stable and doesn't panic in the tree walker, especially during application exit or process restarts.
@@ -279,7 +279,7 @@ commits: `94531265`, `d794176a`, `9070639c`, `0378cab1`, `4a3313d3`, `7ffdd4f1`,
 - [ ] **recording watchdog diagnostics** — Verify that the recording watchdog correctly diagnoses and handles recording issues, and provides useful diagnostic information. (`af2b4f3d`)
 - [ ] **capture stall detection** — Simulate or observe a capture stall. Verify that a notification appears with a "Restart" button to recover. (`d3ead88eb`)
 - [ ] **DB write stall detection** — if DB writes stall, verify a notification appears with a "Restart" button. (`1b4bf7918`)
-- [ ] **clean startup after unclean shutdown on Windows** — On Windows, verify that the app starts cleanly after an unclean shutdown (e.g., force quit), without port 3030 binding failures. (`a8413fe2`)
+- [ ] **clean startup after unclean shutdown on Windows** — On Windows, verify that the app starts cleanly after an unclean shutdown (e.g., force quit), without port 3130 binding failures. (`a8413fe2`)
 - [ ] **sleep/wake detection on Windows and Linux** — Verify that recording resumes correctly after sleep/wake on Windows and Linux. (`f519281b5`)
 
 ### 9. database & storage
@@ -295,7 +295,7 @@ commits: `eea0c865`, `cc09de61`, `e61501da`, `d25191d7`, `60096fb9`
 - [ ] **large database (>10GB)** — search still returns results within 2 seconds. app doesn't freeze on startup.
 - [ ] **Snapshot compaction integrity** — Verify compaction doesn't result in NULL offset_index or pool exhaustion. (`09245af5f`)
 - [ ] **Audio chunk timestamps** — `start_time` and `end_time` are correctly set for reconciled and retranscribed audio chunks in the database.
-- [ ] **SCREENPIPE_DATA_DIR usage** — Set the `SCREENPIPE_DATA_DIR` environment variable. Verify the app uses this directory for all its data storage. (`d5f30db71`)
+- [ ] **SCREEN_SENTINEL_DATA_DIR usage** — Set the `SCREEN_SENTINEL_DATA_DIR` environment variable. Verify the app uses this directory for all its data storage. (`d5f30db71`)
 - [ ] **DB pool starvation prevention** — Simulate high database load (e.g., rapid screen activity, many pipes running) and monitor logs. Verify no "database is locked" errors or signs of DB pool starvation.
 - [ ] **DB write coalescing queue** — verify high-frequency captures (e.g. 10 FPS) don't lock the UI or cause write errors. (`c23768f41`)
 - [ ] **Multi-byte window titles in suggestions** — Interact with suggestions for windows that have multi-byte (e.g., Unicode, emoji) characters in their titles. Verify no char boundary panics.
@@ -391,7 +391,7 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`, `e61501da`, `039d5fea`,
 - [ ] **window-focused refresh** — opening app via shortcut/tray refreshes timeline data immediately (`0b057046`).
 - [ ] **code block colors in memories** — Verify that code block colors in the memories page match the current app theme. (`1c8d785fc`)
 - [ ] **memories page pagination** — Verify that memories page pagination works correctly and tags are loaded from the API. (`3e00b70b4`)
-- [ ] **frame deep link navigation** — `screenpipe://frame/N` or `screenpipe://frames/N` opens main window and jumps to frame N. works from cold start; invalid IDs show clear error.
+- [ ] **frame deep link navigation** — `screen-sentinel://frame/N` or `screen-sentinel://frames/N` opens main window and jumps to frame N. works from cold start; invalid IDs show clear error.
 - [ ] **missing frames return 404** — Attempt to access a non-existent frame via the API. Verify that it returns a 404 error. (`2e63282b8`)
 - [ ] **Search result exact navigation** — Click a search result. Verify it navigates exactly to the associated `frame_id`. (`a98fa2991`)
 - [ ] **Search navigation persistence** — Navigate to a frame from search results. Shift focus away from the app and back. Verify the navigation is not reset. (`71dee4ca3`)
@@ -436,14 +436,14 @@ commits: `f1255eac`, `25cbdc6b`, `2529367d`, `d9821624`
 - [ ] **app context popover** — clicking app icon in timeline shows context (time, windows, urls, audio) (`be3ecffb`).
 - [ ] **daily summary in timeline** — Apple Intelligence summary shows in timeline, compact when no summary (`d9821624`).
 - [ ] **window-focused refresh** — opening app via shortcut/tray refreshes timeline data immediately (`0b057046`).
-- [ ] **frame deep link navigation** — `screenpipe://frame/N` or `screenpipe://frames/N` opens main window and jumps to frame N. works from cold start; invalid IDs show clear error.
+- [ ] **frame deep link navigation** — `screen-sentinel://frame/N` or `screen-sentinel://frames/N` opens main window and jumps to frame N. works from cold start; invalid IDs show clear error.
 - [ ] **Keyword search accessibility** — Keyword search should find content within accessibility-only frames and utilize `frames_fts` for comprehensive accessibility text searching.
 - [ ] **Keyword search logic** — Verify that keyword search SQL correctly uses `OR` instead of `UNION` within `IN()`.
 - [ ] **Search prompt accuracy** — Verify that search prompts are improved to prevent false negatives from over-filtering.
 
 ### 13. sync & cloud
 
-- [ ] **CLI remote sync** — Run `screenpipe sync remote`. Verify it correctly syncs data to a remote SSH/SFTP server. (`f46e85cb1`)
+- [ ] **CLI remote sync** — Run `screen-sentinel sync remote`. Verify it correctly syncs data to a remote SSH/SFTP server. (`f46e85cb1`)
 
 
 commits: `2f6b2af5`, `ea7f1f61`, `5cb100ea`
@@ -540,7 +540,7 @@ Note: `"terminal"` matches `WindowsTerminal.exe` but NOT `cmd.exe` or `powershel
 
 #### Windows text extraction — untested / unknown apps
 
-These apps are common on Windows but have **never been tested** with the event-driven pipeline. We don't know if their accessibility tree returns useful text or just chrome. Each needs manual verification: open the app, use it for a few minutes, then `curl "http://localhost:3030/search?app_name=<name>&limit=3"` and check if the text is meaningful.
+These apps are common on Windows but have **never been tested** with the event-driven pipeline. We don't know if their accessibility tree returns useful text or just chrome. Each needs manual verification: open the app, use it for a few minutes, then `curl "http://localhost:3130/search?app_name=<name>&limit=3"` and check if the text is meaningful.
 
 **Status legend:** `?` = untested, `OK` = verified good, `CHROME` = only returns chrome, `EMPTY` = no text, `OCR-NEEDED` = should be added to `app_prefers_ocr`
 
@@ -602,7 +602,7 @@ These apps are common on Windows but have **never been tested** with the event-d
 ```bash
 # 1. Open the app, use it for 2 minutes
 # 2. Check what was captured:
-curl "http://localhost:3030/search?app_name=<exe_name>&limit=3&content_type=all"
+curl "http://localhost:3130/search?app_name=<exe_name>&limit=3&content_type=all"
 # 3. If text is only chrome (System/Minimize/Close), it may need adding to app_prefers_ocr
 # 4. If text is empty and screenshots exist, OCR fallback should kick in
 # 5. Update this table with findings
@@ -625,7 +625,7 @@ commits: `8f334c0a`, `fda40d2c`
 
 - [ ] **macOS 26 runner** — release builds on self-hosted macOS 26 runner with Apple Intelligence (`fda40d2c`).
 - [ ] **updater artifacts** — release includes `.tar.gz` + `.sig` for macOS, `.nsis.zip` + `.sig` for Windows.
-- [ ] **prod config used** — CI copies `tauri.prod.conf.json` to `tauri.conf.json` before building. identifier is `screenpi.pe` not `screenpi.pe.dev`.
+- [ ] **prod config used** — CI copies `tauri.prod.conf.json` to `tauri.conf.json` before building. identifier is `screenpi.pe` not `io.github.samuel-harris.screen-sentinel.dev`.
 - [ ] **draft then publish** — `workflow_dispatch` creates draft. manual publish or `release-app-publish` commit publishes.
 - [ ] **macOS E2E workflow** — Verify the macOS E2E workflow in CI ensures stability across releases. (`18ca34d55`)
 
@@ -655,11 +655,11 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Search Elements tool** — MCP can search elements using the `search-elements` tool.
 - [ ] **Frame Context tool** — MCP can access frame context via the `frame-context` tool.
 - [ ] **Progressive disclosure for AI data** — AI data querying should progressively disclose information.
-- [ ] **Screenpipe Analytics skill** — The `screenpipe-analytics` skill can be used by the Pi agent to perform raw SQL usage analytics.
-- [ ] **Screenpipe Retranscribe skill** — The `screenpipe-retranscribe` skill can be used by the Pi agent for retranscription.
+- [ ] **Screen Sentinel Analytics skill** — The `screen-sentinel-analytics` skill can be used by the Pi agent to perform raw SQL usage analytics.
+- [ ] **Screen Sentinel Retranscribe skill** — The `screen-sentinel-retranscribe` skill can be used by the Pi agent for retranscription.
 - [ ] **AI preset save stability** — Saving AI presets should not cause crashes, especially when dealing with pipe session conflicts.
 - [ ] **Pipe token handling** — Ensure that Pi configuration for pipes uses the actual token value, not the environment variable name.
-- [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the screenpipe provider.
+- [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the Screen Sentinel provider.
 - [ ] **Pipe preset override** — Install a pipe from the store. Verify its preset can be overridden by user's default. (`bee49f1e7`)
 - [ ] **Pipe configurable timeout** — Add `timeout` to pipe.md frontmatter. Verify pipe respects this timeout. (`cc0ecef53`)
 - [ ] **Pipe store caching** — Navigate pipe store and connections pages. Verify fast loading due to client-side caching. (`f501c19fb`)
@@ -710,11 +710,11 @@ commits: `fa887407`, `815f52e6`, `60840155`, `e66c3ff8`, `c905ffbf`, `01147096`,
 - [ ] **Search Elements tool** — MCP can search elements using the `search-elements` tool.
 - [ ] **Frame Context tool** — MCP can access frame context via the `frame-context` tool.
 - [ ] **Progressive disclosure for AI data** — AI data querying should progressively disclose information.
-- [ ] **Screenpipe Analytics skill** — The `screenpipe-analytics` skill can be used by the Pi agent to perform raw SQL usage analytics.
-- [ ] **Screenpipe Retranscribe skill** — The `screenpipe-retranscribe` skill can be used by the Pi agent for retranscription.
+- [ ] **Screen Sentinel Analytics skill** — The `screen-sentinel-analytics` skill can be used by the Pi agent to perform raw SQL usage analytics.
+- [ ] **Screen Sentinel Retranscribe skill** — The `screen-sentinel-retranscribe` skill can be used by the Pi agent for retranscription.
 - [ ] **AI preset save stability** — Saving AI presets should not cause crashes, especially when dealing with pipe session conflicts.
 - [ ] **Pipe token handling** — Ensure that Pi configuration for pipes uses the actual token value, not the environment variable name.
-- [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the screenpipe provider.
+- [ ] **Pipe user_token passthrough** — Verify that the `user_token` is correctly passed to Pi pre-configuration so pipes use the Screen Sentinel provider.
 - [ ] **Default AI model ID** — Verify that the default AI model ID does not contain outdated date suffixes.
 - [ ] **Move provider/model flags** — `--provider` and `--model` flags should be correctly moved before `-p prompt` in `pi spawn` commands.
 
@@ -744,12 +744,12 @@ commits: `fc830b43`, `f54d3e0d`
 commits: `274a968af`, `dc575e48e`, `81aabbf18`, `d5e071854`, `db08f8c06`, `f4225b580`
 
 - [ ] **Vault lock initialization** — Verify that the vault can be initialized and a password set.
-- [ ] **Encryption of database and data files** — Verify that screenpipe data is encrypted at rest when the vault is locked.
+- [ ] **Encryption of database and data files** — Verify that Screen Sentinel data is encrypted at rest when the vault is locked.
 - [ ] **Recording stop on lock** — Verify that recording stops immediately when the vault is locked.
 - [ ] **Recording resume on unlock** — Verify that recording restarts automatically when the vault is unlocked.
 - [ ] **Fast vault unlock** — Verify that the DB is decrypted quickly and data files are decrypted in the background. (`dc575e48e`)
 - [ ] **Vault lock shortcut** — Verify that the configurable vault lock shortcut works as expected. (`81aabbf18`)
-- [ ] **CLI vault commands** — Verify that `screenpipe vault` commands work without the server running. (`f4225b580`)
+- [ ] **CLI vault commands** — Verify that `screen-sentinel vault` commands work without the server running. (`f4225b580`)
 - [ ] **Skip server start on locked vault** — Verify that the server does not start if the vault is locked. (`d5e071854`)
 
 ### 21. Privacy & Incognito Detection
@@ -762,7 +762,7 @@ commits: `ad431b513`, `d9722bccc`, `4df21e83d`
 - [ ] **Incognito window detection** — Verify that private browsing/incognito windows are correctly detected for major browsers (Chrome, Safari, Firefox, etc.). (`ad431b513`)
 - [ ] **Ignore incognito toggle** — Verify that the "Ignore Incognito Windows" toggle in settings correctly prevents recording of private windows. (`d9722bccc`)
 - [ ] **Incognito detection UI feedback** — Verify that the UI correctly reflects when an incognito window is being ignored.
-- [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screenpipe pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
+- [ ] **DRM pause behavior** — Play DRM-protected content (e.g., Netflix in Safari). Verify that Screen Sentinel pauses recording gracefully and resumes automatically once the DRM content is closed, without crashing the server. (`3d9f0e8bb`)
 - [ ] **LAN-access toggle** — Toggle "Enable LAN access" in API settings. Verify that the API binds to `0.0.0.0` and that `api_auth` is forcibly enabled for security. (`c8d9c83f0`)
 
 commits: `fc830b43`
@@ -814,37 +814,37 @@ run section 7 and 10.
 ## log locations
 
 ```
-macOS:   ~/.screenpipe/screenpipe-app.YYYY-MM-DD.log
-Windows: %USERPROFILE%\.screenpipe\screenpipe-app.YYYY-MM-DD.log
-Linux:   ~/.screenpipe/screenpipe-app.YYYY-MM-DD.log
+macOS:   ~/.screen-sentinel/screen-sentinel-app.YYYY-MM-DD.log
+Windows: %USERPROFILE%\.screen-sentinel\screen-sentinel-app.YYYY-MM-DD.log
+Linux:   ~/.screen-sentinel/screen-sentinel-app.YYYY-MM-DD.log
 ```
 
 ### what to grep for
 
 ```bash
 # crashes/errors
-grep -E "panic|SIGABRT|ERROR|error" ~/.screenpipe/screenpipe-app.*.log
+grep -E "panic|SIGABRT|ERROR|error" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # monitor events
-grep -E "Monitor.*disconnect|Monitor.*reconnect|Starting vision" ~/.screenpipe/screenpipe-app.*.log
+grep -E "Monitor.*disconnect|Monitor.*reconnect|Starting vision" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # frame skip rate (debug level only)
-grep "Hash match" ~/.screenpipe/screenpipe-app.*.log
+grep "Hash match" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # queue health
-grep "Queue stats" ~/.screenpipe/screenpipe-app.*.log
+grep "Queue stats" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # DB contention
-grep "Slow DB" ~/.screenpipe/screenpipe-app.*.log
+grep "Slow DB" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # audio issues
-grep -E "audio.*timeout|audio.*error|device.*disconnect" ~/.screenpipe/screenpipe-app.*.log
+grep -E "audio.*timeout|audio.*error|device.*disconnect" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # window/overlay issues
-grep -E "show_existing|panel.*level|Accessory|activation_policy" ~/.screenpipe/screenpipe-app.*.log
+grep -E "show_existing|panel.*level|Accessory|activation_policy" ~/.screen-sentinel/screen-sentinel-app.*.log
 
 # Apple Intelligence
-grep -E "FoundationModels|apple.intelligence|fm_generate" ~/.screenpipe/screenpipe-app.*.log
+grep -E "FoundationModels|apple.intelligence|fm_generate" ~/.screen-sentinel/screen-sentinel-app.*.log
 ```
 
 ### 12. mainland china / great firewall
@@ -857,7 +857,7 @@ grep -E "FoundationModels|apple.intelligence|fm_generate" ~/.screenpipe/screenpi
 commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 
 - [ ] **WhatsApp gateway auto-restart** — Manually terminate the WhatsApp gateway process. Verify the watchdog restarts it automatically. (`cf2dcd5f8`)
-- [ ] **WhatsApp gateway self-termination** — Kill the main screenpipe process. Verify the WhatsApp gateway process also terminates. (`ad1d00d8f`)
+- [ ] **WhatsApp gateway self-termination** — Kill the main Screen Sentinel process. Verify the WhatsApp gateway process also terminates. (`ad1d00d8f`)
 - [ ] **WhatsApp history & contacts sync** — Verify that WhatsApp chat history and contacts are correctly synchronized. (`aaf031169`)
 - [ ] **WhatsApp auto-reconnect** — Verify the WhatsApp gateway automatically reconnects on server start. (`6f623b30a`)
 
@@ -865,7 +865,7 @@ commits: `cf2dcd5f8`, `ad1d00d8f`, `6f623b30a`, `aaf031169`
 
 - [ ] **Restart notifications toggle** — Toggle "restart notifications" in settings. Verify notifications only appear when enabled. (`f82b4f350`)
 - [ ] **Notification text selection** — Verify that text can be selected in notification inbox messages. (`3449197c3`)
-- [ ] **macOS notification "Open" click** — Click "Open" on a macOS system notification. Verify it correctly brings the Screenpipe window to the front. (`3e86cebb0`)
+- [ ] **macOS notification "Open" click** — Click "Open" on a macOS system notification. Verify it correctly brings the Screen Sentinel window to the front. (`3e86cebb0`)
 
 ### 26. Onboarding & Fleet UX
 
@@ -897,19 +897,19 @@ commits: `c8769545b`, `4f522325b`, `54000c295`
 
 commits: `c6a73b17e`, `945b687ec`
 
-- [ ] **Deploy to offline devices** — Use chat prompt to deploy screenpipe to an offline device. Verify it handles the "Screen Sharing" permission dialog by opening it on the target machine. (`c6a73b17e`, `945b687ec`)
+- [ ] **Deploy to offline devices** — Use chat prompt to deploy Screen Sentinel to an offline device. Verify it handles the "Screen Sharing" permission dialog by opening it on the target machine. (`c6a73b17e`, `945b687ec`)
 
 ### 29. Browser Extension
 
 - [ ] **Extension popup** — Open the browser extension popup. Verify connection status is displayed correctly. (`be7c9e8b5`)
 
 
-- [ ] **Browser extension token auth** — Open the browser extension options page. Verify that token-based authentication works and that it can successfully connect to the Screenpipe API. (`be14de544`)
+- [ ] **Browser extension token auth** — Open the browser extension options page. Verify that token-based authentication works and that it can successfully connect to the Screen Sentinel API. (`be14de544`)
 
 ### 30. CLI
 
-- [ ] **CLI logout** — Run `screenpipe logout`. Verify it clears local auth tokens. (`793c3d6e9`)
-- [ ] **CLI sync remote** — Verify `screenpipe sync remote` command and its configuration. (`f46e85cb1`)
+- [ ] **CLI logout** — Run `screen-sentinel logout`. Verify it clears local auth tokens. (`793c3d6e9`)
+- [ ] **CLI sync remote** — Verify `screen-sentinel sync remote` command and its configuration. (`f46e85cb1`)
 
 ### 31. Chat (Pi)
 

@@ -1,5 +1,5 @@
 
-# Screenpipe Design Guide
+# Screen Sentinel Design Guide
 
 ## Philosophy
 
@@ -192,10 +192,10 @@ When creating new UI components:
 
 | Purpose | Location |
 |---------|----------|
-| Design tokens | `screenpipe-app-tauri/app/globals.css` |
-| Tailwind config | `screenpipe-app-tauri/tailwind.config.ts` |
-| Color constants | `screenpipe-app-tauri/lib/constants/colors.ts` |
-| UI components | `screenpipe-app-tauri/components/ui/*.tsx` |
+| Design tokens | `screen-sentinel-app-tauri/app/globals.css` |
+| Tailwind config | `screen-sentinel-app-tauri/tailwind.config.ts` |
+| Color constants | `screen-sentinel-app-tauri/lib/constants/colors.ts` |
+| UI components | `screen-sentinel-app-tauri/components/ui/*.tsx` |
 
 ---
 

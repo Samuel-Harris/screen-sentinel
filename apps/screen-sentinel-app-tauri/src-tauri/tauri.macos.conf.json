@@ -1,0 +1,14 @@
+{
+    "bundle": {
+        "publisher": "Screen Sentinel",
+        "macOS": {
+            "entitlements": "entitlements.plist",
+            "hardenedRuntime": true,
+            "provisioningProfile": null
+        },
+        "externalBin": [
+            "ffmpeg",
+            "ffprobe"
+        ]
+    }
+}

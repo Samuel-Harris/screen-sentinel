@@ -1,0 +1,12 @@
+{
+  "name": "@screen-sentinel/cli-win32-x64",
+  "version": "0.1.0",
+  "description": "Screen Sentinel CLI binary for Windows x64",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Samuel-Harris/screen-sentinel"
+  },
+  "license": "MIT"
+}

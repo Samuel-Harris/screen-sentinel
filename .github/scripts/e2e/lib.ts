@@ -16,16 +16,16 @@ export const IS_MACOS = platform() === "darwin";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
-export const APP_NAME = process.env.SCREENPIPE_APP_NAME ?? "screenpipe";
-export const HEALTH_URL = "http://localhost:3030/health";
-export const SEARCH_URL = "http://localhost:3030/search";
+export const APP_NAME = process.env.SCREEN_SENTINEL_APP_NAME ?? "screen-sentinel";
+export const HEALTH_URL = "http://localhost:3130/health";
+export const SEARCH_URL = "http://localhost:3130/search";
 export const TIMEOUT_SHORT = 5_000;
 export const TIMEOUT_MEDIUM = 15_000;
 export const TIMEOUT_LONG = 60_000;
 
 const defaultArtifacts = IS_WINDOWS
-  ? join(tmpdir(), "screenpipe-e2e", new Date().toISOString().replace(/[:.]/g, "-"))
-  : join("/tmp", "screenpipe-e2e", new Date().toISOString().replace(/[:.]/g, "-"));
+  ? join(tmpdir(), "screen-sentinel-e2e", new Date().toISOString().replace(/[:.]/g, "-"))
+  : join("/tmp", "screen-sentinel-e2e", new Date().toISOString().replace(/[:.]/g, "-"));
 
 export const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR ?? defaultArtifacts;
 
@@ -277,14 +277,14 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ── Process helpers ─────────────────────────────────────────────────────────
 
-/** Check if screenpipe process is running (cross-platform) */
-export function isScreenpipeRunning(): boolean {
+/** Check if Screen Sentinel process is running (cross-platform) */
+export function isScreenSentinelRunning(): boolean {
   if (IS_WINDOWS) {
-    const proc = Bun.spawnSync(["tasklist", "/FI", "IMAGENAME eq screenpipe*", "/NH"]);
+    const proc = Bun.spawnSync(["tasklist", "/FI", "IMAGENAME eq Screen Sentinel*", "/NH"]);
     const out = proc.stdout.toString();
-    return out.includes("screenpipe");
+    return out.includes("screen-sentinel");
   } else {
-    const proc = Bun.spawnSync(["pgrep", "-f", "screenpipe"]);
+    const proc = Bun.spawnSync(["pgrep", "-f", "screen-sentinel"]);
     return proc.exitCode === 0;
   }
 }

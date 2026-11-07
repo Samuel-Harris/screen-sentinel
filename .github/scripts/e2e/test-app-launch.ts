@@ -1,13 +1,13 @@
 import {
   suite, test, summary, screenshot, assertHealthField,
   assertExists, bb, fetchJson, HEALTH_URL, waitForHealth, sleep,
-  sel, IS_WINDOWS, IS_MACOS, isScreenpipeRunning,
+  sel, IS_WINDOWS, IS_MACOS, isScreenSentinelRunning,
 } from "./lib";
 
 suite("app launch & health");
 
 await test("app process running", async () => {
-  if (!isScreenpipeRunning()) throw new Error("screenpipe process not found");
+  if (!isScreenSentinelRunning()) throw new Error("Screen Sentinel process not found");
 });
 
 await test("health API responds", async () => {
@@ -41,22 +41,22 @@ if (IS_MACOS) {
   await test("tray shows recording", () => assertExists("title:● recording"));
   await test("tray version present", () => assertExists("title~:version"));
   await test("tray settings item", () => assertExists("role:AXMenuItem AND title:settings"));
-  await test("tray quit item", () => assertExists("role:AXMenuItem AND title:quit screenpipe"));
+  await test("tray quit item", () => assertExists("role:AXMenuItem AND title:quit Screen Sentinel"));
   await test("tray changelog item", () => assertExists("role:AXMenuItem AND title:changelog"));
-  await test("tray show screenpipe", () => assertExists("title~:show screenpipe"));
+  await test("tray show Screen Sentinel", () => assertExists("title~:show Screen Sentinel"));
   await test("tray stop recording", () => assertExists("role:AXMenuItem AND title:stop recording"));
   await test("tray start recording", () => assertExists("role:AXMenuItem AND title:start recording"));
   await test("tray send feedback", () => assertExists("role:AXMenuItem AND title:send feedback"));
 }
 
 if (IS_WINDOWS) {
-  // Windows: verify the screenpipe-app process has a window handle
+  // Windows: verify the screen-sentinel-app process has a window handle
   // Tauri windows on Windows appear as Pane elements with class "screenpi.pe-sic"
   await test("tray pane exists", async () => {
     const result = await bb("find", "name~:screenpi");
     const elements = result?.data ?? [];
     if (elements.length === 0) {
-      throw new Error("screenpipe pane/tray element not found in UIA tree");
+      throw new Error("Screen Sentinel pane/tray element not found in UIA tree");
     }
   });
 }
@@ -119,9 +119,9 @@ await test("concurrent API calls don't race (S9.4)", async () => {
   // Fire search + health + pipes simultaneously — tests internal event handling
   const start = Date.now();
   const [search, health, pipes] = await Promise.all([
-    fetch("http://localhost:3030/search?limit=1").then(r => ({ ok: r.ok })).catch(() => ({ ok: false })),
+    fetch("http://localhost:3130/search?limit=1").then(r => ({ ok: r.ok })).catch(() => ({ ok: false })),
     fetch(HEALTH_URL).then(r => ({ ok: r.ok })).catch(() => ({ ok: false })),
-    fetch("http://localhost:3030/pipes/list").then(r => ({ ok: r.ok || r.status === 404 })).catch(() => ({ ok: false })),
+    fetch("http://localhost:3130/pipes/list").then(r => ({ ok: r.ok || r.status === 404 })).catch(() => ({ ok: false })),
   ]);
   const elapsed = Date.now() - start;
 

@@ -2,7 +2,7 @@ name: Secret Scan (trufflehog)
 
 # Renamed from `gitleaks` (the action now requires a paid org license
 # per https://github.com/gitleaks/gitleaks-action#-announcement —
-# "[screenpipe] is an organization. License key is required.").
+# "[Screen Sentinel] is an organization. License key is required.").
 # TruffleHog gives us the same intent (find leaked credentials in
 # commits) at zero cost and ships its own GitHub Action.
 

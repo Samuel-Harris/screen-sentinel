@@ -74,4 +74,4 @@ RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="${HOME}/.cargo/bin:${PATH}"
 RUN cargo install tauri-driver
 
-EXPOSE 3000 3030
+EXPOSE 3000 3130

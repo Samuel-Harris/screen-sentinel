@@ -8,7 +8,7 @@ suite("chat");
 
 if (IS_MACOS) {
   await test("navigate to chat area", async () => {
-    await bb("activate", "screenpipe-app");
+    await bb("activate", "screen-sentinel-app");
     await sleep(500);
     const s = shortcuts.showApp;
     await shortcut(s.key, s.modifiers);
@@ -33,10 +33,10 @@ if (IS_MACOS) {
 if (IS_WINDOWS) {
   // On Windows, the Tauri WebView2 UIA tree is limited.
   // We verify the process is alive and take a screenshot.
-  await test("screenpipe process alive", async () => {
+  await test("Screen Sentinel process alive", async () => {
     const result = await bb("find", "name~:screenpi");
     const elements = result?.data ?? [];
-    if (elements.length === 0) throw new Error("screenpipe not found");
+    if (elements.length === 0) throw new Error("Screen Sentinel not found");
   });
 }
 

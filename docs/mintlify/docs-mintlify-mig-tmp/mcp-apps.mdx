@@ -1,5 +1,5 @@
 ---
-title: "MCP apps - create interactive UIs for screenpipe"
+title: "MCP apps - create interactive UIs for Screen Sentinel"
 sidebarTitle: "mcp apps"
 description: "Build interactive UI components — dashboards, forms, visualizations — that render directly inside Claude, ChatGPT, and VS Code using the MCP Apps protocol."
 icon: "window"
@@ -30,7 +30,7 @@ your UI works in:
 - ChatGPT
 - VS Code
 - Goose
-- screenpipe's built-in chat
+- Screen Sentinel's built-in chat
 
 ## creating an MCP app
 
@@ -39,7 +39,7 @@ your UI works in:
 create a single HTML file with embedded CSS and JavaScript:
 
 ```html
-<!-- packages/screenpipe-mcp/ui/my-app.html -->
+<!-- packages/screen-sentinel-mcp/ui/my-app.html -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -83,7 +83,7 @@ create a single HTML file with embedded CSS and JavaScript:
 </head>
 <body>
   <div class="container">
-    <h1>my screenpipe app</h1>
+    <h1>my screen-sentinel app</h1>
     <input type="text" id="query" placeholder="search your recordings..." />
     <button onclick="search()">search</button>
     <div id="results"></div>
@@ -192,12 +192,12 @@ return {
 
 ## contributing an MCP app
 
-want to add your UI to screenpipe? here's how:
+want to add your UI to Screen Sentinel? here's how:
 
 ### file structure
 
 ```
-packages/screenpipe-mcp/
+packages/screen-sentinel-mcp/
 ├── src/
 │   └── index.ts          # MCP server
 ├── ui/
@@ -211,7 +211,7 @@ packages/screenpipe-mcp/
 
 1. **create your HTML file** in the `ui/` directory
 2. **keep it self-contained** - all CSS/JS should be inline
-3. **use dark theme** - match screenpipe's aesthetic
+3. **use dark theme** - match Screen Sentinel's aesthetic
 4. **test locally** with MCP Inspector
 5. **submit a PR** with:
    - your HTML file
@@ -242,7 +242,7 @@ packages/screenpipe-mcp/
 use MCP Inspector to test:
 
 ```bash
-cd packages/screenpipe-mcp
+cd packages/screen-sentinel-mcp
 npm run build
 npx @modelcontextprotocol/inspector node dist/index.js
 ```
@@ -305,6 +305,6 @@ MCP Apps run in sandboxed iframes with:
 
 - [MCP Apps specification](https://blog.modelcontextprotocol.io/posts/2026-01-26-mcp-apps/)
 - [ext-apps SDK](https://github.com/modelcontextprotocol/ext-apps)
-- [screenpipe MCP source](https://github.com/screenpipe/screenpipe/tree/main/packages/screenpipe-mcp)
+- [Screen Sentinel MCP source](https://github.com/Samuel-Harris/screen-sentinel/tree/main/packages/screen-sentinel-mcp)
 
 need help? [join our discord](https://discord.gg/screenpipe).

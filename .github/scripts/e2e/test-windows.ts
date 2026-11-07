@@ -115,7 +115,7 @@ await test("DPI scaling detection", async () => {
 });
 
 await test("OCR works at current DPI", async () => {
-  const data = await fetchJson("http://localhost:3030/search?limit=1&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=1&content_type=ocr");
   const results = data?.data ?? [];
   if (results.length === 0) {
     throw new Error("no OCR results — DPI may be affecting capture");
@@ -132,10 +132,10 @@ await test("OCR works at current DPI", async () => {
 // ── S14: Windows Defender ───────────────────────────────────────────────────
 
 await test("not blocked by Windows Defender", async () => {
-  // Check if screenpipe is in Defender exclusions or if there are recent blocks
+  // Check if Screen Sentinel is in Defender exclusions or if there are recent blocks
   const proc = Bun.spawnSync(["powershell", "-NoProfile", "-Command", `
     $threats = Get-MpThreatDetection -ErrorAction SilentlyContinue |
-      Where-Object { $_.ProcessName -like '*screenpipe*' } |
+      Where-Object { $_.ProcessName -like '*Screen Sentinel*' } |
       Select-Object -First 5
     if ($threats) {
       Write-Output "BLOCKED:$($threats.Count)"
@@ -145,21 +145,21 @@ await test("not blocked by Windows Defender", async () => {
   `], { timeout: 15_000 });
   const result = proc.stdout.toString().trim();
   if (result.startsWith("BLOCKED")) {
-    throw new Error(`Windows Defender blocked screenpipe: ${result}`);
+    throw new Error(`Windows Defender blocked screen-sentinel: ${result}`);
   }
   console.log(`  Defender status: ${result}`);
 });
 
 // ── S8: No orphaned processes (Windows-specific) ────────────────────────────
 
-await test("no orphaned screenpipe child processes", async () => {
-  // Get screenpipe parent PID
+await test("no orphaned Screen Sentinel child processes", async () => {
+  // Get Screen Sentinel parent PID
   const parentProc = Bun.spawnSync(["powershell", "-NoProfile", "-Command",
-    "(Get-Process -Name 'screenpipe*' -ErrorAction SilentlyContinue | Select-Object -First 1).Id"]);
+    "(Get-Process -Name 'Screen Sentinel*' -ErrorAction SilentlyContinue | Select-Object -First 1).Id"]);
   const parentPid = parseInt(parentProc.stdout.toString().trim());
 
   if (!parentPid) {
-    console.log("  (skipped: no screenpipe process found)");
+    console.log("  (skipped: no Screen Sentinel process found)");
     return;
   }
 
@@ -168,7 +168,7 @@ await test("no orphaned screenpipe child processes", async () => {
     `(Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq ${parentPid} }).Count`]);
   const childCount = parseInt(childProc.stdout.toString().trim()) || 0;
 
-  console.log(`  screenpipe PID ${parentPid}, child processes: ${childCount}`);
+  console.log(`  screen-sentinel PID ${parentPid}, child processes: ${childCount}`);
 
   // Reasonable child count (ffmpeg, sidecar, etc.) — but >20 suggests leak
   if (childCount > 20) {
@@ -208,7 +208,7 @@ await test("capture works at detected resolution (S5.4-5)", async () => {
   }
 
   // Regardless of resolution, OCR should produce results
-  const data = await fetchJson("http://localhost:3030/search?limit=1&content_type=ocr");
+  const data = await fetchJson("http://localhost:3130/search?limit=1&content_type=ocr");
   const results = data?.data ?? [];
   if (results.length === 0) {
     throw new Error("no OCR results at detected resolution");

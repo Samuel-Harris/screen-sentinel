@@ -8,7 +8,7 @@ suite("main window UI");
 
 if (IS_MACOS) {
   await test("open main window", async () => {
-    await bb("activate", "screenpipe-app");
+    await bb("activate", "screen-sentinel-app");
     await sleep(500);
     const s = shortcuts.showApp;
     await shortcut(s.key, s.modifiers);
@@ -48,9 +48,9 @@ if (IS_MACOS) {
     await sleep(1000);
   });
 
-  await test("screenpipe menu exists", () => assertExists("role:AXMenuBarItem AND title:screenpipe"));
+  await test("Screen Sentinel menu exists", () => assertExists("role:AXMenuBarItem AND title:screen-sentinel"));
   await test("edit menu exists", () => assertExists("role:AXMenuBarItem AND title:Edit"));
-  await test("about menu item", () => assertExists("role:AXMenuItem AND title:About screenpipe"));
+  await test("about menu item", () => assertExists("role:AXMenuItem AND title:About Screen Sentinel"));
   await test("check for updates item", () => assertExists("title~:Check for Updates"));
 }
 
@@ -63,10 +63,10 @@ if (IS_WINDOWS) {
     await sleep(3000);
   });
 
-  await test("screenpipe process has window", async () => {
+  await test("Screen Sentinel process has window", async () => {
     const result = await bb("find", "name~:screenpi");
     const elements = result?.data ?? [];
-    if (elements.length === 0) throw new Error("no screenpipe elements found");
+    if (elements.length === 0) throw new Error("no Screen Sentinel elements found");
   });
 
   await test("overlay toggle on/off (S1.4-5)", async () => {

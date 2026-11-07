@@ -67,7 +67,7 @@ if (IS_WINDOWS) {
   await test("app can access filesystem for DB (S6.1)", async () => {
     // Verify app has filesystem permission by checking search works
     const { fetchJson } = await import("./lib");
-    const data = await fetchJson("http://localhost:3030/search?limit=1");
+    const data = await fetchJson("http://localhost:3130/search?limit=1");
     if (!data?.data) {
       throw new Error("search failed — possible filesystem permission issue");
     }

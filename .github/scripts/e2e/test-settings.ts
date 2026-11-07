@@ -11,7 +11,7 @@ suite("settings page");
 // On Windows, Tauri WebView2 UIA tree access is limited.
 if (IS_MACOS) {
   async function openSettings() {
-    await click("role:AXMenuBarItem AND title:screenpipe");
+    await click("role:AXMenuBarItem AND title:screen-sentinel");
     await sleep(500);
     await click("role:AXMenuItem AND title:Settings...");
     await sleep(3000);

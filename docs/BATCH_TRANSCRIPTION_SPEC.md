@@ -2,13 +2,13 @@
 
 ## Problem
 
-Whisper inference on Metal (GPU) competes with video call apps (Zoom, Meet, Teams, FaceTime) for GPU resources. Users report lag during calls and have to quit screenpipe — defeating the purpose of recording everything.
+Whisper inference on Metal (GPU) competes with video call apps (Zoom, Meet, Teams, FaceTime) for GPU resources. Users report lag during calls and have to quit Screen Sentinel — defeating the purpose of recording everything.
 
 **Root cause:** Real-time transcription runs Whisper Large v3 Turbo (1.6GB model) on Metal every ~21-30 seconds, consuming 27-29% CPU and significant GPU bandwidth. Video call apps also need Metal for encoding/decoding.
 
 ## Solution
 
-Defer audio transcription to idle periods. Audio is still captured and saved to disk in real-time (no data loss), but Whisper inference only runs when the system isn't under load. This is acceptable because screenpipe is a search-your-history tool — users don't need live captions, they need transcriptions available before they search.
+Defer audio transcription to idle periods. Audio is still captured and saved to disk in real-time (no data loss), but Whisper inference only runs when the system isn't under load. This is acceptable because Screen Sentinel is a search-your-history tool — users don't need live captions, they need transcriptions available before they search.
 
 ## User Experience
 

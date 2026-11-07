@@ -3,8 +3,8 @@ members = [
     "crates/*",
 ]
 exclude = [
-    "apps/screenpipe-app-tauri/src-tauri",
-    "crates/screenpipe-integrations",
+    "apps/screen-sentinel-app-tauri/src-tauri",
+    "crates/screen-sentinel-integrations",
 ]
 resolver = "2"
 
@@ -12,7 +12,7 @@ resolver = "2"
 version = "0.4.15"
 authors = ["louis030195 <hi@louis030195.com>"]
 description = ""
-repository = "https://github.com/screenpipe/screenpipe"
+repository = "https://github.com/Samuel-Harris/screen-sentinel"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 

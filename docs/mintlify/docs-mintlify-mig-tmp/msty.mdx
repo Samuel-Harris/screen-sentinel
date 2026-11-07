@@ -1,26 +1,26 @@
 ---
 title: "msty - privacy-first AI with screen context"
 sidebarTitle: "msty"
-description: "Connect screenpipe to Msty's Toolbox via MCP (STDIO or HTTP) so this privacy-first desktop AI can search your screen history and meeting transcripts."
+description: "Connect Screen Sentinel to Msty's Toolbox via MCP (STDIO or HTTP) so this privacy-first desktop AI can search your screen history and meeting transcripts."
 icon: "brain"
 ---
 
-[Msty](https://msty.studio) is a privacy-first AI platform (desktop + web) that natively supports MCP via its Toolbox feature — both STDIO and HTTP modes. screenpipe works out of the box with Msty, giving it access to your screen history, audio transcriptions, and more.
+[Msty](https://msty.studio) is a privacy-first AI platform (desktop + web) that natively supports MCP via its Toolbox feature — both STDIO and HTTP modes. Screen Sentinel works out of the box with Msty, giving it access to your screen history, audio transcriptions, and more.
 
 ## setup
 
 ### STDIO mode
 
-1. make sure screenpipe is running on your machine
+1. make sure Screen Sentinel is running on your machine
 2. open Msty and go to **Settings** → **Toolbox**
 3. add a new tool with the following configuration:
 
 ```json
 {
   "mcpServers": {
-    "screenpipe": {
+    "screen-sentinel": {
       "command": "npx",
-      "args": ["-y", "screenpipe-mcp"]
+      "args": ["-y", "screen-sentinel-mcp"]
     }
   }
 }
@@ -35,9 +35,9 @@ if you need remote access, use the HTTP transport instead:
 ```json
 {
   "mcpServers": {
-    "screenpipe": {
+    "screen-sentinel": {
       "command": "npx",
-      "args": ["-y", "screenpipe-mcp-http", "--port", "3031"]
+      "args": ["-y", "screen-sentinel-mcp-http", "--port", "3131"]
     }
   }
 }
@@ -62,7 +62,7 @@ once configured, Msty can search your screen history and get context about what 
 **recall context from earlier:**
 ```
 > I was reading a blog post about rust macros earlier today,
-> search screenpipe and summarize the key points
+> search screen-sentinel and summarize the key points
 ```
 
 **reference meeting discussion:**
@@ -73,26 +73,26 @@ once configured, Msty can search your screen history and get context about what 
 
 **debug from memory:**
 ```
-> I saw an error message flash on screen, search screenpipe
+> I saw an error message flash on screen, search screen-sentinel
 > to find it and help me fix the issue
 ```
 
 **find code examples:**
 ```
-> search screenpipe for the python code I was looking at
+> search screen-sentinel for the python code I was looking at
 > in the browser yesterday about asyncio patterns
 ```
 
 ## available tools
 
-screenpipe provides these MCP tools to Msty:
+Screen Sentinel provides these MCP tools to Msty:
 
 - **search-content** - search accessibility-first screen text, audio transcriptions, and input events
 - **export-video** - create video exports from screen recordings
 
 ## requirements
 
-- screenpipe running on localhost:3030 (or localhost:3031 for HTTP mode)
+- Screen Sentinel running on localhost:3130 (or localhost:3131 for HTTP mode)
 - Msty desktop or web app
 - Node.js >= 18.0.0
 

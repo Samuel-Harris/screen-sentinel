@@ -49,26 +49,26 @@ jobs:
 
       - name: Build CLI
         run: |
-          cargo build --release -p screenpipe-engine
+          cargo build --release -p screen-sentinel-engine
           echo "CLI built successfully"
-          ls -la target/release/screenpipe
+          ls -la target/release/screen-sentinel
 
-      - name: Start screenpipe server
+      - name: Start Screen Sentinel server
         run: |
           # Start without screen recording — just the server + API
           # --disable-vision to skip permission-gated features
-          ./target/release/screenpipe \
+          ./target/release/screen-sentinel \
             --disable-vision \
-            --port 3030 &
+            --port 3130 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
           echo "server started (PID: $SERVER_PID)"
 
           # Wait for health API
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3030/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:3130/health > /dev/null 2>&1; then
               echo "✓ health API responding"
-              curl -sf http://localhost:3030/health | python3 -m json.tool
+              curl -sf http://localhost:3130/health | python3 -m json.tool
               break
             fi
             echo "waiting for health API... ($i/30)"

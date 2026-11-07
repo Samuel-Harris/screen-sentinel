@@ -1,14 +1,14 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "screenpipe docs",
+  "name": "Screen Sentinel docs",
   "colors": {
     "primary": "#000000",
     "light": "#ffffff",
     "dark": "#000000"
   },
   "announcement": {
-    "title": "Get screenpipe — AI that knows everything you've seen, said, or heard →",
+    "title": "Get Screen Sentinel — AI that knows everything you've seen →",
     "href": "https://screenpi.pe/onboarding"
   },
   "favicon": {
@@ -77,7 +77,7 @@
       },
       {
         "label": "github",
-        "href": "https://github.com/screenpipe/screenpipe"
+        "href": "https://github.com/Samuel-Harris/screen-sentinel"
       }
     ],
     "primary": {
@@ -88,18 +88,18 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/screenpipe/screenpipe",
+      "github": "https://github.com/Samuel-Harris/screen-sentinel",
       "x": "https://x.com/screenpipe",
       "discord": "https://discord.gg/screenpipe"
     }
   },
   "search": {
-    "prompt": "search screenpipe docs..."
+    "prompt": "search Screen Sentinel docs..."
   },
   "metadata": {
-    "og:site_name": "screenpipe docs",
+    "og:site_name": "Screen Sentinel docs",
     "og:image": "https://screenpi.pe/og-image.png",
-    "twitter:site": "@screenpipe"
+    "twitter:site": "@screen-sentinel"
   },
   "integrations": {
     "posthog": {

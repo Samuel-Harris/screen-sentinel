@@ -1,0 +1,19 @@
+name: Rename gate
+
+# feature-map/02-rename.md "Done when": the upstream name stays out of the
+# tree outside its allowlist, the app keeps its own bundle id and ports, and
+# no image matches one from the base commit. Any file can break this, so the
+# workflow has no path filter.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rename:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the rename holds
+        run: python3 scripts/check-rename.py

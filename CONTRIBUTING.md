@@ -1,6 +1,6 @@
-# contributing to screen pipe
+# contributing to Screen Sentinel
 
-first off, thank you for considering contributing to screen pipe!
+first off, thank you for considering contributing to Screen Sentinel!
 
 btw, we prefer that you don't contribute if you are not using or will use the product and is just there for bounties, thank you.
 
@@ -32,8 +32,8 @@ before you begin:
 
 3. **clone the repository**:
    ```bash
-   git clone https://github.com/screenpipe/screenpipe
-   cd screenpipe
+   git clone https://github.com/Samuel-Harris/screen-sentinel
+   cd screen-sentinel
    ```
 
 4. **build the project**:
@@ -41,14 +41,14 @@ before you begin:
    cargo build --release --features metal,apple-intelligence
    ```
 
-5. **run screenpipe**:
+5. **run Screen Sentinel**:
    ```bash
-   ./target/release/screenpipe
+   ./target/release/screen-sentinel
    ```
 
 6. **build the desktop app**:
    ```bash
-   cd apps/screenpipe-app-tauri
+   cd apps/screen-sentinel-app-tauri
    bun install
    bun tauri build --features metal,apple-intelligence
    ```
@@ -79,14 +79,14 @@ before you begin:
 
 4. **clone the project**:
    ```powershell
-      git clone https://github.com/screenpipe/screenpipe.git
-      cd screenpipe
+      git clone https://github.com/Samuel-Harris/screen-sentinel
+      cd screen-sentinel
    ```
 5. **build**:
    ```powershell
-   cd screenpipe
+   cd screen-sentinel
    cargo build --release
-   cd apps/screenpipe-app-tauri
+   cd apps/screen-sentinel-app-tauri
    bun install
    bun tauri build
    ```
@@ -112,20 +112,20 @@ before you begin:
 
 4. **clone and build**:
    ```bash
-   git clone https://github.com/screenpipe/screenpipe
-   cd screenpipe
+   git clone https://github.com/Samuel-Harris/screen-sentinel
+   cd screen-sentinel
    cargo build --release
    ```
 
 5. **run the application**:
    ```bash
-   ./target/release/screenpipe
+   ./target/release/screen-sentinel
    ```
 
 6. **build the desktop app**:
    ```bash
    sudo apt-get install -y libayatana-appindicator3-1 libayatana-appindicator3-dev librsvg2-dev libwebkit2gtk-4.1-dev
-   cd apps/screenpipe-app-tauri
+   cd apps/screen-sentinel-app-tauri
    bun install
    bun tauri build
    ```
@@ -138,7 +138,7 @@ before you begin:
 
 ### reporting bugs
 
-this section guides you through submitting a bug report for screen pipe. following these guidelines helps maintainers and the community understand your report, reproduce the behavior, and find related reports.
+this section guides you through submitting a bug report for Screen Sentinel. following these guidelines helps maintainers and the community understand your report, reproduce the behavior, and find related reports.
 
 - use a clear and descriptive title for the issue to identify the problem.
 - describe the exact steps which reproduce the problem in as many details as possible.
@@ -146,11 +146,11 @@ this section guides you through submitting a bug report for screen pipe. followi
 
 ### suggesting enhancements
 
-this section guides you through submitting an enhancement suggestion for screen pipe, including completely new features and minor improvements to existing functionality.
+this section guides you through submitting an enhancement suggestion for Screen Sentinel, including completely new features and minor improvements to existing functionality.
 
 - use a clear and descriptive title for the issue to identify the suggestion.
 - provide a step-by-step description of the suggested enhancement in as many details as possible.
-- explain why this enhancement would be useful to most screen pipe users.
+- explain why this enhancement would be useful to most Screen Sentinel users.
 
 ### pull requests
 
@@ -212,7 +212,7 @@ cargo test
 one command i keep using to avoid having to kill my main "production" process is:
 
 ```bash
-./target/release/screenpipe --port 3035 --data-dir /tmp/sp
+./target/release/screen-sentinel --port 3035 --data-dir /tmp/sp
 ```
 
 it will avoid conflicts with the port and avoid conflicts with the data dir
@@ -239,16 +239,16 @@ using tokio-console:
 
 ```bash
 # terminal 1
-RUST_LOG="tokio=debug,runtime=debug" RUSTFLAGS="--cfg tokio_unstable" cargo run --bin screenpipe --features debug-console
+RUST_LOG="tokio=debug,runtime=debug" RUSTFLAGS="--cfg tokio_unstable" cargo run --bin screen-sentinel --features debug-console
 # terminal 2
 cargo install tokio-console
 tokio-console
 ```
 
 ```bash
-RUSTFLAGS="-Z sanitizer=address" cargo run --bin screenpipe
+RUSTFLAGS="-Z sanitizer=address" cargo run --bin screen-sentinel
 # or
-RUSTFLAGS="-Z sanitizer=leak" cargo run --bin screenpipe
+RUSTFLAGS="-Z sanitizer=leak" cargo run --bin screen-sentinel
 ```
 
 for leak tracking, you can use the following command:
@@ -256,19 +256,19 @@ for leak tracking, you can use the following command:
 ```bash
 cargo install cargo-instruments
 # tracking leaks over 60 minutes time limit
-cargo instruments -t Leaks --bin screenpipe --features metal --time-limit 600000 --open
+cargo instruments -t Leaks --bin screen-sentinel --features metal --time-limit 600000 --open
 ```
 
 then open the file in `target/release/instruments` using xcode -> open developer tool -> instruments.
 
 ### profiling cpu
 
-to investigate "where is screenpipe burning cpu", capture a sampling profile + a cpu/mem time series against the running process. recipes below produce comparable output on macos and windows.
+to investigate "where is Screen Sentinel burning cpu", capture a sampling profile + a cpu/mem time series against the running process. recipes below produce comparable output on macos and windows.
 
 **macos** (built-in, no install):
 
 ```bash
-PID=$(pgrep -x screenpipe-app || pgrep -x screenpipe | head -1)
+PID=$(pgrep -x screen-sentinel-app || pgrep -x screen-sentinel | head -1)
 
 # 1) cpu/mem time series — 10s interval for 10min
 ( echo "ts,pcpu,pmem,rss_mb"
@@ -287,7 +287,7 @@ aggregate hot leaf functions:
 ```bash
 awk '/Call graph/,/Binary Images/' /tmp/sp-sample.txt \
   | grep '(in ' | sed -E 's/^[[:space:]+!|:]*//; s/  \(in .*$//' \
-  | grep -E "^[0-9]+ (screenpipe|AXUIElement|cidre|onnxruntime|sqlite)" \
+  | grep -E "^[0-9]+ (screen-sentinel|AXUIElement|cidre|onnxruntime|sqlite)" \
   | awk '{n=$1+0; $1=""; sub(/^ +/,"",$0); if(n>mx[$0])mx[$0]=n}
          END{for(k in mx) printf "%8d  %s\n", mx[k], k}' \
   | sort -rn | head -30
@@ -296,7 +296,7 @@ awk '/Call graph/,/Binary Images/' /tmp/sp-sample.txt \
 **windows** (samply, install once: `cargo install samply`):
 
 ```powershell
-$sp = (Get-Process screenpipe-app,screenpipe -ErrorAction SilentlyContinue |
+$sp = (Get-Process screen-sentinel-app,screen-sentinel -ErrorAction SilentlyContinue |
        Sort-Object WorkingSet64 -Descending | Select-Object -First 1).Id
 
 # 1) cpu/mem time series — 10s interval for 10min
@@ -325,7 +325,7 @@ share both files (`sp-cpu.csv` + `sp-sample.txt` / `sp.json.gz`) in the issue wh
 cargo bench
 ```
 
-[check benchmark visuals](https://screenpipe.github.io/screenpipe/dev/bench/)
+[check benchmark visuals](https://screen-sentinel.github.io/screen-sentinel/dev/bench/)
 
 ### creating new migrations
 
@@ -340,17 +340,17 @@ if you encounter errors with missing migrations (e.g., `migration XXXXXXXXXX was
 
 ```bash
 # remove specific migration
-sqlite3 ~/.screenpipe/db.sqlite "DELETE FROM _sqlx_migrations WHERE version = XXXXXXXXXX;"
+sqlite3 ~/.screen-sentinel/db.sqlite "DELETE FROM _sqlx_migrations WHERE version = XXXXXXXXXX;"
 
 # verify migrations
-sqlite3 ~/.screenpipe/db.sqlite "SELECT * FROM _sqlx_migrations;"
+sqlite3 ~/.screen-sentinel/db.sqlite "SELECT * FROM _sqlx_migrations;"
 
 # if issues persist, you can take the nuclear approach:
 # 1. backup your database
-cp ~/.screenpipe/db.sqlite ~/.screenpipe/db.sqlite.backup
+cp ~/.screen-sentinel/db.sqlite ~/.screen-sentinel/db.sqlite.backup
 
 # 2. reset migrations table
-sqlite3 ~/.screenpipe/db.sqlite "DROP TABLE _sqlx_migrations;"
+sqlite3 ~/.screen-sentinel/db.sqlite "DROP TABLE _sqlx_migrations;"
 ```
 
 ### set up azure ubuntu vm with display & audio
@@ -421,14 +421,14 @@ az vm user update \
   --password <new-password>
 ```
 
-now you can either dev screenpipe on linux or run screenpipe in the cloud that record your local macos. make sure to configure microsoft remote desktop to forward audio
+now you can either dev Screen Sentinel on linux or run Screen Sentinel in the cloud that record your local macos. make sure to configure microsoft remote desktop to forward audio
 
 ## generating openapi.yaml
 
-run screenpipe first and then go to http://localhost:3030/openapi.yaml
+run Screen Sentinel first and then go to http://localhost:3130/openapi.yaml
 
 ```bash
-open http://localhost:3030/openapi.yaml
+open http://localhost:3130/openapi.yaml
 ```
 
 we use this for our docs through mintlify, usually the output is broken and i use cursor agent to fix it using ths prompt:
@@ -458,7 +458,7 @@ to validate the openapi.yaml file is valid btw before pushing
 
 say 👋 in our [public discord channel](https://discord.gg/screenpipe). we discuss how to bring this lib to production, help each other with contributions, personal projects or just hang out ☕.
 
-thank you for contributing to screen pipe! 🎉
+thank you for contributing to Screen Sentinel! 🎉
 
 ## testing
 
