@@ -20,7 +20,7 @@ use tracing::debug;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
 use tracing::info;
 #[cfg(target_os = "macos")]
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use tokio::sync::Notify;
 

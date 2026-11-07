@@ -8734,7 +8734,6 @@ dependencies = [
  "tracing-appender",
  "tracing-oslog",
  "tracing-subscriber",
- "url",
  "urlencoding",
  "uuid",
  "webview2-com",
@@ -8826,7 +8825,6 @@ version = "0.4.15"
 dependencies = [
  "anyhow",
  "arc-swap",
- "async-trait",
  "axum 0.7.9",
  "base64 0.22.1",
  "bincode",
@@ -8872,7 +8870,6 @@ dependencies = [
  "tempfile",
  "tinfoil",
  "tokio",
- "tokio-stream",
  "tokio-util",
  "tower-http 0.5.2",
  "tracing",
@@ -8888,7 +8885,6 @@ name = "screenpipe-events"
 version = "0.4.15"
 dependencies = [
  "anyhow",
- "chrono",
  "futures",
  "once_cell",
  "parking_lot",

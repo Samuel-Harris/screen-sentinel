@@ -111,7 +111,6 @@ chrono = "0.4.39"
 tauri-plugin-opener = "2.5.3"
 uuid = { version = "1.0", features = ["v4"] }
 urlencoding = "2"
-url = "2"
 
 screenpipe-core = { path = "../../../crates/screenpipe-core" }
 

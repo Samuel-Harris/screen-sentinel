@@ -1,0 +1,36 @@
+ts	phase	decision	why	evidence	result
+2026-11-02T14:13:08Z	frame	ran the strip gate before any edit	need old vs new numbers for the gate	scripts/check-strip-unused.sh	58 violations
+2026-11-02T14:17:30Z	frame	cannot compile engine or app on this Mac	cidre build script needs full Xcode; only Command Line Tools are installed	scratchpad/check-engine-baseline.txt	blocker
+2026-11-02T14:17:30Z	frame	compile in a Linux container instead	covers all non-macOS code; macOS-only paths stay NOT VERIFIED	scratchpad/linux-check/Dockerfile	open
+2026-11-02T14:17:30Z	frame	did not enable GitHub Actions	would also start scheduled workflows such as close-inactive; user's call	gh api actions/permissions enabled=false	open
+2026-11-02T14:17:31Z	design	serialise Rust work: audio and meetings, then telemetry AI sync, then pipes agents connections, then app	all touch server.rs, the engine bin and Cargo.lock; riskiest first	feature-map/01-strip-unused.md	planned
+2026-11-02T14:17:31Z	design	MCP package in its own worktree in parallel	shares no files with the Rust work	worktree strip-01-mcp	running
+2026-11-02T14:17:31Z	design	drop removed tables with one new forward migration	sqlx checks old migration checksums; smallest change	strip-contract.md rule 4	planned
+2026-11-02T14:19:08Z	mcp	removed 14 MCP tools incl control-recording and send-notification	control-recording only drove /audio/start|stop; send-notification hardcoded pipe type and pipe_name	commit on implement-01-strip-unused (refactor(mcp))	tsc clean, vitest 30/30 (npm, bun not installed)
+2026-11-02T14:19:08Z	mcp	stripped audio filter from ui/search.html myself	delegate left it; small edit	packages/screenpipe-mcp/ui/search.html	no audio hits
+2026-11-02T14:20:34Z	frame	engine baseline red on Linux arm64 in whisper-rs-sys	ggml C++ fails to build in container; crate is removed by this step	scratchpad/check-engine-linux-baseline.txt	accepted; first green comes after audio removal
+2026-11-02T14:20:34Z	frame	kept crates baseline green on Linux	proves the container is a usable check	scratchpad/check-kept-linux-baseline.txt	exit 0
+2026-11-02T15:23:20Z	audio	accepted audio, meetings and speakers removal in four commits	rechecked on Linux myself; db.rs +3899 was diff noise, patience diff shows +135	81f6a1b..641f70d	engine+kept crates check green; gate 58->35
+2026-11-02T15:23:20Z	audio	kept POST /export as video-only	MCP export-video tool still calls it	crates/screenpipe-engine/src/routes/export.rs	accepted
+2026-11-02T15:23:20Z	audio	memory-sync columns left for the sync owner's own migration	memory-sync code still read them during the audio slice	agent report open question 1	handed to next owner
+2026-11-02T15:23:20Z	audio	engine integration tests not linked	onnxruntime static lib missing in container; pre-existing redact dep	cargo test -p screenpipe-engine --no-run	NOT VERIFIED
+2026-11-02T15:44:31Z	sync	accepted telemetry, AI, sync and memory sync removal in five commits	rechecked tip on Linux myself	5e0fdd0..40c1d18	check green, db tests green, gate 35->20
+2026-11-02T15:44:31Z	sync	delete-range leaking mp4s goes to next owner as a fix	regression caused by removing cloud archive	agent report open question 1	planned
+2026-11-02T15:44:31Z	sync	remove workflow_classifier and the npm update check	hosted AI, and default outbound traffic breaks Done-when	workflow_classifier.rs:66, cli_reminder.rs:19	planned
+2026-11-02T15:44:31Z	sync	keep ffmpeg auto-download and frame sync columns	ffmpeg only fetches when missing; dropping frame sync columns reshapes search beyond 01	core/src/ffmpeg.rs:229	follow-up
+2026-11-02T15:51:20Z	verify	checked each Rust commit in isolation in a separate worktree	a rebase by the sync owner was not rechecked per commit	scratchpad/per-commit-check.sh	641f70d..40c1d18 PASS; earlier three fail in whisper as baseline
+2026-11-02T15:51:20Z	verify	1b472e1 and 1cc32ab carry a stale Cargo.lock	objc deps dropped from core without lock update until 641f70d	per-commit-check LOCK-DRIFT	fix in final rebase after last owner
+2026-11-02T16:03:42Z	connect	accepted pipes, connections, agents, classifier, update check, delete-range fix, docs in six commits	rechecked tip and the new regression test on Linux myself	2763e4d..987aed7	gate 20->6, all app-only
+2026-11-02T16:03:42Z	connect	left hosted Tinfoil filter_pii, pipe/connection tables, openapi.yaml trim as follow-ups	off by default or docs-only; not on 01 Remove list	privacy_filter.rs:129	follow-up
+2026-11-02T16:05:45Z	verify	checked the six pipes/connections commits in isolation	each commit must build on its own	scratchpad/per-commit-check.sh	6/6 PASS, lock-ok
+2026-11-02T16:49:26Z	app	accepted app Rust, plist, chat window, CI gate and workflow commits	gate prints PASS on host; Linux app check green per owner	c180db8..bb91c6c	PASS strip-unused
+2026-11-02T16:49:26Z	app	accepted owner's update-ref rebuild of two CI commits	only editor, local branch, old commits in reflog	reflog bb91c6c	accepted
+2026-11-02T16:49:26Z	app	paywall stays for step 11	feature-map 11 names require_app_entitlement; dev builds pass	feature-map/11-screen-only-app.md:54	follow-up
+2026-11-02T16:49:26Z	app	frontend trim goes to a fresh owner from the staged tree	first owner stopped at 244 tsc errors; base was already broken by @ee imports	apps/screenpipe-app-tauri/lib/hooks/use-settings.tsx	running
+2026-11-02T17:27:09Z	frontend	accepted frontend commit	tsc exit 0 rechecked myself; owner ran next build, vitest, bun tests, bindings	70ee0e7	8 font-size failures predate branch
+2026-11-02T17:27:09Z	frontend	leave app PostHog and Sentry JS for step 11	feature-map 11 line 56 owns them explicitly; 01 nettop criterion cannot pass for the app until then	feature-map/11-screen-only-app.md:56	open, flagged in PR
+2026-11-02T17:27:09Z	verify	regenerated root Cargo.lock in two audio commits via commit-tree	stale lock rejects --locked builds; tip tree unchanged	scratchpad/fix-locks.sh, refs/backup/strip-01-pre-lockfix	lock-drift ok on workspace lock
+2026-11-02T17:43:52Z	review	fresh reviewer read every macOS-only block that changed	macOS code was never compiled; no Xcode	reviewer report, sleep_monitor.rs:450	2 compile errors, 2 cosmetic
+2026-11-02T17:43:52Z	review	restored screenpipe-config screen-lock flag and macOS debug import	Windows UIA walker still reads the flag; debug! used in macOS observer	38e787d	Linux check green; config builds on macOS; Windows not compiled
+2026-11-02T17:43:52Z	review	left Swift audio equalizer and Apple Intelligence build.rs link flags	app UI belongs to step 11; link flags need a macOS build to change safely	shortcut_reminder.swift:218, src-tauri/build.rs:339	follow-up
+2026-11-02T17:43:52Z	verify	final tip checks	predicate before PR	scratchpad/final-linux.txt, gate-final.txt	gate PASS; workspace and app check green; 785 Rust tests pass; tsc 0
