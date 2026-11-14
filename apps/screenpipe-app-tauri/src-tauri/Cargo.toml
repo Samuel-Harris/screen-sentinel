@@ -126,8 +126,7 @@ screenpipe-events = { path = "../../../crates/screenpipe-events" }
 # Async PII reconciliation (issue #3185 / PR #3188). `onnx-coreml` is
 # the right execution-provider for Apple Silicon (image PII via
 # rfdetr_v8); `opf-text` enables the local pure-Rust candle text
-# redactor (OPF v3) so the desktop app no longer has to round-trip
-# every transcript through the Tinfoil enclave. Windows builds should
+# redactor (OPF v3) so text redaction runs on device. Windows builds should
 # switch onnx-coreml → onnx-directml via a build-target override. No
 # CUDA / Vulkan / GPU-vendor SDKs bundled.
 screenpipe-redact = { path = "../../../crates/screenpipe-redact", features = ["onnx-coreml", "opf-text"] }

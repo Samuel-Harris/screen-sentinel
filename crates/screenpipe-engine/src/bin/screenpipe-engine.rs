@@ -1030,7 +1030,6 @@ async fn main() -> anyhow::Result<()> {
             adapters::{
                 onnx::{OnnxConfig, OnnxRedactor},
                 opf::{OpfAdapter, OpfConfig},
-                tinfoil::{TinfoilConfig, TinfoilRedactor},
             },
             pipeline::{Pipeline, PipelineConfig},
             worker::{Worker, WorkerConfig, ALL_TARGET_TABLES},
@@ -1047,23 +1046,19 @@ async fn main() -> anyhow::Result<()> {
         //      9 ms p50 on CPU, CoreML on macOS / DirectML on Windows
         //      via the redact-onnx-* CI feature). First run downloads
         //      from huggingface.co/screenpipe/pii-redactor under
-        //      v45_phase3_onnx/. Same checkpoint the Tinfoil container
-        //      and the desktop app's own worker use, so outputs match
-        //      across surfaces.
+        //      v45_phase3_onnx/. Same checkpoint the desktop app's own
+        //      worker uses, so outputs match across surfaces.
         //   2. Legacy opf-rs (candle, OPF v6, ~74 ms p50 on Mac CPU,
         //      ~2.8 GB) if v45 ONNX isn't compiled in or the download
         //      fails.
-        //   3. Tinfoil confidential-compute enclave when TINFOIL_*
-        //      env vars are set and both local adapters are unavailable.
-        //   4. Regex-only otherwise (still destructive — overwrites
+        //   3. Regex-only otherwise (still destructive — overwrites
         //      regex-redacted text into the source columns).
         let pool = db.pool.clone();
         let labels = config.pii_redaction_labels.clone();
         tokio::spawn(async move {
             // Per-label allow-list from the `piiRedactionLabels` setting
             // (default ["secret"]). Local adapters filter client-side via
-            // this policy; the env-gated tinfoil fallback forwards the
-            // raw labels so the enclave filters server-side.
+            // this policy.
             let policy = TextRedactionPolicy::from_labels(&labels);
             info!(
                 "fetching v45 phase 3 ONNX text redactor (~278 MB INT8 on first run, \
@@ -1073,7 +1068,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok(adapter) => {
                     info!(
                         "text-PII AI step: local v45_phase3 ONNX — same checkpoint as the \
-                         desktop app + Tinfoil container, sub-10 ms p50 on CPU"
+                         desktop app, sub-10 ms p50 on CPU"
                     );
                     let ai: Arc<dyn Redactor> = Arc::new(adapter);
                     Pipeline::regex_then_ai(
@@ -1114,33 +1109,11 @@ async fn main() -> anyhow::Result<()> {
                             )
                         }
                         Err(e) => {
-                            if std::env::var("TINFOIL_API_KEY").is_ok()
-                                || std::env::var("TINFOIL_BASE_URL").is_ok()
-                            {
-                                info!(
-                                    "text-PII AI step: tinfoil enclave (local adapters \
-                                     unavailable: opf-rs={e})"
-                                );
-                                let ai: Arc<dyn Redactor> =
-                                    Arc::new(TinfoilRedactor::new(TinfoilConfig {
-                                        labels: labels.clone(),
-                                        ..Default::default()
-                                    }));
-                                Pipeline::regex_then_ai(
-                                    ai,
-                                    PipelineConfig {
-                                        policy: policy.clone(),
-                                        ..Default::default()
-                                    },
-                                )
-                            } else {
-                                tracing::warn!(
-                                    "text-PII AI step disabled — both v45 ONNX and opf-rs \
-                                     unavailable ({e}), and no TINFOIL_* env vars set. Worker \
-                                     will run regex-only."
-                                );
-                                Pipeline::regex_only_with_policy(policy.clone())
-                            }
+                            tracing::warn!(
+                                "text-PII AI step disabled — both v45 ONNX and opf-rs \
+                                 unavailable ({e}). Worker will run regex-only."
+                            );
+                            Pipeline::regex_only_with_policy(policy.clone())
                         }
                     }
                 }

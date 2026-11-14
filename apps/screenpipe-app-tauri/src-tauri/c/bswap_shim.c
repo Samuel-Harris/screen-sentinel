@@ -6,7 +6,7 @@
 //
 // Why this exists:
 //   `aws-lc-sys` (transitively pulled in by rustls 0.23 → reqwest →
-//   hyper-rustls → tinfoil / hf-hub / async-openai) ships C source
+//   hyper-rustls → hf-hub) ships C source
 //   that calls the GCC/Clang intrinsics `__builtin_bswap{16,32,64}`.
 //   When that source is compiled with cl.exe (MSVC), the intrinsics
 //   are not recognized and the compiler leaves them as undefined
@@ -23,8 +23,8 @@
 //   `aws-lc-sys` object files have something to resolve against.
 //
 // Why not fork the upstream crates instead:
-//   The same fix would need to land in three forks (tinfoil-rs,
-//   hf-hub, audiopipe) plus a workspace-level reqwest feature swap.
+//   The same fix would need to land in two forks (hf-hub,
+//   audiopipe) plus a workspace-level reqwest feature swap.
 //   This shim is a single static lib that survives any future
 //   aws-lc-sys version bump and is a no-op on every other platform.
 //

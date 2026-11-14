@@ -34,10 +34,6 @@
 //! - [`adapters::regex`] — deterministic, on-device, free.
 //!   Emails / cards / phones / connection strings / common API-key
 //!   shapes / private-key block markers. Always runs first.
-//! - [`adapters::tinfoil`] — HTTP client for the Tinfoil-hosted
-//!   confidential-compute enclave. Used today by the search-time
-//!   filter; moved here so the reconciliation worker and the
-//!   search-time path share one implementation.
 //! - [`adapters::onnx`] (feature-gated) — local ONNX-runtime
 //!   inference of the text PII redactor. CoreML on Mac, DirectML on
 //!   Windows. **No CUDA / Vulkan / GPU-vendor SDKs bundled.**

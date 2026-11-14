@@ -9,7 +9,7 @@
 //!    blocks, connection strings.
 //! 2. **Cache hit on the (text, regex_version) tuple** ends the call —
 //!    we only do regex pre-pass at most once per unique input.
-//! 3. **AI fallback** (Tinfoil / ONNX) runs on inputs the regex pass
+//! 3. **AI fallback** (ONNX / OPF) runs on inputs the regex pass
 //!    didn't fully redact AND that are long enough to be worth the
 //!    round-trip. The AI redactor's input is the *post-regex* text,
 //!    so the regex placeholders survive into the final output.
@@ -149,7 +149,6 @@ impl Redactor for Pipeline {
         // model bump silently downgrades this to `pipeline+ai`.
         match self.ai.as_ref().map(|a| a.name()) {
             None => "pipeline+regex",
-            Some("tinfoil") => "pipeline+tinfoil",
             Some(n) if n.contains("onnx") => "pipeline+onnx",
             Some(_) => "pipeline+ai",
         }
@@ -191,26 +190,12 @@ impl Redactor for Pipeline {
                 let ai = self.ai.as_ref().expect("checked above");
                 match ai.redact(&current.redacted).await {
                     Ok(ai_out) => {
-                        let redacted = if ai_out.spans.is_empty() {
-                            // Span-less adapter (the Tinfoil enclave
-                            // returns redacted text only, no spans). It
-                            // already applied the label policy we sent
-                            // it server-side, so trust its output
-                            // verbatim. Running apply_policy here would
-                            // be wrong — it rebuilds `redacted` from
-                            // spans, of which there are none, and would
-                            // therefore throw the enclave's redaction
-                            // away and hand back the text we sent.
-                            ai_out.redacted
-                        } else {
-                            // Span-aware adapter (regex / local ONNX):
-                            // filter to the allow-list client-side + re-
-                            // render from `input` (= the regex-redacted
-                            // text). Now the AI's redacted string carries
-                            // only allowed-class placeholders, alongside
-                            // the regex pass's already-allowed ones.
-                            apply_policy(ai_out, &self.cfg.policy).redacted
-                        };
+                        // Filter to the allow-list client-side + re-
+                        // render from `input` (= the regex-redacted
+                        // text). Now the AI's redacted string carries
+                        // only allowed-class placeholders, alongside
+                        // the regex pass's already-allowed ones.
+                        let redacted = apply_policy(ai_out, &self.cfg.policy).redacted;
                         current = RedactionOutput {
                             input: current.input,
                             redacted,
@@ -275,7 +260,7 @@ mod tests {
     #[async_trait]
     impl Redactor for UppercaseAi {
         fn name(&self) -> &str {
-            "tinfoil"
+            "uppercase"
         }
         fn version(&self) -> u32 {
             42
@@ -323,24 +308,6 @@ mod tests {
         // AI must have been invoked for an input that has no obvious
         // regex match but is long enough to clear `ai_min_chars`.
         assert_eq!(ai.calls.load(Ordering::SeqCst), 1);
-    }
-
-    #[tokio::test]
-    async fn span_less_ai_output_is_trusted() {
-        // A span-less adapter (like the Tinfoil enclave, which returns
-        // redacted text and no spans) must have its output used
-        // verbatim — it applied the policy server-side. UppercaseAi
-        // stands in for it: its `redacted` is the uppercased input with
-        // an empty span list. Regression guard for the bug where
-        // apply_policy rebuilt from the (empty) spans and silently
-        // discarded the enclave's redaction.
-        let ai = Arc::new(UppercaseAi::new());
-        let p = Pipeline::regex_then_ai(ai, PipelineConfig::default());
-        let out = p
-            .redact("hello world this is a long enough sentence")
-            .await
-            .unwrap();
-        assert_eq!(out.redacted, "HELLO WORLD THIS IS A LONG ENOUGH SENTENCE");
     }
 
     #[tokio::test]

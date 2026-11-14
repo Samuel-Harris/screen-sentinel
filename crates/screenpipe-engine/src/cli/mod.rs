@@ -205,15 +205,6 @@ pub struct RecordArgs {
     #[arg(long, default_value_t = false)]
     pub async_image_pii_redaction: bool,
 
-    /// Backend for the AI PII workers — `local` (on-device ONNX,
-    /// privacy by construction, slower on weak hardware) or
-    /// `tinfoil` (screenpipe-hosted confidential-compute enclave on
-    /// H200, fast everywhere, requires network). Single flag for
-    /// both text + image — flipping it swaps the inner adapter for
-    /// both worker types.
-    #[arg(long, default_value = "local")]
-    pub pii_backend: String,
-
     /// Which PII classes the AI redaction workers rewrite when enabled.
     /// Comma-separated canonical labels: secret, person, email, phone,
     /// address, sensitive, url, company, repo, handle, channel, id,
@@ -404,7 +395,6 @@ pub struct RecordArgSources {
     pub use_pii_removal: bool,
     pub async_pii_redaction: bool,
     pub async_image_pii_redaction: bool,
-    pub pii_backend: bool,
     pub pii_redaction_labels: bool,
     pub disable_vision: bool,
     pub ignored_windows: bool,
@@ -436,7 +426,6 @@ impl RecordArgSources {
             use_pii_removal: from_command_line(record, "use_pii_removal"),
             async_pii_redaction: from_command_line(record, "async_pii_redaction"),
             async_image_pii_redaction: from_command_line(record, "async_image_pii_redaction"),
-            pii_backend: from_command_line(record, "pii_backend"),
             pii_redaction_labels: from_command_line(record, "pii_redaction_labels"),
             disable_vision: from_command_line(record, "disable_vision"),
             ignored_windows: from_command_line(record, "ignored_windows"),
@@ -463,7 +452,6 @@ impl RecordArgSources {
             || self.use_pii_removal
             || self.async_pii_redaction
             || self.async_image_pii_redaction
-            || self.pii_backend
             || self.pii_redaction_labels
             || self.disable_vision
             || self.ignored_windows
@@ -584,7 +572,6 @@ impl RecordArgs {
             use_pii_removal: self.use_pii_removal,
             async_pii_redaction: self.async_pii_redaction,
             async_image_pii_redaction: self.async_image_pii_redaction,
-            pii_backend: self.pii_backend.clone(),
             pii_redaction_labels: self.pii_redaction_labels.clone(),
             monitor_ids: self.monitor_id.iter().map(|id| id.to_string()).collect(),
             // Explicit `--monitor-id` implies opting out of `--use-all-monitors`.
@@ -770,9 +757,6 @@ impl RecordArgs {
         }
         if sources.async_image_pii_redaction {
             settings.async_image_pii_redaction = self.async_image_pii_redaction;
-        }
-        if sources.pii_backend {
-            settings.pii_backend = self.pii_backend.clone();
         }
         if sources.pii_redaction_labels {
             settings.pii_redaction_labels = self.pii_redaction_labels.clone();
