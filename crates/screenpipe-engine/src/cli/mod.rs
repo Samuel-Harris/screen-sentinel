@@ -7,7 +7,6 @@ pub mod backup;
 mod browser;
 pub mod db;
 pub mod export;
-pub mod mcp;
 pub mod search;
 pub mod status;
 mod store_file;
@@ -76,12 +75,6 @@ pub enum Command {
     Vision {
         #[command(subcommand)]
         subcommand: VisionCommand,
-    },
-
-    /// MCP Server management commands
-    Mcp {
-        #[command(subcommand)]
-        subcommand: McpCommand,
     },
 
     /// Vault: encrypt/lock all screenpipe data at rest
@@ -1068,28 +1061,6 @@ pub enum VisionCommand {
         /// Output format
         #[arg(short, long, value_enum, default_value_t = OutputFormat::Text)]
         output: OutputFormat,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum McpCommand {
-    /// Setup MCP server configuration
-    Setup {
-        /// Directory to save MCP files (default: $HOME/.screenpipe/mcp)
-        #[arg(long, value_hint = ValueHint::DirPath)]
-        directory: Option<String>,
-        /// Output format
-        #[arg(short, long, value_enum, default_value_t = OutputFormat::Text)]
-        output: OutputFormat,
-        /// Server port
-        #[arg(short = 'p', long, default_value_t = 3030)]
-        port: u16,
-        /// Force update existing files
-        #[arg(long)]
-        update: bool,
-        /// Purge existing MCP directory before setup
-        #[arg(long)]
-        purge: bool,
     },
 }
 
