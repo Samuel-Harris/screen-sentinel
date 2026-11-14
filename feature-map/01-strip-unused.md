@@ -52,8 +52,10 @@ an employer machine, with nothing to show for it.
   `/pipes`, `/connections`, `/ai`, `/v1/chat/completions` or
   `/memories/sync-external` route.
 - No `Info.plist` contains `NSMicrophoneUsageDescription`, no entitlements
-  file grants audio input, and the built engine and app binaries do not
-  link `cpal` or an audio-capture framework. This check runs in CI.
+  file grants audio input, no dependency tree lists `cpal` for any
+  platform, and no source file names an audio-capture API. This check runs
+  in CI. The binaries still link CoreAudio and AudioToolbox, because
+  `sck-rs`, `xcap` and Apple's CoreMedia pull them in for screen capture.
 - `nettop -p <pid>` or Little Snitch shows no outbound connections during
   one hour of recording with default settings. The only allowed exception
   is a model download the user starts by turning on ML redaction.
