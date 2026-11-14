@@ -28,7 +28,7 @@ trap restore_locks EXIT
 check_tree() {
   local label=$1; shift
   local names
-  if ! names=$(cargo tree "$@" -e normal,build --prefix none --format '{p}' 2>/dev/null | awk '{print $1}' | sort -u); then
+  if ! names=$(cargo tree "$@" --target all -e normal,build --prefix none --format '{p}' 2>/dev/null | awk '{print $1}' | sort -u); then
     fail "$label: cargo tree failed"
     return
   fi
@@ -43,9 +43,12 @@ check_tree app --manifest-path apps/screenpipe-app-tauri/src-tauri/Cargo.toml
 src_dirs=(crates apps/screenpipe-app-tauri/src-tauri/src)
 while read -r path; do
   fail "module still present: $path"
-done < <(find "${src_dirs[@]}" \( -name target -o -name node_modules \) -prune -o \
-  \( -type d \( -name pipes -o -name agents -o -name connections \) -path '*/src/*' -print \) -o \
-  \( -type f \( -name 'pipes.rs' -o -name 'agents.rs' -o -name 'connections.rs' \) -print \))
+done < <(
+  find "${src_dirs[@]}" \( -name target -o -name node_modules \) -prune -o \
+    -type d \( -name pipes -o -name agents -o -name connections \) -path '*/src/*' -print
+  find "${src_dirs[@]}" \( -name target -o -name node_modules \) -prune -o -type f -name '*.rs' -print |
+    grep -E '/(pipe|pipes|connection|connections|agent|agents)(_[a-z_]+)?\.rs$'
+)
 
 route_pattern='"/(pipes|connections|mcp-servers|ai|v1/chat/completions|memories/sync-external)(/|")'
 while read -r hit; do
@@ -58,13 +61,13 @@ done < <(find . \( -name node_modules -o -name target -o -name .git \) -prune -o
 
 while read -r ent; do
   grep -q 'com.apple.security.device.audio-input' "$ent" && fail "$ent grants audio input"
-done < <(find . \( -name node_modules -o -name target -o -name .git \) -prune -o -name '*.entitlements' -print)
+done < <(find . \( -name node_modules -o -name target -o -name .git \) -prune -o \( -name '*.entitlements' -o -name '*entitlements*.plist' \) -print)
 
 for bin in "$@"; do
   if [ ! -f "$bin" ]; then fail "binary not found: $bin"; continue; fi
-  otool -L "$bin" 2>/dev/null | grep -E 'CoreAudio|AudioToolbox|AVFAudio|AudioUnit' | while read -r lib _; do
-    echo "FAIL $bin links $lib"
-  done | grep . && fails=$((fails + 1))
+  while read -r lib _; do
+    fail "$bin links $lib"
+  done < <(otool -L "$bin" 2>/dev/null | grep -E 'CoreAudio|AudioToolbox|AVFAudio|AudioUnit')
   nm -gU "$bin" 2>/dev/null | grep -qiE 'cpal|whisper_' && fail "$bin contains cpal or whisper symbols"
 done
 
