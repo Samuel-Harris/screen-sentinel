@@ -279,7 +279,7 @@ fn render_redacted(text: &str, spans: &[RedactedSpan]) -> String {
 
 // =========================================================================
 // Stub fallback when ONNX features are off — pipeline gets Unavailable
-// and falls through to the next adapter (regex / tinfoil).
+// and falls through to the next adapter (regex).
 // =========================================================================
 
 #[cfg(not(feature = "onnx-cpu"))]

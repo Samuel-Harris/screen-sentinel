@@ -16,7 +16,6 @@ edition.workspace = true
 aho-corasick = "1"
 anyhow = "1"
 async-trait = "0.1"
-base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
 image = "0.25"
@@ -29,12 +28,6 @@ sha2 = "0.10"
 sha3 = "0.10"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono"] }
 thiserror = "1"
-# Tinfoil enclave attestation: AMD SEV-SNP attestation + Sigstore code-
-# provenance verification + TLS cert pinning for the privacy-filter PII
-# redaction service. See adapters/tinfoil.rs for the threat model
-# (without this a compromised CA can still observe unredacted text in
-# transit even though the enclave itself is honest).
-tinfoil = { git = "https://github.com/tinfoilsh/tinfoil-rs", rev = "82143d767b540195dea265df0b01c4b4fc93c424" }
 tokio = { workspace = true }
 tracing = { workspace = true }
 

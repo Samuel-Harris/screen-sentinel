@@ -94,7 +94,6 @@ const SERVER_RESTART_SETTINGS = new Set<keyof SettingsStore>([
   "encryptStore",
   "asyncPiiRedaction",
   "asyncImagePiiRedaction",
-  "piiBackend",
   "useChineseMirror",
 ]);
 

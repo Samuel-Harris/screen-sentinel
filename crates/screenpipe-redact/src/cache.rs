@@ -8,8 +8,8 @@
 //! accessibility tree / OCR strip can show up hundreds of times per
 //! session as the user moves between apps. Caching at the (text,
 //! redactor_version) granularity typically gets a 70-90% hit rate on
-//! a workday's worth of data, which is the difference between sending
-//! 10k strings to a remote enclave per hour and sending ~1k.
+//! a workday's worth of data, which is the difference between running
+//! the model on 10k strings per hour and running it on ~1k.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -84,7 +84,7 @@ mod tests {
     #[test]
     fn cache_key_changes_with_redactor_name() {
         let a = cache_key("hello", "regex", 1);
-        let b = cache_key("hello", "tinfoil", 1);
+        let b = cache_key("hello", "onnx", 1);
         assert_ne!(a, b);
     }
 

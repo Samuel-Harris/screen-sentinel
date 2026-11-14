@@ -441,12 +441,6 @@ export function PrivacySection() {
 
   const aiPiiRemovalEnabled = piiMode === "smart";
 
-  // Where the AI workers run — one switch covers both modalities.
-  const piiBackend = (settings.piiBackend as "local" | "tinfoil" | undefined) ?? "local";
-  const handlePiiBackendChange = (next: "local" | "tinfoil") => {
-    handleSettingsChange({ piiBackend: next } as any, true);
-  };
-
   // Which PII classes the AI workers actually remove. Secret is the
   // always-on baseline (the backend forces it in too — see
   // screenpipe_redact::parse_allow_list); the rest are opt-in. Stored
@@ -1044,39 +1038,7 @@ export function PrivacySection() {
             )}
             {aiPiiRemovalEnabled && (
               <div className="mt-3 ml-6 space-y-2 border-l-2 border-border pl-3">
-                <p className="text-xs font-medium text-foreground">Where it runs</p>
-                <label className="flex cursor-pointer items-start gap-2 text-xs">
-                  <input
-                    type="radio"
-                    name="piiBackend"
-                    className="mt-0.5"
-                    checked={piiBackend === "local"}
-                    onChange={() => handlePiiBackendChange("local")}
-                  />
-                  <span>
-                    <span className="font-medium text-foreground">Local</span>
-                    <span className="text-muted-foreground">
-                      {" "}— on your device. Strongest privacy. Slower on weak hardware.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex cursor-pointer items-start gap-2 text-xs">
-                  <input
-                    type="radio"
-                    name="piiBackend"
-                    className="mt-0.5"
-                    checked={piiBackend === "tinfoil"}
-                    onChange={() => handlePiiBackendChange("tinfoil")}
-                  />
-                  <span>
-                    <span className="font-medium text-foreground">Cloud (enclave)</span>
-                    <span className="text-muted-foreground">
-                      {" "}— screenpipe&apos;s confidential-compute enclave. Fast everywhere; your device cryptographically verifies the enclave is running the open-source build before sending anything.
-                    </span>
-                  </span>
-                </label>
-
-                <p className="text-xs font-medium text-foreground pt-2">
+                <p className="text-xs font-medium text-foreground">
                   Fields to redact
                 </p>
                 {PII_FIELD_OPTIONS.map((opt) => {

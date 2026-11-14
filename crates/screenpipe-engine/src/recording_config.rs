@@ -35,11 +35,6 @@ pub struct RecordingConfig {
     /// overwriting the source JPG. Off by default. First-run
     /// downloads ~108 MB from huggingface.co/screenpipe/pii-image-redactor.
     pub async_image_pii_redaction: bool,
-    /// "local" or "tinfoil" — flips both async-PII workers between
-    /// on-device ONNX and the screenpipe-hosted Tinfoil enclave.
-    /// One toggle covers both modalities; the user-facing UI is a
-    /// single radio under the AI PII removal switch.
-    pub pii_backend: String,
     /// Which PII classes the AI redaction workers rewrite. Canonical
     /// snake_case `SpanLabel` names; defaults to `["secret"]`, with
     /// `secret` always included. Mirrors the `piiRedactionLabels`
@@ -165,7 +160,6 @@ impl RecordingConfig {
             use_pii_removal: settings.use_pii_removal,
             async_pii_redaction: settings.async_pii_redaction,
             async_image_pii_redaction: settings.async_image_pii_redaction,
-            pii_backend: settings.pii_backend.clone(),
             pii_redaction_labels: settings.pii_redaction_labels.clone(),
             monitor_ids: settings.monitor_ids.clone(),
             use_all_monitors: settings.use_all_monitors,
