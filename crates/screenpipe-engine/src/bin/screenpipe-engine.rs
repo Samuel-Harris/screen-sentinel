@@ -17,7 +17,7 @@ use screenpipe_core::paths;
 use screenpipe_db::DatabaseManager;
 use screenpipe_engine::{
     cli::{
-        mcp::handle_mcp_command, search::handle_search_command, status::handle_status_command,
+        search::handle_search_command, status::handle_status_command,
         vision::handle_vision_command, Cli, Command, RecordArgSources,
     },
     crash_log,
@@ -254,11 +254,6 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::Vision { ref subcommand } => {
             handle_vision_command(subcommand).await?;
-            return Ok(());
-        }
-        Command::Mcp { ref subcommand } => {
-            let local_data_dir = get_base_dir(&None)?;
-            handle_mcp_command(subcommand, &local_data_dir).await?;
             return Ok(());
         }
         Command::Vault { ref subcommand } => {
