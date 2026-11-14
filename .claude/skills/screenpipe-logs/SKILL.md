@@ -17,8 +17,8 @@ All logs are stored in `~/.screenpipe/`:
 
 | Log Type | Pattern | Description |
 |----------|---------|-------------|
-| CLI/Backend | `~/.screenpipe/screenpipe.YYYY-MM-DD.log` | Core recording engine logs (OCR, audio, frames) |
-| Desktop App | `~/.screenpipe/screenpipe-app.YYYY-MM-DD.log` | Tauri app logs (UI, settings, pipes) |
+| CLI/Backend | `~/.screenpipe/screenpipe.YYYY-MM-DD.log` | Core recording engine logs (OCR, frames) |
+| Desktop App | `~/.screenpipe/screenpipe-app.YYYY-MM-DD.log` | Tauri app logs (UI, settings) |
 
 ## Common Commands
 
@@ -77,9 +77,6 @@ grep -i "recording\|started\|stopped" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d)
 
 # Check OCR processing
 grep -i "ocr\|frame" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d).log | tail -20
-
-# Check audio processing
-grep -i "audio\|transcription\|whisper" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d).log | tail -20
 ```
 
 ## Log Format
@@ -87,7 +84,6 @@ grep -i "audio\|transcription\|whisper" ~/.screenpipe/screenpipe.$(date +%Y-%m-%
 Logs use tracing format:
 ```
 2026-01-22T10:30:45.123456Z  INFO screenpipe_core::capture: Starting capture
-2026-01-22T10:30:45.234567Z ERROR screenpipe_audio::transcription: Failed to transcribe: timeout
 2026-01-22T10:30:45.345678Z DEBUG screenpipe_vision::ocr: Processing frame 12345
 ```
 
@@ -104,11 +100,6 @@ Fields:
 grep -i "capture\|monitor\|screen\|permission" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d).log | grep -i "error\|fail\|denied"
 ```
 
-### Audio Issues
-```bash
-grep -i "audio\|microphone\|device\|whisper" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d).log | grep -i "error\|fail"
-```
-
 ### Database Issues
 ```bash
 grep -i "sqlite\|database\|db\|insert\|query" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d).log | grep -i "error\|fail\|lock"
@@ -117,11 +108,6 @@ grep -i "sqlite\|database\|db\|insert\|query" ~/.screenpipe/screenpipe.$(date +%
 ### Memory/Performance
 ```bash
 grep -i "memory\|oom\|killed\|slow" ~/.screenpipe/screenpipe.$(date +%Y-%m-%d).log
-```
-
-### Pipe Issues
-```bash
-grep -i "pipe\|plugin" ~/.screenpipe/screenpipe-app.$(date +%Y-%m-%d).log | grep -i "error\|fail"
 ```
 
 ## Response Guidelines

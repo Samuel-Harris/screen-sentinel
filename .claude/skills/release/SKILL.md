@@ -21,7 +21,6 @@ Automate releasing all components of the screenpipe monorepo.
 **Always release CLI** when there are changes to core screenpipe code:
 - `screenpipe-core/`
 - `screenpipe-vision/`
-- `screenpipe-audio/`
 - `screenpipe-server/`
 - `screenpipe-db/`
 - `screenpipe-events/`
@@ -37,7 +36,7 @@ To check what changed since last CLI release:
 git log --oneline --all | grep -E "CLI to v" | head -1
 
 # Check if core code changed since then
-git diff <COMMIT>..HEAD --stat -- screenpipe-core screenpipe-vision screenpipe-audio screenpipe-server screenpipe-db screenpipe-events screenpipe-integrations
+git diff <COMMIT>..HEAD --stat -- screenpipe-core screenpipe-vision screenpipe-server screenpipe-db screenpipe-events screenpipe-integrations
 ```
 
 ## Release Workflow

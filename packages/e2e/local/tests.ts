@@ -10,7 +10,6 @@
 import { ssh, scp, installFfmpeg, VM_USER, VM_PASS } from "./tart";
 import { runApiTests } from "../src/suites/api";
 import { runCliTests, type ExecFn } from "../src/suites/cli";
-import { runModelTests } from "../src/suites/models";
 
 export type TestResult = {
   name: string;
@@ -105,7 +104,7 @@ function sshExec(ip: string): ExecFn {
 
 export async function runTests(
   ip: string,
-  target: "cli" | "e2e" | "models" | "all" = "all"
+  target: "cli" | "e2e" | "all" = "all"
 ): Promise<{ passed: number; failed: number }> {
   await buildAndDeploy(ip);
   await installFfmpeg(ip);
@@ -139,18 +138,6 @@ export async function runTests(
       tunnel.kill();
       await stopServer(ip);
     }
-  }
-
-  // Model loading tests — start server with each engine, verify health
-  if (target === "models" || target === "all") {
-    console.log("\n── Model loading tests (VM) ──\n");
-    const { passed, failed } = await runModelTests(
-      sshExec(ip),
-      "/tmp/screenpipe",
-      { port: 3030 }
-    );
-    totalPassed += passed;
-    totalFailed += failed;
   }
 
   return { passed: totalPassed, failed: totalFailed };

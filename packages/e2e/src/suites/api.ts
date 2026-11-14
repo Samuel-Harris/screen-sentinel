@@ -42,13 +42,6 @@ const tests: TestDef[] = [
     },
   },
   {
-    name: "GET /search (audio)",
-    fn: async (base) => {
-      const r = await fetch(`${base}/search?limit=1&content_type=audio`);
-      if (!r.ok) throw new Error(`status ${r.status}`);
-    },
-  },
-  {
     name: "GET /search (query)",
     fn: async (base) => {
       const r = await fetch(`${base}/search?limit=1&q=test`);
@@ -81,18 +74,10 @@ const tests: TestDef[] = [
         "status",
         "status_code",
         "frame_status",
-        "audio_status",
         "message",
       ]) {
         if (!(field in data)) throw new Error(`missing '${field}' field`);
       }
-    },
-  },
-  {
-    name: "GET /pipes/list (!500)",
-    fn: async (base) => {
-      const r = await fetch(`${base}/pipes/list`);
-      if (r.status === 500) throw new Error("server error 500");
     },
   },
   {
