@@ -77,13 +77,6 @@ rpassword = "5"
 # Client http
 reqwest = { workspace = true }
 
-# Tinfoil enclave attestation: AMD SEV-SNP attestation + Sigstore code-provenance
-# verification + TLS cert pinning for the privacy-filter PII redaction service
-# (see src/privacy_filter.rs). Without this, a MITM or compromised CA could
-# observe unredacted text on its way to the enclave.
-# Upstream tinfoilsh/tinfoil-rs main, post-#21 (the ring-backend fix).
-tinfoil = { git = "https://github.com/tinfoilsh/tinfoil-rs", rev = "82143d767b540195dea265df0b01c4b4fc93c424" }
-
 # Concurrency
 crossbeam = { workspace = true }
 

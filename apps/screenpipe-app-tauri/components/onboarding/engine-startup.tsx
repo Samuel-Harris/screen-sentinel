@@ -289,12 +289,10 @@ export default function EngineStartup({
         const contentType = useFallback ? "all" : "accessibility";
 
         // We pull OCR with include_frames=true purely for the visual proof
-        // tiles below the prose. filter_pii=true is on every search — these
-        // results are about to be summarized by an LLM, and we don't want the
-        // user's password manager text or 2FA codes round-tripping through it.
+        // tiles below the prose.
         const [mainRes, ocrFramesRes] = await Promise.all([
           localFetch(
-            `/search?content_type=${contentType}&start_time=${encodeURIComponent("3m ago")}&limit=8&max_content_length=120&filter_pii=true`,
+            `/search?content_type=${contentType}&start_time=${encodeURIComponent("3m ago")}&limit=8&max_content_length=120`,
             { signal: AbortSignal.timeout(3000) }
           ).catch(() => null),
           thumbnails.length < MAX_THUMBNAILS

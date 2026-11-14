@@ -19,7 +19,6 @@ pub mod hot_frame_cache;
 pub mod logging;
 pub mod permission_monitor;
 pub mod power;
-pub mod privacy_filter;
 pub mod recording_config;
 mod resource_monitor;
 pub mod retention;
