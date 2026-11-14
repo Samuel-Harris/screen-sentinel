@@ -44,7 +44,6 @@ describe("Local API search and stability", function () {
     ["/search?limit=5&content_type=all", "all-content search"],
     ["/search?limit=5&content_type=input", "input search"],
     ["/search?limit=5&content_type=accessibility", "accessibility search"],
-    ["/search?limit=5&filter_pii=true", "PII-filtered search"],
     ["/search?limit=5&include_frames=false", "search without frames"],
   ] as const;
 
@@ -158,10 +157,6 @@ describe("Local API search and stability", function () {
     ["/search?limit=2&include_frames=0", "include_frames zero"],
     ["/search?limit=2&include_frames=TRUE", "include_frames uppercase true"],
     ["/search?limit=2&include_frames=FALSE", "include_frames uppercase false"],
-    ["/search?limit=2&filter_pii=true", "filter_pii true"],
-    ["/search?limit=2&filter_pii=false", "filter_pii false"],
-    ["/search?limit=2&filter_pii=1", "filter_pii one"],
-    ["/search?limit=2&filter_pii=0", "filter_pii zero"],
     ["/search?limit=2&content_type=accessibility&on_screen=true", "on_screen true"],
     ["/search?limit=2&content_type=accessibility&on_screen=false", "on_screen false"],
   ] as const;
