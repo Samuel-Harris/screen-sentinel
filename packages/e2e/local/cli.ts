@@ -55,7 +55,7 @@ async function main() {
     case "test": {
       const ip = await ensureVmReady();
       const target =
-        (getFlag("--target") as "cli" | "e2e" | "models" | "all") ?? "all";
+        (getFlag("--target") as "cli" | "e2e" | "all") ?? "all";
 
       console.log(`\nrunning ${target} tests...\n`);
       const { passed, failed } = await runTests(ip, target);
@@ -108,7 +108,6 @@ commands:
   test        run all tests (auto-setup if needed)
   test --target cli      CLI tests only (shared from packages/e2e/src/suites/cli.ts)
   test --target e2e      API tests only (shared from packages/e2e/src/suites/api.ts)
-  test --target models   model loading tests (whisper-tiny, parakeet, disabled)
   ssh         open SSH session to the VM
   status      show current VM state
   teardown    delete VM + remove tart completely
