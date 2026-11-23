@@ -9,8 +9,8 @@ in many separate workflows. Nx gives one command to build, test and lint the
 tree, and runs only what a change affects.
 
 Do it after 01 and 02, so it lands on the smaller, renamed tree. Do it before
-04, so the verify skill launches the app through the same targets that CI
-runs.
+04, which moves CI onto these targets, and before 05, so the verify skill
+launches the app through the same targets that CI runs.
 
 ## State in 0.4.15
 
@@ -42,16 +42,14 @@ Measured at the base commit:
    two lockfiles.
 4. One root `package.json` with bun workspaces over every JS package, and one
    root `bun.lock`.
-5. CI and the pre-commit hook call Nx. Pull requests run
-   `nx affected -t build test lint` against `main`. Release workflows keep
-   working.
+5. The pre-commit hook calls Nx. 04 moves CI onto Nx.
 6. Keep the `apps/`, `crates/` and `packages/` layout. Moving directories
    breaks every path that later stages cite, for no gain.
 7. `CLAUDE.md` and `AGENTS.md` name the Nx commands as the way to build and
    test.
 
 Leave out Nx Cloud and remote caching. They send task data off the machine,
-and 11 wants no outbound connections.
+and 12 wants no outbound connections.
 
 ## Done when
 
@@ -63,8 +61,6 @@ and 11 wants no outbound connections.
 - After a change to one file in the database crate, `nx show projects
   --affected` lists that crate, the engine and the app. After a change to
   only the MCP package, it lists only that package.
-- A pull request that changes only `feature-map/` runs no build or test
-  target in CI.
 - The revisions of every `github.com/screenpipe/*` dependency in
   `Cargo.lock` match the base commit.
 - With the network off, a second `nx run-many -t build` takes its results

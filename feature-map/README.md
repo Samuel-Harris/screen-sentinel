@@ -46,30 +46,32 @@ keeping those revisions.
 | --- | --- | --- |
 | [01-strip-unused.md](01-strip-unused.md) | Remove audio, meetings, speakers, team, sync, pipes, connections, Apple Intelligence and cloud paths | Present; to remove |
 | [02-rename.md](02-rename.md) | Rename everything to Screen Sentinel and replace the icons and cover art | Present; to rename |
-| [03-nx-monorepo.md](03-nx-monorepo.md) | One Nx task graph, one lockfile per language, and CI that runs only affected projects | Missing |
-| [04-verify-skill.md](04-verify-skill.md) | A project verify skill that launches and drives an isolated recorder | Missing |
-| [05-capture-freeze-recovery.md](05-capture-freeze-recovery.md) | Recover automatically when ScreenCaptureKit stops delivering fresh frames | Missing |
-| [06-database-resilience.md](06-database-resilience.md) | Survive sleep/wake, write wedges and heavy-load checkpoints without corruption | Partial |
-| [07-token-efficient-api.md](07-token-efficient-api.md) | Columnar and outline response formats for agents | Missing |
-| [08-browser-url-from-ax.md](08-browser-url-from-ax.md) | Read browser URLs from the accessibility tree for all Chromium browsers and Electron apps | Partial |
-| [09-capture-debounce.md](09-capture-debounce.md) | One shared debounce floor for typing and clipboard triggers | Unverified; measure first |
-| [10-electron-ax-walk.md](10-electron-ax-walk.md) | Full accessibility walk inside Electron apps | Present; verify only |
-| [11-screen-only-app.md](11-screen-only-app.md) | Trim the desktop app to tray, timeline, settings and onboarding, with no network calls | Present; to trim |
-| [12-review-skill.md](12-review-skill.md) | A skill for reviewing recorded data, packaged and distributed with APM | Missing |
+| [03-nx-monorepo.md](03-nx-monorepo.md) | One Nx task graph and one lockfile per language | Missing |
+| [04-fast-pr-ci.md](04-fast-pr-ci.md) | One pull-request-only workflow, tested on macOS, with one required check that finishes within ten minutes | Missing |
+| [05-verify-skill.md](05-verify-skill.md) | A project verify skill that launches and drives an isolated recorder | Missing |
+| [06-capture-freeze-recovery.md](06-capture-freeze-recovery.md) | Recover automatically when ScreenCaptureKit stops delivering fresh frames | Missing |
+| [07-database-resilience.md](07-database-resilience.md) | Survive sleep/wake, write wedges and heavy-load checkpoints without corruption | Partial |
+| [08-token-efficient-api.md](08-token-efficient-api.md) | Columnar and outline response formats for agents | Missing |
+| [09-browser-url-from-ax.md](09-browser-url-from-ax.md) | Read browser URLs from the accessibility tree for all Chromium browsers and Electron apps | Partial |
+| [10-capture-debounce.md](10-capture-debounce.md) | One shared debounce floor for typing and clipboard triggers | Unverified; measure first |
+| [11-electron-ax-walk.md](11-electron-ax-walk.md) | Full accessibility walk inside Electron apps | Present; verify only |
+| [12-screen-only-app.md](12-screen-only-app.md) | Trim the desktop app to tray, timeline, settings and onboarding, with no network calls | Present; to trim |
+| [13-review-skill.md](13-review-skill.md) | A skill for reviewing recorded data, packaged and distributed with APM | Missing |
 
 Order of work: 01 first, so later changes land on the smaller tree. Then 02,
 so every later change lands on the new names. Then 03, so every later
-change builds and tests through one command. Then 04, so every later check
-runs through one scripted recipe. Then 05 and 06, because unattended
-recording is useless without them. Then 11, whose unattended-day
-check needs 05 and 06. Then 08, 07 and 09. Do 10 only if its check fails.
-Then 12, once the recorder has data worth reviewing.
+change builds and tests through one command. Then 04, so every later pull
+request gets its checks within ten minutes. Then 05, so every later check
+runs through one scripted recipe. Then 06 and 07, because unattended
+recording is useless without them. Then 12, whose unattended-day
+check needs 06 and 07. Then 09, 08 and 10. Do 11 only if its check fails.
+Then 13, once the recorder has data worth reviewing.
 
 ## Out of scope
 
 - Audio capture, transcription and meetings (see 01).
 - Pipes and the hosted `pi` agent. The desktop app is trimmed, not removed
-  (see 11).
+  (see 12).
 - Sync, team memory and cloud AI.
 - The screenpipe name and logo (see 02).
 - Nx Cloud and remote caching (see 03).
