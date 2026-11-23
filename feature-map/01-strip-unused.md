@@ -18,7 +18,7 @@ an employer machine, with nothing to show for it.
 | Memory sync | `crates/screenpipe-core/src/memories/sync.rs`, `crates/screenpipe-core/src/memories/external_sync.rs`, `POST /memories/sync-external`, the memory sync columns | Memories stay (see Keep). Cross-device sync goes, and so does the digest that writes into Claude Code's `CLAUDE.md` and Codex's `AGENTS.md` |
 | Enterprise code | `ee/` | Different licence. Delete in the first commit |
 | Hosted AI | `packages/ai-gateway`, `crates/screenpipe-engine/src/routes/cloud_proxy.rs` | |
-| Apple Intelligence | `crates/screenpipe-apple-intelligence`, the `apple-intelligence` feature on the engine and the app, `crates/screenpipe-engine/src/apple_intelligence_api.rs` | It serves a local OpenAI-compatible LLM at `/ai/chat/completions`. Its only callers are the app's chat, daily summary, suggestions and connection card, and pipes, all removed here or in 11 |
+| Apple Intelligence | `crates/screenpipe-apple-intelligence`, the `apple-intelligence` feature on the engine and the app, `crates/screenpipe-engine/src/apple_intelligence_api.rs` | It serves a local OpenAI-compatible LLM at `/ai/chat/completions`. Its only callers are the app's chat, daily summary, suggestions and connection card, and pipes, all removed here or in 12 |
 | Telemetry | `crates/screenpipe-engine/src/analytics.rs` (PostHog), `crates/screenpipe-engine/src/telemetry_context.rs`, the `sentry` dependency | `server.rs` line 415 calls `analytics::track_api_usage` on every API request |
 | MCP tools for removed areas | `packages/screenpipe-mcp` (MIT, version 0.18.10 at the base commit) | Drop `list-audio-devices`, the meeting tools, the speaker tools and the `team-*` tools |
 
@@ -41,7 +41,7 @@ an employer machine, with nothing to show for it.
   local API auth key (`crates/screenpipe-engine/src/auth_key.rs`).
 - `packages/cli` and `packages/screenpipe-mcp`, renamed in 02.
 - `apps/screenpipe-app-tauri`. 01 edits it only as far as it needs to
-  compile and launch without the removed crates. The real trim is 11.
+  compile and launch without the removed crates. The real trim is 12.
 
 ## Done when
 

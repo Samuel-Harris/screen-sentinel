@@ -67,7 +67,7 @@ requires that none of the old artwork remains.
 | App icons | The `icons/*.png`, `icon.icns` and `icon.ico` that `apps/screenpipe-app-tauri/src-tauri/tauri.conf.json` lists | Replace | `AppIcon.icns`, `icon.ico`, the size-matched PNGs in `AppIcon.iconset/`, and `icon-1024.png` for `1024x1024.png` |
 | Icon files nothing references | `icons/app/`, the Windows `Square*Logo.png` and `StoreLogo.png` | Delete | |
 | Icon sets the fork does not build | `icons/ios/`, `icons/android/`, `icons/beta/` | Delete | |
-| Tray icons | `apps/screenpipe-app-tauri/src-tauri/assets/` and `assets/svg/`, plus the two tray PNGs in `icons/` | Replace the normal and failed icons. Delete the updates and beta variants, which go with 09's updater. Must read clearly in light and dark menu bars | `menubar/tray-recordingTemplate.png` for normal and `tray-frozenTemplate.png` for failed, each with its `@2x`. `tray-stoppedTemplate.png` is for a stopped recorder, which has no upstream icon |
+| Tray icons | `apps/screenpipe-app-tauri/src-tauri/assets/` and `assets/svg/`, plus the two tray PNGs in `icons/` | Replace the normal and failed icons. Delete the updates and beta variants, which go with 12's updater. Must read clearly in light and dark menu bars | `menubar/tray-recordingTemplate.png` for normal and `tray-frozenTemplate.png` for failed, each with its `@2x`. `tray-stoppedTemplate.png` is for a stopped recorder, which has no upstream icon |
 | Web app icons | `apps/screenpipe-app-tauri/public/32x32.png`, `public/128x128.png` | Replace | `AppIcon.iconset/icon_32x32.png`, `icon_128x128.png` |
 | README cover art | Banner and logo, hosted as GitHub attachments (`README.md` lines 2 and 7) | Replace with cover art stored in the repo | `cover-1280x640.png` as the banner and the GitHub social preview, `icon-1024.png` as the logo |
 | README screenshots and badges | `README.md` lines 23-40, 48-49 and 74 | Delete | |
@@ -79,7 +79,7 @@ them for light and dark menu bars. They differ by shape, not colour.
 only by whole numbers. To change the art, edit the script and run
 `uv run --with pillow python generate_art.py <out_dir>`. The interview in
 `interviews/` records the design choices. Its note that 01 removes the
-desktop app predates 09. The app is trimmed, so the app icons apply.
+desktop app predates 12. The app is trimmed, so the app icons apply.
 
 Third-party logos in `public/images/` are not screenpipe artwork. Most of
 them go with 01's removals.

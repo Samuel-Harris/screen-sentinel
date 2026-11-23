@@ -77,8 +77,8 @@ below fails.
 - Launched at login and left for 8 hours, including at least one sleep/wake
   cycle, the app never exits or restarts, the tray shows recording
   throughout, and the timeline window shows frames across the whole period.
-  During active use there is no gap longer than 05's frozen-stream window.
-- The tray status comes from the same state as `/health`. 05's
+  During active use there is no gap longer than 06's frozen-stream window.
+- The tray status comes from the same state as `/health`. 06's
   fault-injection test changes what the tray shows.
 - `nettop -p <pid>` or Little Snitch shows no outbound connections during one
   hour with the timeline open and every settings section visited.

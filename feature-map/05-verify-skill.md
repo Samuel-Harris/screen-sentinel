@@ -2,7 +2,7 @@
 
 ## Why
 
-The "Done when" checks in 05 to 11 drive the real recorder. They inject
+The "Done when" checks in 06 to 12 drive the real recorder. They inject
 faults and read `/health`, run for a day through sleep and wake, query the
 API, and watch the tray and the timeline window. Without a scripted way to
 launch and drive the app, each agent writes throwaway scripts, or hands the
@@ -12,7 +12,7 @@ recipe to launch, check, drive, capture evidence and clean up.
 Generate it with `/create-verification-skill` from pstack, which the repo
 installs through `apm.yml`. Do it after 02, so the skill uses the new names,
 data directory and port. Do it after 03, so it launches the app through the
-Nx targets. Do it before 05, so every later stage proves its checks with it.
+Nx targets. Do it before 06, so every later stage proves its checks with it.
 
 ## State in 0.4.15
 
@@ -40,11 +40,11 @@ Nx targets. Do it before 05, so every later stage proves its checks with it.
    directory.
 4. The skill states how the isolated instance gets its Screen Recording and
    Accessibility grants. macOS ties each grant to a signed binary, so use the
-   signing setup from 11, or name the one-time grant step.
+   signing setup from 12, or name the one-time grant step.
 5. Drive reuses `packages/e2e` and the WebdriverIO specs where they already
    cover a feature, instead of a second harness.
 6. A feature map under `features/` with one file per feature that survives 01
-   and 11: capture status in `/health`, search over screen text, frames and
+   and 12: capture status in `/health`, search over screen text, frames and
    elements, raw SQL, the MCP server, the CLI, and the app's tray, timeline,
    settings and onboarding. Each file names the observable end state that
    proves the feature works.
